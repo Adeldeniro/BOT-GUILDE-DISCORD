@@ -1,4 +1,5 @@
 const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const path = require('path');
 const config = require('./config');
 const panel = require('./panel');
 
@@ -191,7 +192,12 @@ async function main() {
         const key = `${channelId}:${name}`;
         const last = cooldown.get(key) || 0;
         if (nowMs() - last < config.cooldownSeconds * 1000) {
-          return interaction.reply({ content: `Cooldown: wait ${config.cooldownSeconds}s.`, ephemeral: true });
+          const gifPath = path.join(__dirname, '..', 'assets', 'calme-toi-zebi.gif');
+          return interaction.reply({
+            content: `**LES TROUPES SONT DÉJÀ ALERTÉ !**`,
+            ephemeral: true,
+            files: [{ attachment: gifPath, name: 'calme.gif' }],
+          });
         }
         cooldown.set(key, nowMs());
 
