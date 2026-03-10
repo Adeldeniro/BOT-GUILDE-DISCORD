@@ -324,10 +324,11 @@ async function main() {
         const emojiPart = emojiText ? `${emojiText} ` : '';
 
         // Style 4 (RP / dramatique) — 3 lines
+        const hiddenMentions = `||${rolesText}||`;
         const content = [
           `${prefix}${emojiPart}⚔️ **${btn.label} EST ATTAQUÉE !**`,
           `Rassemblement immédiat — défendez le blason !`,
-          `Alerte envoyée par ${interaction.user} → ${rolesText}`,
+          `Alerte envoyée par ${interaction.user} → ${hiddenMentions}`,
         ].join('\n');
 
         await alertChannel.send({
