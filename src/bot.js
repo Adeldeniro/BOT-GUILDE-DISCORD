@@ -319,9 +319,16 @@ async function main() {
           }
         }
 
+        const rolesText = pingRoles.map(id => `<@&${id}>`).join(' ');
         const prefix = btn.unicode_prefix ? `${btn.unicode_prefix} ` : '';
         const emojiPart = emojiText ? `${emojiText} ` : '';
-        const content = `${prefix}${emojiPart}🔔 **${btn.label}** — alerte demandée par ${interaction.user} : ${pingRoles.map(id => `<@&${id}>`).join(' ')}`;
+
+        // Style 4 (RP / dramatique) — 3 lines
+        const content = [
+          `${prefix}${emojiPart}⚔️ **${btn.label} EST ATTAQUÉE !**`,
+          `Rassemblement immédiat — défendez le blason !`,
+          `Alerte envoyée par ${interaction.user} → ${rolesText}`,
+        ].join('\n');
 
         await alertChannel.send({
           content,
