@@ -208,6 +208,14 @@ async function main() {
           const label = (interaction.options.getString('label') || name).slice(0, 80);
           let emoji = interaction.options.getString('emoji');
           const image = interaction.options.getAttachment('image');
+
+          // Allow explicit “no emoji” sentinel values (useful if a Discord client caches the option as required)
+          if (emoji) {
+            const e = String(emoji).trim().toLowerCase();
+            if (e === '-' || e === 'none' || e === 'no' || e === 'aucun' || e === 'aucune') {
+              emoji = null;
+            }
+          }
           const order = interaction.options.getInteger('ordre') || 0;
           const unicodePrefix = interaction.options.getString('prefixe') || null;
 
