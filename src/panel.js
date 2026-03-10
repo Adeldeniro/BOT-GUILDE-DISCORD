@@ -24,10 +24,16 @@ function buildComponents(guildId, channelId) {
     const row = new ActionRowBuilder();
     for (const b of group) {
       const customId = `ping:${channelId}:${b.name}`;
+      // “Modern/Apple-ish” look: keep most buttons neutral (Secondary),
+      // but make alert-style buttons stand out.
+      const label = String(b.label || b.name).slice(0, 80);
+      const isAlert = /ALERTE|ALERT|RUSH|DEF/i.test(b.name) || /ALERTE|ALERT|RUSH|DEF/i.test(label) || (b.unicode_prefix && /🚨|⚠️/.test(String(b.unicode_prefix)));
+      const style = isAlert ? ButtonStyle.Danger : ButtonStyle.Secondary;
+
       const btn = new ButtonBuilder()
         .setCustomId(customId)
-        .setLabel(b.label)
-        .setStyle(ButtonStyle.Secondary);
+        .setLabel(label)
+        .setStyle(style);
       if (b.emoji) {
         // b.emoji can be unicode, a raw custom emoji string (<:name:id> / <a:name:id>), or an emoji id.
         const s = String(b.emoji);
