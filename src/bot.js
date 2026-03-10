@@ -65,7 +65,7 @@ async function ensurePanelMessage(channel) {
       },
       { name: 'Règles', value: '• PAS DE SPAM inutile ! (cooldown actif)\n• Erreur de clic : on assume, on se calme, et on repart.', inline: false },
     )
-    .setFooter({ text: '⚠️ EN CAS D’ATTAQUE : clique → c’est tout.' });
+    .setFooter({ text: '⚠️ EN CAS D’ATTAQUE\n⬇️ Clique sur un bouton ⬇️' });
 
   const content = '';
 
