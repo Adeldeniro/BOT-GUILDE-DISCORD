@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS panels (
   channel_id TEXT NOT NULL,
   message_id TEXT,
   title TEXT,
+  alert_channel_id TEXT,
   PRIMARY KEY (guild_id, channel_id)
 );
 
@@ -22,9 +23,20 @@ CREATE TABLE IF NOT EXISTS guild_buttons (
   role_id TEXT NOT NULL,
   label TEXT NOT NULL,
   emoji TEXT,
+  unicode_prefix TEXT,
   sort_order INTEGER DEFAULT 0,
   PRIMARY KEY (guild_id, channel_id, name)
 );
 `);
+
+// Migration for older DBs
+const panelCols = db.prepare(`PRAGMA table_info(panels)`).all().map(r => r.name);
+if (!panelCols.includes('alert_channel_id')) {
+  db.exec('ALTER TABLE panels ADD COLUMN alert_channel_id TEXT');
+}
+const btnCols = db.prepare(`PRAGMA table_info(guild_buttons)`).all().map(r => r.name);
+if (!btnCols.includes('unicode_prefix')) {
+  db.exec('ALTER TABLE guild_buttons ADD COLUMN unicode_prefix TEXT');
+}
 
 module.exports = db;

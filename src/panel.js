@@ -9,7 +9,7 @@ function chunk(arr, size) {
 
 function getButtons(guildId, channelId) {
   return db.prepare(
-    `SELECT name, role_id, label, emoji
+    `SELECT name, role_id, label, emoji, unicode_prefix
      FROM guild_buttons
      WHERE guild_id = ? AND channel_id = ?
      ORDER BY sort_order ASC, name ASC`
@@ -28,7 +28,19 @@ function buildComponents(guildId, channelId) {
         .setCustomId(customId)
         .setLabel(b.label)
         .setStyle(ButtonStyle.Secondary);
-      if (b.emoji) btn.setEmoji(b.emoji);
+      if (b.emoji) {
+        // b.emoji can be unicode, a raw custom emoji string (<:name:id> / <a:name:id>), or an emoji id.
+        const s = String(b.emoji);
+        const m = s.match(/^<(a?):([\w-]{2,32}):(\d+)>$/);
+        if (m) {
+          btn.setEmoji({ animated: m[1] === 'a', name: m[2], id: m[3] });
+        } else if (s.match(/^\d+$/)) {
+          btn.setEmoji({ id: s });
+        } else {
+          // unicode emoji
+          btn.setEmoji(s);
+        }
+      }
       row.addComponents(btn);
     }
     return row;
@@ -37,13 +49,13 @@ function buildComponents(guildId, channelId) {
   return rows;
 }
 
-function upsertPanel(guildId, channelId, title) {
+function upsertPanel(guildId, channelId, { title, alertChannelId }) {
   db.prepare(
-    `INSERT INTO panels (guild_id, channel_id, title)
-     VALUES (?, ?, ?)
+    `INSERT INTO panels (guild_id, channel_id, title, alert_channel_id)
+     VALUES (?, ?, ?, ?)
      ON CONFLICT(guild_id, channel_id)
-     DO UPDATE SET title=excluded.title`
-  ).run(guildId, channelId, title);
+     DO UPDATE SET title=excluded.title, alert_channel_id=excluded.alert_channel_id`
+  ).run(guildId, channelId, title, alertChannelId || null);
 }
 
 function setPanelMessageId(guildId, channelId, messageId) {
@@ -54,17 +66,17 @@ function setPanelMessageId(guildId, channelId, messageId) {
 
 function getPanel(guildId, channelId) {
   return db.prepare(
-    `SELECT guild_id, channel_id, message_id, title FROM panels WHERE guild_id=? AND channel_id=?`
+    `SELECT guild_id, channel_id, message_id, title, alert_channel_id FROM panels WHERE guild_id=? AND channel_id=?`
   ).get(guildId, channelId);
 }
 
-function upsertGuildButton(guildId, channelId, { name, roleId, label, emoji, sortOrder = 0 }) {
+function upsertGuildButton(guildId, channelId, { name, roleId, label, emoji, unicodePrefix, sortOrder = 0 }) {
   db.prepare(
-    `INSERT INTO guild_buttons (guild_id, channel_id, name, role_id, label, emoji, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO guild_buttons (guild_id, channel_id, name, role_id, label, emoji, unicode_prefix, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(guild_id, channel_id, name)
-     DO UPDATE SET role_id=excluded.role_id, label=excluded.label, emoji=excluded.emoji, sort_order=excluded.sort_order`
-  ).run(guildId, channelId, name, roleId, label, emoji || null, sortOrder);
+     DO UPDATE SET role_id=excluded.role_id, label=excluded.label, emoji=excluded.emoji, unicode_prefix=excluded.unicode_prefix, sort_order=excluded.sort_order`
+  ).run(guildId, channelId, name, roleId, label, emoji || null, unicodePrefix || null, sortOrder);
 }
 
 function removeGuildButton(guildId, channelId, name) {
@@ -75,7 +87,7 @@ function removeGuildButton(guildId, channelId, name) {
 
 function resolveButton(guildId, channelId, name) {
   return db.prepare(
-    `SELECT name, role_id, label, emoji FROM guild_buttons WHERE guild_id=? AND channel_id=? AND name=?`
+    `SELECT name, role_id, label, emoji, unicode_prefix FROM guild_buttons WHERE guild_id=? AND channel_id=? AND name=?`
   ).get(guildId, channelId, name);
 }
 

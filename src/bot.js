@@ -1,9 +1,25 @@
 const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const path = require('path');
+const sharp = require('sharp');
 const config = require('./config');
 const panel = require('./panel');
 
 const cooldown = new Map(); // key: buttonKey -> lastTs
+
+// Prevent double-running (two bot instances => double pings)
+const fs = require('fs');
+const lockPath = path.join(__dirname, '..', 'bot.lock');
+try {
+  if (fs.existsSync(lockPath)) {
+    const oldPid = Number(fs.readFileSync(lockPath, 'utf8').trim());
+    if (oldPid && oldPid !== process.pid) {
+      // If old PID still alive, exit
+      try { process.kill(oldPid, 0); console.error('[bot] Another instance is running, exiting.'); process.exit(1); } catch {}
+    }
+  }
+  fs.writeFileSync(lockPath, String(process.pid));
+  process.on('exit', () => { try { fs.unlinkSync(lockPath); } catch {} });
+} catch {}
 
 function nowMs() { return Date.now(); }
 
@@ -58,40 +74,46 @@ async function ensurePanelMessage(channel) {
 async function registerCommands(client) {
   const commands = [
     new SlashCommandBuilder()
-      .setName('panel_create')
-      .setDescription('Create or update the ping panel in a channel')
-      .addChannelOption(o => o.setName('channel').setDescription('Panel channel (buttons)').setRequired(true))
-      .addChannelOption(o => o.setName('alert_channel').setDescription('Alert channel (pings)').setRequired(true))
-      .addStringOption(o => o.setName('title').setDescription('Panel title').setRequired(false))
-      .addBooleanOption(o => o.setName('pin').setDescription('Pin the panel message').setRequired(false)),
+      .setName('panneau_creer')
+      .setDescription('Créer ou mettre à jour le panneau de boutons')
+      .addChannelOption(o => o.setName('canal').setDescription('Canal du panneau (boutons)').setRequired(true))
+      .addChannelOption(o => o.setName('canal_alerte').setDescription('Canal des alertes (pings)').setRequired(true))
+      .addStringOption(o => o.setName('titre').setDescription('Titre du panneau').setRequired(false))
+      .addBooleanOption(o => o.setName('epingle').setDescription('Épingler le message du panneau').setRequired(false)),
 
     new SlashCommandBuilder()
-      .setName('panel_refresh')
-      .setDescription('Refresh the panel buttons in a channel')
-      .addChannelOption(o => o.setName('channel').setDescription('Target channel').setRequired(true)),
+      .setName('panneau_actualiser')
+      .setDescription('Actualiser les boutons du panneau')
+      .addChannelOption(o => o.setName('canal').setDescription('Canal du panneau').setRequired(true)),
 
     new SlashCommandBuilder()
-      .setName('guild_add')
-      .setDescription('Add/update a guild button')
-      .addChannelOption(o => o.setName('channel').setDescription('Channel containing the panel').setRequired(true))
-      .addStringOption(o => o.setName('name').setDescription('Internal name (e.g. GTO)').setRequired(true))
-      .addRoleOption(o => o.setName('role').setDescription('Role to ping for this guild').setRequired(true))
-      .addStringOption(o => o.setName('label').setDescription('Button label').setRequired(false))
-      .addStringOption(o => o.setName('emoji').setDescription('Emoji (optional)').setRequired(false))
-      .addIntegerOption(o => o.setName('order').setDescription('Sort order (optional)').setRequired(false)),
+      .setName('guilde_ajouter')
+      .setDescription('Ajouter / modifier un bouton de guilde')
+      .addStringOption(o => o.setName('nom').setDescription('Nom interne (ex: GTO)').setRequired(true))
+      .addRoleOption(o => o.setName('role').setDescription('Rôle à ping pour cette guilde').setRequired(true))
+      .addStringOption(o => o.setName('label').setDescription('Texte du bouton').setRequired(false))
+      .addStringOption(o => o.setName('emoji').setDescription('Emoji (optionnel)').setRequired(false))
+      .addAttachmentOption(o => o.setName('image').setDescription('Blason (image upload) → sera converti en emoji').setRequired(false))
+      .addIntegerOption(o => o.setName('ordre').setDescription('Ordre (optionnel)').setRequired(false))
+      .addStringOption(o => o.setName('prefixe').setDescription('Préfixe Unicode (ex: 🚨⚠️) pour les notifications').setRequired(false)),
 
     new SlashCommandBuilder()
-      .setName('guild_remove')
-      .setDescription('Remove a guild button')
-      .addChannelOption(o => o.setName('channel').setDescription('Channel containing the panel').setRequired(true))
-      .addStringOption(o => o.setName('name').setDescription('Internal name to remove').setRequired(true)),
+      .setName('guilde_supprimer')
+      .setDescription('Supprimer un bouton de guilde')
+      .addStringOption(o => o.setName('nom').setDescription('Nom interne à supprimer').setRequired(true)),
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
-  await rest.put(
-    Routes.applicationGuildCommands(client.user.id, config.guildId),
-    { body: commands }
-  );
+
+  // Important: if old global commands exist (previous versions), Discord clients may show
+  // “commande obsolète” for a while. Clearing global commands avoids stale autocomplete.
+  try {
+    await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
+  } catch (e) {
+    console.warn('[bot] could not clear global commands:', e?.message || e);
+  }
+
+  await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body: commands });
 }
 
 async function main() {
@@ -129,58 +151,108 @@ async function main() {
   client.on('interactionCreate', async (interaction) => {
     try {
       if (interaction.isChatInputCommand()) {
-        const isAdmin = interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageGuild) ||
-          interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageRoles);
-        if (!isAdmin) {
-          return interaction.reply({ content: 'Permission required (Manage Server or Manage Roles).', ephemeral: true });
+        // Admin auth: guild owner OR one of the allowed roles (meneur/dev mode)
+        const guild = interaction.guild;
+        const isOwner = guild && interaction.user && guild.ownerId === interaction.user.id;
+        const memberRoles = interaction.member?.roles;
+        const hasAllowedRole = !!(memberRoles && config.adminRoleIds.some(rid => memberRoles.cache?.has(rid)));
+
+        if (!isOwner && !hasAllowedRole) {
+          return interaction.reply({ content: "Permissions insuffisantes (réservé à l'Owner, @meneur, @dev mode).", ephemeral: true });
         }
 
-        if (interaction.commandName === 'panel_create') {
-          const channel = interaction.options.getChannel('channel', true);
-          const alertChannel = interaction.options.getChannel('alert_channel', true);
-          const title = interaction.options.getString('title') || config.panelTitle;
-          const pin = interaction.options.getBoolean('pin') || false;
+        // Command restriction: only allow admin commands in the panel channel
+        if (interaction.channelId !== config.defaultChannelId) {
+          return interaction.reply({ content: `Commande autorisée uniquement dans <#${config.defaultChannelId}>.`, ephemeral: true });
+        }
+
+        if (interaction.commandName === 'panneau_creer') {
+          const channel = interaction.options.getChannel('canal', true);
+          const alertChannel = interaction.options.getChannel('canal_alerte', true);
+          const title = interaction.options.getString('titre') || config.panelTitle;
+          const pin = interaction.options.getBoolean('epingle') || false;
 
           panel.upsertPanel(config.guildId, channel.id, { title, alertChannelId: alertChannel.id });
           const msg = await ensurePanelMessage(channel);
           if (pin) {
             try { await msg.pin(); } catch {}
           }
-          return interaction.reply({ content: `Panel ready in <#${channel.id}> (alerts in <#${alertChannel.id}>) (message ${msg.id}).`, ephemeral: true });
+          return interaction.reply({ content: `Panneau prêt dans <#${channel.id}> (alertes dans <#${alertChannel.id}>) (message ${msg.id}).`, ephemeral: true });
         }
 
-        if (interaction.commandName === 'panel_refresh') {
-          const channel = interaction.options.getChannel('channel', true);
+        if (interaction.commandName === 'panneau_actualiser') {
+          const channel = interaction.options.getChannel('canal', true);
           const msg = await ensurePanelMessage(channel);
-          return interaction.reply({ content: `Panel refreshed in <#${channel.id}> (message ${msg.id}).`, ephemeral: true });
+          return interaction.reply({ content: `Panneau actualisé dans <#${channel.id}> (message ${msg.id}).`, ephemeral: true });
         }
 
-        if (interaction.commandName === 'guild_add') {
-          const channel = interaction.options.getChannel('channel', true);
-          const name = interaction.options.getString('name', true).toUpperCase();
+        if (interaction.commandName === 'guilde_ajouter') {
+          const channelId = config.defaultChannelId;
+          const name = interaction.options.getString('nom', true).toUpperCase();
           const role = interaction.options.getRole('role', true);
           const label = (interaction.options.getString('label') || name).slice(0, 80);
-          const emoji = interaction.options.getString('emoji');
-          const order = interaction.options.getInteger('order') || 0;
+          let emoji = interaction.options.getString('emoji');
+          const image = interaction.options.getAttachment('image');
+          const order = interaction.options.getInteger('ordre') || 0;
+          const unicodePrefix = interaction.options.getString('prefixe') || null;
 
-          panel.upsertGuildButton(config.guildId, channel.id, {
+          // Normalize emoji if user typed :name:
+          if (emoji && /^:[\w-]{2,32}:$/.test(emoji)) {
+            const nameOnly = emoji.slice(1, -1);
+            const found = interaction.guild.emojis.cache.find(e => e.name === nameOnly);
+            if (found) emoji = found.toString();
+          }
+
+          // If an image is provided, convert it to a custom emoji and use it.
+          if (image) {
+            // Permissions: ManageEmojisAndStickers
+            if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers)) {
+              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les emojis et autocollants**.", ephemeral: true });
+            }
+
+            try {
+              // Download
+              const resp = await fetch(image.url);
+              if (!resp.ok) throw new Error(`download failed (${resp.status})`);
+              const buf = Buffer.from(await resp.arrayBuffer());
+
+              // Convert to 128x128 png, center-crop
+              const png = await sharp(buf)
+                .resize(128, 128, { fit: 'cover', position: 'centre' })
+                .png()
+                .toBuffer();
+
+              // Emoji name constraints: 2-32, alnum/_
+              const emojiName = (`g_${name}`.toLowerCase()).replace(/[^a-z0-9_]/g, '_').slice(0, 32);
+
+              const created = await interaction.guild.emojis.create({ attachment: png, name: emojiName });
+              emoji = created.toString(); // store raw mention (<:name:id>)
+            } catch (e) {
+              return interaction.reply({ content: `Erreur lors de la conversion/upload emoji: ${e.message}`, ephemeral: true });
+            }
+          }
+
+          panel.upsertGuildButton(config.guildId, channelId, {
             name,
             roleId: role.id,
             label,
             emoji,
+            unicodePrefix,
             sortOrder: order,
           });
 
-          await ensurePanelMessage(channel);
-          return interaction.reply({ content: `Added/updated guild ${name} -> <@&${role.id}> in <#${channel.id}>.`, ephemeral: true });
+          const panelChannel = await interaction.client.channels.fetch(channelId);
+          await ensurePanelMessage(panelChannel);
+          return interaction.reply({ content: `Guilde ${name} ajoutée/modifiée → <@&${role.id}>.`, ephemeral: true });
         }
 
-        if (interaction.commandName === 'guild_remove') {
-          const channel = interaction.options.getChannel('channel', true);
-          const name = interaction.options.getString('name', true).toUpperCase();
-          panel.removeGuildButton(config.guildId, channel.id, name);
-          await ensurePanelMessage(channel);
-          return interaction.reply({ content: `Removed guild ${name} from <#${channel.id}>.`, ephemeral: true });
+        if (interaction.commandName === 'guilde_supprimer') {
+          const channelId = config.defaultChannelId;
+          const name = interaction.options.getString('nom', true).toUpperCase();
+          panel.removeGuildButton(config.guildId, channelId, name);
+          const panelChannel = await interaction.client.channels.fetch(channelId);
+          await ensurePanelMessage(panelChannel);
+          return interaction.reply({ content: `Guilde ${name} supprimée du panneau.`, ephemeral: true });
         }
       }
 
@@ -216,7 +288,25 @@ async function main() {
         const pingRoles = [config.defRoleId, btn.role_id];
 
         // Mention control: allow only these roles
-        const content = `🔔 Ping **${btn.label}** demandé par ${interaction.user} : ${pingRoles.map(id => `<@&${id}>`).join(' ')}`;
+        const emojiPrefix = btn.emoji ? `<${String(btn.emoji).match(/^\d+$/) ? ':' : ''}>` : '';
+        // If btn.emoji is an ID, format it as <:name:id> is not possible without name; use <a:_:id> or <:_:id>
+        // We'll render custom emoji via <a:_:{id}> (Discord will resolve if animated) or <:_:id>.
+        let emojiText = '';
+        if (btn.emoji) {
+          const s = String(btn.emoji);
+          if (s.match(/^\d+$/)) {
+            // Emoji id only: resolve in guild cache if possible (keeps animated/static).
+            const found = interaction.guild.emojis.cache.get(s);
+            emojiText = found ? found.toString() : `<:_:${s}>`;
+          } else {
+            // Unicode or raw custom emoji (<:name:id> or <a:name:id>)
+            emojiText = s;
+          }
+        }
+
+        const prefix = btn.unicode_prefix ? `${btn.unicode_prefix} ` : '';
+        const emojiPart = emojiText ? `${emojiText} ` : '';
+        const content = `${prefix}${emojiPart}🔔 **${btn.label}** — alerte demandée par ${interaction.user} : ${pingRoles.map(id => `<@&${id}>`).join(' ')}`;
 
         await alertChannel.send({
           content,

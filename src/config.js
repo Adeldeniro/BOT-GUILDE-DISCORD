@@ -13,4 +13,6 @@ module.exports = {
   defRoleId: must('DEF_ROLE_ID'),
   panelTitle: process.env.PANEL_TITLE || 'Ping DEF',
   cooldownSeconds: Number(process.env.COOLDOWN_SECONDS || 30),
+  alertChannelId: process.env.ALERT_CHANNEL_ID || must('DEFAULT_CHANNEL_ID'),
+  adminRoleIds: (process.env.ADMIN_ROLE_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
 };

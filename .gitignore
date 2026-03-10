@@ -1,3 +1,10 @@
-.env
 node_modules/
-data.sqlite
+.env
+bot.lock
+START_BOT.cmd
+/data.sqlite*
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+custom/
+scripts/
