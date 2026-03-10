@@ -51,18 +51,19 @@ async function ensurePanelMessage(channel) {
   const components = panel.buildComponents(config.guildId, channel.id);
 
   const title = p?.title || config.panelTitle;
-  const header = `**${title}**`;
   const content = [
-    header,
+    `📣 **ANNONCE OFFICIELLE — ${title}**`,
     "━━━━━━━━━━━━━━━━━━━━",
-    "**À quoi ça sert ?**",
-    "Clique sur un bouton pour envoyer une alerte dans le salon d’alerte (ping DEF + rôle de la guilde).",
+    "**Objectif : ALERTER LA GUILDE ATTAQUÉE.**",
+    "",
+    "**Comment faire**",
+    "Clique sur le bouton correspondant pour envoyer l’alerte (ping DEF + rôle de la guilde) dans le salon d’alerte.",
     "",
     "**Règles**",
-    "• Pas de spam : un bouton a un petit cooldown.",
-    "• Si tu cliques par erreur : pas grave, on se calme et on repart.",
-    "",
-    "⚠️ **En cas d’attaque : clique → c’est tout.**",
+    "• **Pas de SPAM inutile !** (cooldown actif)",
+    "• Erreur de clic : on assume, on se calme, et on repart.",
+    "━━━━━━━━━━━━━━━━━━━━",
+    "⚠️ **EN CAS D’ATTAQUE : clique → c’est tout.**",
   ].join("\n");
 
   if (p && p.message_id) {
