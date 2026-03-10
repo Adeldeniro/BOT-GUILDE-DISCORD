@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -51,32 +51,35 @@ async function ensurePanelMessage(channel) {
   const components = panel.buildComponents(config.guildId, channel.id);
 
   const title = p?.title || config.panelTitle;
-  const content = [
-    `📣 **ANNONCE OFFICIELLE — ${title}**`,
-    "━━━━━━━━━━━━━━━━━━━━",
-    "**Objectif : ALERTER LA GUILDE ATTAQUÉE.**",
-    "",
-    "**Comment faire**",
-    "Clique sur le bouton correspondant pour envoyer l’alerte (ping DEF + rôle de la guilde) dans le salon d’alerte.",
-    "",
-    "**Règles**",
-    "• **Pas de SPAM inutile !** (cooldown actif)",
-    "• Erreur de clic : on assume, on se calme, et on repart.",
-    "━━━━━━━━━━━━━━━━━━━━",
-    "⚠️ **EN CAS D’ATTAQUE : clique → c’est tout.**",
-  ].join("\n");
+
+  // Embed = best “official announcement” look on Discord
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db) // blue
+    .setTitle(`📣 ANNONCE OFFICIELLE — ${title}`)
+    .addFields(
+      { name: 'Objectif', value: 'ALERTER LA GUILDE ATTAQUÉE.', inline: false },
+      {
+        name: 'Comment faire',
+        value: 'Clique sur le bouton correspondant pour envoyer l’alerte (ping DEF + rôle de la guilde) dans le salon d’alerte.',
+        inline: false,
+      },
+      { name: 'Règles', value: '• PAS DE SPAM inutile ! (cooldown actif)\n• Erreur de clic : on assume, on se calme, et on repart.', inline: false },
+    )
+    .setFooter({ text: '⚠️ EN CAS D’ATTAQUE : clique → c’est tout.' });
+
+  const content = '';
 
   if (p && p.message_id) {
     try {
       const msg = await channel.messages.fetch(p.message_id);
-      await msg.edit({ content, components });
+      await msg.edit({ content, embeds: [embed], components });
       return msg;
     } catch {
       // fallthrough: recreate
     }
   }
 
-  const msg = await channel.send({ content, components });
+  const msg = await channel.send({ content, embeds: [embed], components });
   panel.setPanelMessageId(config.guildId, channel.id, msg.id);
   // Always pin the panel message if possible
   try { await msg.pin(); } catch {}
