@@ -50,9 +50,20 @@ async function ensurePanelMessage(channel) {
   const p = panel.getPanel(config.guildId, channel.id);
   const components = panel.buildComponents(config.guildId, channel.id);
 
-  const header = `**${p?.title || config.panelTitle}**`;
-  const desc = `CLIQUE SUR LE BOUTON CI-DESSOUS POUR AVERTIR LA GUILDE QU'ELLE SE FAIT TABASSER ⚠️🚨🐴`;
-  const content = `${header}\n${desc}`;
+  const title = p?.title || config.panelTitle;
+  const header = `**${title}**`;
+  const content = [
+    header,
+    "━━━━━━━━━━━━━━━━━━━━",
+    "**À quoi ça sert ?**",
+    "Clique sur un bouton pour envoyer une alerte dans le salon d’alerte (ping DEF + rôle de la guilde).",
+    "",
+    "**Règles**",
+    "• Pas de spam : un bouton a un petit cooldown.",
+    "• Si tu cliques par erreur : pas grave, on se calme et on repart.",
+    "",
+    "⚠️ **En cas d’attaque : clique → c’est tout.**",
+  ].join("\n");
 
   if (p && p.message_id) {
     try {
