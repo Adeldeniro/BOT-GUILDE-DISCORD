@@ -35,6 +35,8 @@ function getConfigForGuild(guildId) {
     welcomeChannelId: pick(gc.welcome_channel_id, null),
     welcomeGuildName: pick(gc.welcome_guild_name, 'GTO'),
     welcomePingEveryone: Boolean(Number(pick(gc.welcome_ping_everyone, 0) || 0)),
+    welcomeRoleGuildeuxId: pick(gc.welcome_role_guildeux_id, null),
+    welcomeRoleInviteId: pick(gc.welcome_role_invite_id, null),
   };
 }
 

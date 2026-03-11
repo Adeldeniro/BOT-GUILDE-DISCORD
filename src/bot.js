@@ -221,7 +221,9 @@ async function registerCommands(client) {
       .setDescription('Configurer le message de bienvenue (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription("Salon d'arrivée / bienvenue").setRequired(true))
       .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false))
-      .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false)),
+      .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false))
+      .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle donné aux membres de la guilde').setRequired(false))
+      .addRoleOption(o => o.setName('role_invite').setDescription('Rôle donné aux invités').setRequired(false)), 
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -339,10 +341,51 @@ async function main() {
         )
         .setFooter({ text: 'On est contents de te compter parmi nous.' });
 
-      if (gifUrl) embed.setImage(gifUrl);
+      // Role buttons (optional)
+      const components = [];
+      if (rc.welcomeRoleGuildeuxId || rc.welcomeRoleInviteId) {
+        const row = new ActionRowBuilder();
+        if (rc.welcomeRoleGuildeuxId) {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`welrole:${member.guild.id}:guildeux`)
+              .setLabel('🛡️ Je suis Guildeux')
+              .setStyle(ButtonStyle.Primary)
+          );
+        }
+        if (rc.welcomeRoleInviteId) {
+          row.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`welrole:${member.guild.id}:invite`)
+              .setLabel('🎟️ Je suis Invité')
+              .setStyle(ButtonStyle.Secondary)
+          );
+        }
+        components.push(row);
+      }
 
       const content = rc.welcomePingEveryone ? '@everyone' : '';
-      await ch.send({ content, embeds: [embed], allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] } });
+
+      // Make GIFs reliable: download and attach, then point embed image to attachment://
+      const files = [];
+      if (gifUrl) {
+        try {
+          const resp = await fetch(gifUrl);
+          if (resp.ok) {
+            const buf = Buffer.from(await resp.arrayBuffer());
+            files.push({ attachment: buf, name: 'welcome.gif' });
+            embed.setImage('attachment://welcome.gif');
+          }
+        } catch {}
+      }
+
+      await ch.send({
+        content,
+        embeds: [embed],
+        components,
+        files,
+        allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
+      });
     } catch (e) {
       console.warn('[bot] welcome error:', e?.message || e);
     }
@@ -498,10 +541,15 @@ async function main() {
             const salon = interaction.options.getChannel('salon', true);
             const guildeName = interaction.options.getString('guilde') || 'GTO';
             const pingEveryone = interaction.options.getBoolean('ping_everyone');
+            const roleGuildeux = interaction.options.getRole('role_guildeux');
+            const roleInvite = interaction.options.getRole('role_invite');
+
             updateGuildConfig(guild.id, {
               welcome_channel_id: salon.id,
               welcome_guild_name: guildeName,
               welcome_ping_everyone: pingEveryone ? 1 : 0,
+              welcome_role_guildeux_id: roleGuildeux ? roleGuildeux.id : null,
+              welcome_role_invite_id: roleInvite ? roleInvite.id : null,
             });
 
             const rc2 = getConfigForGuild(guild.id);
@@ -512,7 +560,7 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Bienvenue configurée dans <#${salon.id}> (guilde: ${guildeName}) (ping everyone: ${pingEveryone ? 'ON' : 'OFF'}).`, ephemeral: true });
+            return interaction.reply({ content: `OK. Bienvenue configurée dans <#${salon.id}> (guilde: ${guildeName}) (ping everyone: ${pingEveryone ? 'ON' : 'OFF'}) (roles: ${roleGuildeux ? roleGuildeux.toString() : '—'} / ${roleInvite ? roleInvite.toString() : '—'}).`, ephemeral: true });
           }
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
@@ -627,6 +675,44 @@ async function main() {
       }
 
       if (interaction.isButton()) {
+        // Welcome role buttons
+        if (interaction.customId.startsWith('welrole:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const kind = parts[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guild.id);
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!member) return interaction.reply({ content: 'Impossible de te récupérer.', ephemeral: true });
+
+          // Needs ManageRoles + correct role hierarchy
+          if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+          }
+
+          const roleG = rc.welcomeRoleGuildeuxId ? interaction.guild.roles.cache.get(rc.welcomeRoleGuildeuxId) : null;
+          const roleI = rc.welcomeRoleInviteId ? interaction.guild.roles.cache.get(rc.welcomeRoleInviteId) : null;
+
+          try {
+            if (kind === 'guildeux' && roleG) {
+              await member.roles.add(roleG);
+              if (roleI) await member.roles.remove(roleI).catch(() => {});
+              return interaction.reply({ content: `✅ Rôle ajouté : ${roleG}`, ephemeral: true });
+            }
+            if (kind === 'invite' && roleI) {
+              await member.roles.add(roleI);
+              if (roleG) await member.roles.remove(roleG).catch(() => {});
+              return interaction.reply({ content: `✅ Rôle ajouté : ${roleI}`, ephemeral: true });
+            }
+            return interaction.reply({ content: 'Rôle non configuré.', ephemeral: true });
+          } catch (e) {
+            return interaction.reply({ content: `Erreur rôle: ${e.message}`, ephemeral: true });
+          }
+        }
+
         // Dashboard buttons
         if (interaction.customId.startsWith('dash:')) {
           const parts = interaction.customId.split(':');
