@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -6,6 +6,63 @@ const { getConfigForGuild } = require('./runtimeConfig');
 const { updateGuildConfig } = require('./guildConfig');
 const panel = require('./panel');
 const scoreboard = require('./scoreboard');
+
+function buildDashboardEmbed(rc) {
+  const okPing = !!(rc.panelChannelId && rc.alertChannelId && rc.defRoleId);
+  const okScore = !!(rc.scoreboardChannelId && rc.guildeuxRoleId);
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('⚙️ Dashboard de configuration')
+    .setDescription('Utilise les boutons ci-dessous pour configurer le bot rapidement (mobile friendly).')
+    .addFields(
+      {
+        name: 'État',
+        value: `🛡️ Ping/Alertes: ${okPing ? '✅' : '❌'}\n📊 Scoreboard: ${okScore ? '✅' : '❌'}\n👤 Admin role: ${rc.adminRoleId ? `<@&${rc.adminRoleId}>` : '—'}`,
+        inline: false,
+      },
+      {
+        name: 'Raccourci',
+        value: `Panneau: ${rc.panelChannelId ? `<#${rc.panelChannelId}>` : '—'}\nAlertes: ${rc.alertChannelId ? `<#${rc.alertChannelId}>` : '—'}\nDEF: ${rc.defRoleId ? `<@&${rc.defRoleId}>` : '—'}\nScoreboard: ${rc.scoreboardChannelId ? `<#${rc.scoreboardChannelId}>` : '—'}\nGuildeux: ${rc.guildeuxRoleId ? `<@&${rc.guildeuxRoleId}>` : '—'}`,
+        inline: false,
+      },
+    )
+    .setFooter({ text: 'Owner only pour la configuration (setup_*).'});
+
+  return embed;
+}
+
+function buildDashboardComponents(guildId) {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dash:${guildId}:ping`).setLabel('🛡️ Config Ping').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:score`).setLabel('📊 Config Scoreboard').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:admin`).setLabel('👤 Config Admin').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:status`).setLabel('📌 Status').setStyle(ButtonStyle.Secondary),
+  );
+  return [row];
+}
+
+async function ensureDashboardMessage(guild, channel, rc) {
+  const embed = buildDashboardEmbed(rc);
+  const components = buildDashboardComponents(guild.id);
+
+  // Try edit existing
+  if (rc.dashboardChannelId === channel.id && rc.dashboardMessageId) {
+    try {
+      const existing = await channel.messages.fetch(rc.dashboardMessageId);
+      await existing.edit({ embeds: [embed], components });
+      return existing;
+    } catch {
+      // recreate
+    }
+  }
+
+  const msg = await channel.send({ embeds: [embed], components });
+  try { await msg.pin(); } catch {}
+
+  updateGuildConfig(guild.id, { dashboard_channel_id: channel.id, dashboard_message_id: msg.id });
+  return msg;
+}
 
 const cooldown = new Map(); // key: buttonKey -> lastTs
 
@@ -149,6 +206,11 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_status')
       .setDescription('Afficher la config actuelle (owner only)'),
+
+    new SlashCommandBuilder()
+      .setName('setup_dashboard')
+      .setDescription('Créer/mettre à jour le dashboard de configuration (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster le dashboard').setRequired(true)),
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -286,6 +348,15 @@ async function main() {
           if (interaction.commandName === 'setup_admin') {
             const role = interaction.options.getRole('role', true);
             updateGuildConfig(guild.id, { admin_role_id: role.id });
+
+            const rc2 = getConfigForGuild(guild.id);
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2);
+              }
+            }
+
             return interaction.reply({ content: `OK. Rôle admin configuré : ${role} (\`${role.id}\`).`, ephemeral: true });
           }
 
@@ -307,6 +378,15 @@ async function main() {
             const rc2 = getConfigForGuild(guild.id);
             // Create/update panel message
             const msg = await ensurePanelMessage(panneau, rc2);
+
+            // Refresh dashboard if exists
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2);
+              }
+            }
+
             return interaction.reply({ content: `OK. Panneau configuré dans <#${panneau.id}> (alertes: <#${alertes.id}>) (message ${msg.id}).`, ephemeral: true });
           }
 
@@ -325,6 +405,15 @@ async function main() {
             const sbChannel = await interaction.client.channels.fetch(rc2.scoreboardChannelId).catch(() => null);
             if (sbChannel && sbChannel.isTextBased()) {
               const msg = await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
+
+              // Refresh dashboard if exists
+              if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+                const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+                if (dashChannel && dashChannel.isTextBased()) {
+                  await ensureDashboardMessage(guild, dashChannel, rc2);
+                }
+              }
+
               return interaction.reply({ content: `OK. Scoreboard configuré dans <#${sbChannel.id}> (message ${msg.id}).`, ephemeral: true });
             }
             return interaction.reply({ content: `Scoreboard configuré, mais salon inaccessible: <#${salon.id}>.`, ephemeral: true });
@@ -342,8 +431,16 @@ async function main() {
               `guildeux_role_id: ${rc2.guildeuxRoleId ? `<@&${rc2.guildeuxRoleId}>` : '❌'}`,
               `scoreboard_top_n: ${rc2.scoreboardTopN}`,
               `admin_role_id: ${rc2.adminRoleId ? `<@&${rc2.adminRoleId}>` : '—'}`,
+              `dashboard: ${rc2.dashboardChannelId ? `<#${rc2.dashboardChannelId}>` : '—'} / ${rc2.dashboardMessageId || '—'}`,
             ];
             return interaction.reply({ content: '```\n' + lines.join('\n') + '\n```', ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_dashboard') {
+            const salon = interaction.options.getChannel('salon', true);
+            const rc2 = getConfigForGuild(guild.id);
+            const msg = await ensureDashboardMessage(guild, salon, rc2);
+            return interaction.reply({ content: `OK. Dashboard posté dans <#${salon.id}> (message ${msg.id}) et épinglé.`, ephemeral: true });
           }
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
@@ -458,6 +555,50 @@ async function main() {
       }
 
       if (interaction.isButton()) {
+        // Dashboard buttons
+        if (interaction.customId.startsWith('dash:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const action = parts[2];
+
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Dashboard invalide (mauvais serveur).', ephemeral: true });
+          }
+
+          const isOwner = interaction.guild.ownerId === interaction.user.id;
+          if (!isOwner) {
+            return interaction.reply({ content: 'Seul le propriétaire du serveur peut utiliser ce dashboard.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guild.id);
+
+          if (action === 'ping') {
+            return interaction.reply({
+              content:
+                `Utilise cette commande (avec les sélecteurs) :\n` +
+                `**/setup_ping** panneau:<#...> alertes:<#...> def_role:<@&...> titre:"${rc.panelTitle || 'Ping DEF'}" cooldown:${rc.cooldownSeconds}`,
+              ephemeral: true,
+            });
+          }
+          if (action === 'score') {
+            return interaction.reply({
+              content:
+                `Utilise cette commande :\n` +
+                `**/setup_scoreboard** salon:<#...> role_guildeux:<@&...> top:${rc.scoreboardTopN || 25}`,
+              ephemeral: true,
+            });
+          }
+          if (action === 'admin') {
+            return interaction.reply({ content: `Utilise :\n**/setup_admin** role:<@&...>`, ephemeral: true });
+          }
+          if (action === 'status') {
+            return interaction.reply({ content: `Utilise :\n**/setup_status**`, ephemeral: true });
+          }
+
+          return interaction.reply({ content: 'Action dashboard inconnue.', ephemeral: true });
+        }
+
+        // Ping panel buttons
         const [kind, channelId, name] = interaction.customId.split(':');
         if (kind !== 'ping') return;
 

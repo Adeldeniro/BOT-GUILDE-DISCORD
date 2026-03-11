@@ -55,7 +55,9 @@ CREATE TABLE IF NOT EXISTS guild_config (
   cooldown_seconds INTEGER,
   scoreboard_channel_id TEXT,
   guildeux_role_id TEXT,
-  scoreboard_top_n INTEGER
+  scoreboard_top_n INTEGER,
+  dashboard_channel_id TEXT,
+  dashboard_message_id TEXT
 );
 `);
 
@@ -67,6 +69,15 @@ if (!panelCols.includes('alert_channel_id')) {
 const btnCols = db.prepare(`PRAGMA table_info(guild_buttons)`).all().map(r => r.name);
 if (!btnCols.includes('unicode_prefix')) {
   db.exec('ALTER TABLE guild_buttons ADD COLUMN unicode_prefix TEXT');
+}
+
+// Migration for guild_config (setup/dashboard)
+const cfgCols = db.prepare(`PRAGMA table_info(guild_config)`).all().map(r => r.name);
+if (!cfgCols.includes('dashboard_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN dashboard_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('dashboard_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN dashboard_message_id TEXT'); } catch {}
 }
 
 module.exports = db;

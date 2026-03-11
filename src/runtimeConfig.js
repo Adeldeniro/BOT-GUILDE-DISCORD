@@ -26,6 +26,10 @@ function getConfigForGuild(guildId) {
     scoreboardChannelId: pick(gc.scoreboard_channel_id, env.scoreboardChannelId),
     guildeuxRoleId: pick(gc.guildeux_role_id, env.guildeuxRoleId),
     scoreboardTopN: Number(pick(gc.scoreboard_top_n, env.scoreboardTopN) || 25),
+
+    // Dashboard
+    dashboardChannelId: pick(gc.dashboard_channel_id, null),
+    dashboardMessageId: pick(gc.dashboard_message_id, null),
   };
 }
 
