@@ -129,10 +129,11 @@ function buildRulesEmbed(rc) {
         '**👑 6) Staff**',
         'Si souci : MP staff, pas de drama public.',
         '',
-        '✅ **Pour accéder au serveur, valide le règlement ci-dessous.**',
+        '✅ **Pour accéder au serveur, valide le règlement via le bouton qui apparaît à ton arrivée.**',
       ].join('\n')
     )
-    .setFooter({ text: 'Clique sur “J’accepte” pour continuer.' });
+    .setImage('attachment://rules-banner.png')
+    .setFooter({ text: 'GTO — Charte & esprit de guilde.' });
 
   return embed;
 }
@@ -155,14 +156,30 @@ async function ensureRulesMessage(channel, rc) {
   if (rc.rulesChannelId === channel.id && rc.rulesMessageId) {
     try {
       const msg = await channel.messages.fetch(rc.rulesMessageId);
-      await msg.edit({ embeds: [embed], components: [] });
+      const bannerPath = path.join(__dirname, '..', 'assets', 'rules', 'rules-banner.png');
+      const files = [];
+      try {
+        if (require('fs').existsSync(bannerPath)) {
+          files.push({ attachment: bannerPath, name: 'rules-banner.png' });
+        }
+      } catch {}
+
+      await msg.edit({ embeds: [embed], components: [], files });
       return msg;
     } catch {
       // recreate
     }
   }
 
-  const msg = await channel.send({ embeds: [embed], components: [] });
+  const bannerPath = path.join(__dirname, '..', 'assets', 'rules', 'rules-banner.png');
+  const files = [];
+  try {
+    if (require('fs').existsSync(bannerPath)) {
+      files.push({ attachment: bannerPath, name: 'rules-banner.png' });
+    }
+  } catch {}
+
+  const msg = await channel.send({ embeds: [embed], components: [], files });
   try { await msg.pin(); } catch {}
   updateGuildConfig(rc.guildId, { rules_channel_id: channel.id, rules_message_id: msg.id });
   return msg;
