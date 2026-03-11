@@ -510,6 +510,23 @@ async function main() {
     }
   });
 
+  client.on('guildMemberRemove', async (member) => {
+    // Cleanup profiles when someone leaves / is kicked to avoid duplicates on rejoin
+    try {
+      const rc = getConfigForGuild(member.guild.id);
+      const existing = profiles.deleteProfile(member.guild.id, member.user.id);
+
+      if (rc.profilesChannelId && existing?.profile_message_id) {
+        const ch = await member.client.channels.fetch(rc.profilesChannelId).catch(() => null);
+        if (ch && ch.isTextBased()) {
+          await ch.messages.delete(existing.profile_message_id).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('[bot] profile cleanup error:', e?.message || e);
+    }
+  });
+
   client.on('guildMemberUpdate', async (oldMember, newMember) => {
     try {
       // If someone gains the guildeux role, ensure they're listed (0 score) and refresh board

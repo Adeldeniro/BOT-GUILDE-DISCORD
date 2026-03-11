@@ -49,9 +49,16 @@ function setProfileMessageId(guildId, userId, messageId) {
   ).run(messageId, Date.now(), guildId, userId);
 }
 
+function deleteProfile(guildId, userId) {
+  const existing = getProfile(guildId, userId);
+  db.prepare(`DELETE FROM player_profiles WHERE guild_id=? AND user_id=?`).run(guildId, userId);
+  return existing;
+}
+
 module.exports = {
   upsertProfile,
   appendToProfile,
   getProfile,
   setProfileMessageId,
+  deleteProfile,
 };
