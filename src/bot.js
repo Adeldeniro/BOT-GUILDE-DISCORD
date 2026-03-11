@@ -353,11 +353,12 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_validation_staff')
       .setDescription('Configurer la validation staff (owner only)')
+      // Required options must be declared before optional ones (Discord API constraint)
       .addChannelOption(o => o.setName('salon').setDescription('Salon lead / validation').addChannelTypes(0,5).setRequired(true))
       .addRoleOption(o => o.setName('staff1').setDescription('Rôle staff autorisé #1').setRequired(true))
-      .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false))
       .addRoleOption(o => o.setName('role_gto').setDescription('Rôle GTO à attribuer').setRequired(true))
-      .addRoleOption(o => o.setName('role_def').setDescription('Rôle DEF à attribuer').setRequired(true)),  
+      .addRoleOption(o => o.setName('role_def').setDescription('Rôle DEF à attribuer').setRequired(true))
+      .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
