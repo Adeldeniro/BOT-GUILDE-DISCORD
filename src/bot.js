@@ -525,7 +525,7 @@ async function main() {
               `scoreboard_top_n: ${rc2.scoreboardTopN}`,
               `admin_role_id: ${rc2.adminRoleId ? `<@&${rc2.adminRoleId}>` : '—'}`,
               `dashboard: ${rc2.dashboardChannelId ? `<#${rc2.dashboardChannelId}>` : '—'} / ${rc2.dashboardMessageId || '—'}`,
-              `welcome: ${rc2.welcomeChannelId ? `<#${rc2.welcomeChannelId}>` : '—'} (guilde: ${rc2.welcomeGuildName || 'GTO'})`,
+              `welcome: ${rc2.welcomeChannelId ? `<#${rc2.welcomeChannelId}>` : '—'} (guilde: ${rc2.welcomeGuildName || 'GTO'}) (everyone: ${rc2.welcomePingEveryone ? 'ON' : 'OFF'}) (roles: ${rc2.welcomeRoleGuildeuxId ? `<@&${rc2.welcomeRoleGuildeuxId}>` : '—'} / ${rc2.welcomeRoleInviteId ? `<@&${rc2.welcomeRoleInviteId}>` : '—'})`, 
             ];
             return interaction.reply({ content: '```\n' + lines.join('\n') + '\n```', ephemeral: true });
           }
@@ -747,7 +747,12 @@ async function main() {
             });
           }
           if (action === 'welcome') {
-            return interaction.reply({ content: `Utilise :\n**/setup_welcome** salon:<#...> guilde:"${rc.welcomeGuildName || 'GTO'}"`, ephemeral: true });
+            return interaction.reply({
+              content:
+                `Utilise :\n` +
+                `**/setup_welcome** salon:<#...> guilde:"${rc.welcomeGuildName || 'GTO'}" ping_everyone:true role_guildeux:<@&...> role_invite:<@&...>`,
+              ephemeral: true,
+            });
           }
           if (action === 'admin') {
             return interaction.reply({ content: `Utilise :\n**/setup_admin** role:<@&...>`, ephemeral: true });
