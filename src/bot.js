@@ -338,17 +338,26 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
+        .setAuthor({ name: `Nouvel arrivant`, iconURL: member.user.displayAvatarURL?.({ size: 128 }) })
         .setTitle('👋 Bienvenue parmi nous !')
         .setDescription(
           `✨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
           `Ici c’est **fraternité**, **entraide** et **bonne ambiance**.\n` +
           `Passe dire bonjour et installe-toi tranquillement.`
         )
-        .setFooter({ text: 'On est contents de te compter parmi nous.' });
+        .addFields(
+          {
+            name: '📌 Petit rappel',
+            value: 'Présente-toi vite fait et n’hésite pas à demander de l’aide — on est là pour ça.',
+            inline: false,
+          },
+        )
+        .setFooter({ text: 'GTO — on est contents de te compter parmi nous.' });
 
       // Role buttons (optional)
       const components = [];
       if (rc.welcomeRoleGuildeuxId || rc.welcomeRoleInviteId) {
+        embed.addFields({ name: '✅ Choisis ton accès', value: 'Clique sur un bouton ci-dessous pour rejoindre le bon espace.', inline: false });
         const row = new ActionRowBuilder();
         if (rc.welcomeRoleGuildeuxId) {
           row.addComponents(
