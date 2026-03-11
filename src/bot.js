@@ -137,11 +137,11 @@ function buildRulesEmbed(rc) {
   return embed;
 }
 
-function buildRulesComponents(guildId) {
+function buildRulesAcceptComponents(guildId, userId) {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`rulesok:${guildId}`)
+        .setCustomId(`rulesok:${guildId}:${userId}`)
         .setLabel('✅ J’accepte le règlement')
         .setStyle(ButtonStyle.Success)
     ),
@@ -150,20 +150,19 @@ function buildRulesComponents(guildId) {
 
 async function ensureRulesMessage(channel, rc) {
   const embed = buildRulesEmbed(rc);
-  const components = buildRulesComponents(rc.guildId);
 
-  // If already exists, update it
+  // If already exists, update it (NO BUTTONS in the rules message)
   if (rc.rulesChannelId === channel.id && rc.rulesMessageId) {
     try {
       const msg = await channel.messages.fetch(rc.rulesMessageId);
-      await msg.edit({ embeds: [embed], components });
+      await msg.edit({ embeds: [embed], components: [] });
       return msg;
     } catch {
       // recreate
     }
   }
 
-  const msg = await channel.send({ embeds: [embed], components });
+  const msg = await channel.send({ embeds: [embed], components: [] });
   try { await msg.pin(); } catch {}
   updateGuildConfig(rc.guildId, { rules_channel_id: channel.id, rules_message_id: msg.id });
   return msg;
@@ -395,19 +394,17 @@ async function main() {
   client.on('guildMemberAdd', async (member) => {
     try {
       const rc = getConfigForGuild(member.guild.id);
-      if (!rc.rulesChannelId || !rc.rulesMessageId) return;
+      if (!rc.rulesChannelId) return;
 
       const ch = await member.client.channels.fetch(rc.rulesChannelId).catch(() => null);
       if (!ch || !ch.isTextBased()) return;
 
-      // Ping the new member with instructions, then auto-delete after a short delay to keep the channel clean.
-      const msg = await ch.send({
-        content: `${member} bienvenue ! Lis le règlement ci-dessus et clique sur **✅ J’accepte le règlement** pour débloquer l’accès.`,
-        allowedMentions: { users: [member.id] },
-      });
-      setTimeout(() => msg.delete().catch(() => {}), 30_000);
+      const content = `${member} bienvenue ! Lis le règlement ci-dessus, puis valide en cliquant sur le bouton ci-dessous.`;
+      const components = buildRulesAcceptComponents(member.guild.id, member.user.id);
+
+      await ch.send({ content, components, allowedMentions: { users: [member.id] } });
     } catch (e) {
-      console.warn('[bot] join guide error:', e?.message || e);
+      console.warn('[bot] join rules prompt error:', e?.message || e);
     }
   });
 
@@ -727,9 +724,13 @@ async function main() {
         if (interaction.customId.startsWith('rulesok:')) {
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
+          const targetUserId = parts[2];
 
           if (!interaction.guild || interaction.guild.id !== guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+          if (interaction.user.id !== targetUserId) {
+            return interaction.reply({ content: "Ce bouton est réservé au nouveau membre.", ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
@@ -837,6 +838,9 @@ async function main() {
             files,
             allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
           });
+
+          // Remove the prompt message buttons after success
+          try { await interaction.message.edit({ components: [] }); } catch {}
 
           // Ack
           try {
