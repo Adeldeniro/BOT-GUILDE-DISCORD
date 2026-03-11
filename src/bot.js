@@ -44,7 +44,7 @@ function buildDashboardComponents(guildId) {
   return [row];
 }
 
-async function ensureDashboardMessage(guild, channel, rc) {
+async function ensureDashboardMessage(guild, channel, rc, { allowCreate = true } = {}) {
   const embed = buildDashboardEmbed(rc);
   const components = buildDashboardComponents(guild.id);
 
@@ -55,9 +55,11 @@ async function ensureDashboardMessage(guild, channel, rc) {
       await existing.edit({ embeds: [embed], components });
       return existing;
     } catch {
-      // recreate
+      // fallthrough
     }
   }
+
+  if (!allowCreate) return null;
 
   const msg = await channel.send({ embeds: [embed], components });
   try { await msg.pin(); } catch {}
@@ -329,9 +331,13 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
-        .setTitle('👋 Bienvenue !')
-        .setDescription(`Bienvenue ${member} dans la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\nVenez lui souhaiter la bienvenue et préparez-vous à défendre le blason.`)
-        .setFooter({ text: 'Nouveau membre détecté.' });
+        .setTitle('👋 Bienvenue parmi nous !')
+        .setDescription(
+          `✨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
+          `Ici c’est **fraternité**, **entraide** et **bonne ambiance**.\n` +
+          `Passe dire bonjour et installe-toi tranquillement.`
+        )
+        .setFooter({ text: 'On est contents de te compter parmi nous.' });
 
       if (gifUrl) embed.setImage(gifUrl);
 
@@ -397,7 +403,7 @@ async function main() {
             if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
               const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
               if (dashChannel && dashChannel.isTextBased()) {
-                await ensureDashboardMessage(guild, dashChannel, rc2);
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
               }
             }
 
@@ -427,7 +433,7 @@ async function main() {
             if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
               const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
               if (dashChannel && dashChannel.isTextBased()) {
-                await ensureDashboardMessage(guild, dashChannel, rc2);
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
               }
             }
 
@@ -454,7 +460,7 @@ async function main() {
               if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
                 const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
                 if (dashChannel && dashChannel.isTextBased()) {
-                  await ensureDashboardMessage(guild, dashChannel, rc2);
+                  await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
                 }
               }
 
