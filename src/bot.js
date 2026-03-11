@@ -353,7 +353,7 @@ async function main() {
         if (rc.welcomeRoleGuildeuxId) {
           row.addComponents(
             new ButtonBuilder()
-              .setCustomId(`welrole:${member.guild.id}:guildeux`)
+              .setCustomId(`welrole:${member.guild.id}:${member.user.id}:guildeux`)
               .setLabel('🛡️ Je suis Guildeux')
               .setStyle(ButtonStyle.Primary)
           );
@@ -361,7 +361,7 @@ async function main() {
         if (rc.welcomeRoleInviteId) {
           row.addComponents(
             new ButtonBuilder()
-              .setCustomId(`welrole:${member.guild.id}:invite`)
+              .setCustomId(`welrole:${member.guild.id}:${member.user.id}:invite`)
               .setLabel('🎟️ Je suis Invité')
               .setStyle(ButtonStyle.Secondary)
           );
@@ -687,9 +687,14 @@ async function main() {
         if (interaction.customId.startsWith('welrole:')) {
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
-          const kind = parts[2];
+          const targetUserId = parts[2];
+          const kind = parts[3];
           if (!interaction.guild || interaction.guild.id !== guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          if (interaction.user.id !== targetUserId) {
+            return interaction.reply({ content: "Ces boutons sont réservés au nouveau membre.", ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
