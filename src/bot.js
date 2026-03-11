@@ -149,6 +149,35 @@ function buildRulesAcceptComponents(guildId, userId) {
   ];
 }
 
+async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
+  if (!rc.validationChannelId) return;
+
+  const ch = await guild.client.channels.fetch(rc.validationChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+
+  const staffMentions = (rc.validationStaffRoleIds || []).map(id => `<@&${id}>`).join(' ');
+
+  const embed = new EmbedBuilder()
+    .setColor(0xf1c40f)
+    .setTitle('🛡️ Validation staff — nouveau membre')
+    .setDescription(`Nouveau membre : <@${targetUserId}>\nChoix : **${choiceLabel}**\n\nAttribuer les rôles **GTO** + **DEF** si la personne est bien un membre.`)
+    .setFooter({ text: 'Clique sur Valider ou Refuser.' });
+
+  const components = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:approve`).setLabel('✅ Valider (GTO+DEF)').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:deny`).setLabel('❌ Refuser (Invité)').setStyle(ButtonStyle.Danger),
+    ),
+  ];
+
+  await ch.send({
+    content: staffMentions || undefined,
+    embeds: [embed],
+    components,
+    allowedMentions: { roles: rc.validationStaffRoleIds || [] },
+  });
+}
+
 async function ensureRulesMessage(channel, rc) {
   const embed = buildRulesEmbed(rc);
 
@@ -319,7 +348,16 @@ async function registerCommands(client) {
         .setDescription('Salon #reglement')
         .addChannelTypes(0, 5)
         .setRequired(true))
-      .addRoleOption(o => o.setName('role_acces').setDescription("Rôle donné après validation du règlement").setRequired(true)),  
+      .addRoleOption(o => o.setName('role_acces').setDescription("Rôle donné après validation du règlement").setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_validation_staff')
+      .setDescription('Configurer la validation staff (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon lead / validation').addChannelTypes(0,5).setRequired(true))
+      .addRoleOption(o => o.setName('staff1').setDescription('Rôle staff autorisé #1').setRequired(true))
+      .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false))
+      .addRoleOption(o => o.setName('role_gto').setDescription('Rôle GTO à attribuer').setRequired(true))
+      .addRoleOption(o => o.setName('role_def').setDescription('Rôle DEF à attribuer').setRequired(true)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -627,6 +665,35 @@ async function main() {
             return interaction.reply({ content: `OK. Règlement configuré dans <#${salon.id}>. Rôle après validation : ${roleAcces}`, ephemeral: true });
           }
 
+          if (interaction.commandName === 'setup_validation_staff') {
+            const salon = interaction.options.getChannel('salon', true);
+            const staff1 = interaction.options.getRole('staff1', true);
+            const staff2 = interaction.options.getRole('staff2', false);
+            const roleGto = interaction.options.getRole('role_gto', true);
+            const roleDef = interaction.options.getRole('role_def', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour la validation.', ephemeral: true });
+            }
+
+            const staffIds = [staff1.id, staff2?.id].filter(Boolean).join(',');
+            updateGuildConfig(guild.id, {
+              validation_channel_id: salon.id,
+              validation_staff_role_ids: staffIds,
+              validation_gto_role_id: roleGto.id,
+              validation_def_role_id: roleDef.id,
+            });
+
+            const rc2 = getConfigForGuild(guild.id);
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
+              }
+            }
+
+            return interaction.reply({ content: `OK. Validation staff configurée dans <#${salon.id}>. Staff: ${staff1}${staff2 ? ' ' + staff2 : ''}.`, ephemeral: true });
+          }
+
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
         } else {
           // Command restriction: only allow admin commands in the panel channel
@@ -869,6 +936,57 @@ async function main() {
           return;
         }
 
+        // Staff validation buttons
+        if (interaction.customId.startsWith('staffval:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const targetUserId = parts[2];
+          const action = parts[3];
+
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guild.id);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const isStaff = !!(clicker && rc.validationStaffRoleIds?.some(rid => clicker.roles.cache.has(rid)));
+          if (!isStaff) {
+            return interaction.reply({ content: "Réservé au staff.", ephemeral: true });
+          }
+
+          if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+          }
+
+          const target = await interaction.guild.members.fetch(targetUserId).catch(() => null);
+          if (!target) return interaction.reply({ content: 'Membre introuvable.', ephemeral: true });
+
+          const roleGTO = rc.validationGtoRoleId ? interaction.guild.roles.cache.get(rc.validationGtoRoleId) : null;
+          const roleDEF = rc.validationDefRoleId ? interaction.guild.roles.cache.get(rc.validationDefRoleId) : null;
+          const roleGuildeux = rc.welcomeRoleGuildeuxId ? interaction.guild.roles.cache.get(rc.welcomeRoleGuildeuxId) : null;
+          const roleInvite = rc.welcomeRoleInviteId ? interaction.guild.roles.cache.get(rc.welcomeRoleInviteId) : null;
+
+          try {
+            if (action === 'approve') {
+              if (roleGTO) await target.roles.add(roleGTO);
+              if (roleDEF) await target.roles.add(roleDEF);
+              await interaction.message.edit({ components: [] }).catch(() => {});
+              return interaction.reply({ content: `✅ Validé. Rôles attribués à ${target}.`, ephemeral: true });
+            }
+
+            if (action === 'deny') {
+              if (roleGuildeux) await target.roles.remove(roleGuildeux).catch(() => {});
+              if (roleInvite) await target.roles.add(roleInvite).catch(() => {});
+              await interaction.message.edit({ components: [] }).catch(() => {});
+              return interaction.reply({ content: `❌ Refusé. ${target} est maintenant invité.`, ephemeral: true });
+            }
+
+            return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
+          } catch (e) {
+            return interaction.reply({ content: `Erreur: ${e.message}`, ephemeral: true });
+          }
+        }
+
         // Welcome role buttons
         if (interaction.customId.startsWith('welrole:')) {
           const parts = interaction.customId.split(':');
@@ -899,6 +1017,10 @@ async function main() {
             if (kind === 'guildeux' && roleG) {
               await member.roles.add(roleG);
               if (roleI) await member.roles.remove(roleI).catch(() => {});
+
+              // Staff validation alert (only after the user did their part)
+              await postStaffValidationAlert(interaction.guild, rc, member.user.id, 'Guildeux');
+
               // Remove buttons from the original welcome message after successful choice
               try { await interaction.message.edit({ components: [] }); } catch {}
               return interaction.reply({ content: `✅ Rôle ajouté : ${roleG}`, ephemeral: true });
@@ -906,6 +1028,9 @@ async function main() {
             if (kind === 'invite' && roleI) {
               await member.roles.add(roleI);
               if (roleG) await member.roles.remove(roleG).catch(() => {});
+
+              await postStaffValidationAlert(interaction.guild, rc, member.user.id, 'Invité');
+
               try { await interaction.message.edit({ components: [] }); } catch {}
               return interaction.reply({ content: `✅ Rôle ajouté : ${roleI}`, ephemeral: true });
             }

@@ -65,7 +65,11 @@ CREATE TABLE IF NOT EXISTS guild_config (
   welcome_role_invite_id TEXT,
   rules_channel_id TEXT,
   rules_message_id TEXT,
-  rules_access_role_id TEXT
+  rules_access_role_id TEXT,
+  validation_channel_id TEXT,
+  validation_staff_role_ids TEXT,
+  validation_gto_role_id TEXT,
+  validation_def_role_id TEXT
 );
 `);
 
@@ -110,6 +114,18 @@ if (!cfgCols.includes('rules_message_id')) {
 }
 if (!cfgCols.includes('rules_access_role_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN rules_access_role_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('validation_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN validation_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('validation_staff_role_ids')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN validation_staff_role_ids TEXT'); } catch {}
+}
+if (!cfgCols.includes('validation_gto_role_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN validation_gto_role_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('validation_def_role_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN validation_def_role_id TEXT'); } catch {}
 }
 
 module.exports = db;

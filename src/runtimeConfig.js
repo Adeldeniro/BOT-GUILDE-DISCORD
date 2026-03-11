@@ -42,6 +42,15 @@ function getConfigForGuild(guildId) {
     rulesChannelId: pick(gc.rules_channel_id, null),
     rulesMessageId: pick(gc.rules_message_id, null),
     rulesAccessRoleId: pick(gc.rules_access_role_id, null),
+
+    // Staff validation
+    validationChannelId: pick(gc.validation_channel_id, null),
+    validationStaffRoleIds: String(pick(gc.validation_staff_role_ids, '') || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean),
+    validationGtoRoleId: pick(gc.validation_gto_role_id, null),
+    validationDefRoleId: pick(gc.validation_def_role_id, null),
   };
 }
 
