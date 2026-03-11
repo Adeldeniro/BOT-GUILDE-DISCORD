@@ -137,11 +137,11 @@ function buildRulesEmbed(rc) {
   return embed;
 }
 
-function buildRulesComponents(guildId, userId) {
+function buildRulesComponents(guildId) {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`rulesok:${guildId}:${userId}`)
+        .setCustomId(`rulesok:${guildId}`)
         .setLabel('✅ J’accepte le règlement')
         .setStyle(ButtonStyle.Success)
     ),
@@ -150,19 +150,20 @@ function buildRulesComponents(guildId, userId) {
 
 async function ensureRulesMessage(channel, rc) {
   const embed = buildRulesEmbed(rc);
+  const components = buildRulesComponents(rc.guildId);
 
   // If already exists, update it
   if (rc.rulesChannelId === channel.id && rc.rulesMessageId) {
     try {
       const msg = await channel.messages.fetch(rc.rulesMessageId);
-      await msg.edit({ embeds: [embed] });
+      await msg.edit({ embeds: [embed], components });
       return msg;
     } catch {
       // recreate
     }
   }
 
-  const msg = await channel.send({ embeds: [embed] });
+  const msg = await channel.send({ embeds: [embed], components });
   try { await msg.pin(); } catch {}
   updateGuildConfig(rc.guildId, { rules_channel_id: channel.id, rules_message_id: msg.id });
   return msg;
@@ -390,10 +391,24 @@ async function main() {
     }
   });
 
-  // NOTE: welcome message is sent after rules acceptance (see rulesok button handler)
+  // On join: guide the user to the rules channel/message (Discord can't "auto-redirect" a user).
   client.on('guildMemberAdd', async (member) => {
-    // Intentionally empty for now.
-    // Rules gating is done via the #reglement accept button.
+    try {
+      const rc = getConfigForGuild(member.guild.id);
+      if (!rc.rulesChannelId || !rc.rulesMessageId) return;
+
+      const ch = await member.client.channels.fetch(rc.rulesChannelId).catch(() => null);
+      if (!ch || !ch.isTextBased()) return;
+
+      // Ping the new member with instructions, then auto-delete after a short delay to keep the channel clean.
+      const msg = await ch.send({
+        content: `${member} bienvenue ! Lis le règlement ci-dessus et clique sur **✅ J’accepte le règlement** pour débloquer l’accès.`,
+        allowedMentions: { users: [member.id] },
+      });
+      setTimeout(() => msg.delete().catch(() => {}), 30_000);
+    } catch (e) {
+      console.warn('[bot] join guide error:', e?.message || e);
+    }
   });
 
   client.on('guildMemberUpdate', async (oldMember, newMember) => {
@@ -712,13 +727,9 @@ async function main() {
         if (interaction.customId.startsWith('rulesok:')) {
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
-          const targetUserId = parts[2];
 
           if (!interaction.guild || interaction.guild.id !== guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true });
-          }
-          if (interaction.user.id !== targetUserId) {
-            return interaction.reply({ content: "Ce bouton est réservé au nouveau membre.", ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
@@ -827,12 +838,10 @@ async function main() {
             allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
           });
 
-          // Remove button from rules message for this user (optional): just disable/ack
+          // Ack
           try {
-            await interaction.update({ components: [] });
-          } catch {
-            try { await interaction.deferUpdate(); } catch {}
-          }
+            await interaction.reply({ content: `✅ Règlement validé. Accès débloqué via ${accessRole}.`, ephemeral: true });
+          } catch {}
 
           return;
         }
