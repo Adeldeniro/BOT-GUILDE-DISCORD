@@ -219,7 +219,12 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_welcome')
       .setDescription('Configurer le message de bienvenue (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription("Salon d'arrivée / bienvenue").setRequired(true))
+      // Important: restrict to text channels to avoid “identifiant de salon invalide” on mobile
+      .addChannelOption(o => o
+        .setName('salon')
+        .setDescription("Salon d'arrivée / bienvenue")
+        .addChannelTypes(0, 5) // 0=GuildText, 5=GuildAnnouncement
+        .setRequired(true))
       .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false))
       .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false))
       .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle donné aux membres de la guilde').setRequired(false))
@@ -539,6 +544,9 @@ async function main() {
 
           if (interaction.commandName === 'setup_welcome') {
             const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** (pas une catégorie / vocal / thread).', ephemeral: true });
+            }
             const guildeName = interaction.options.getString('guilde') || 'GTO';
             const pingEveryone = interaction.options.getBoolean('ping_everyone');
             const roleGuildeux = interaction.options.getRole('role_guildeux');
