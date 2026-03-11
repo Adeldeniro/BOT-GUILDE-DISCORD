@@ -79,9 +79,13 @@ async function ensureScoreboardMessage(guild, channel, { topN = 25 } = {}) {
 async function buildScoreboardEmbed(guild, { topN = 25 } = {}) {
   const guildId = guild.id;
 
-  // Fetch members to include everyone with the role, even if 0 pings.
-  // Requires GuildMembers intent.
-  await guild.members.fetch();
+  // Try to fetch members to include everyone with the role, even if 0 pings.
+  // If the privileged intent isn't enabled, this can fail — we fall back to DB-only.
+  try {
+    await guild.members.fetch();
+  } catch {
+    // ignore
+  }
 
   const cfg = require('./config');
   if (!cfg.guildeuxRoleId) {
@@ -91,34 +95,43 @@ async function buildScoreboardEmbed(guild, { topN = 25 } = {}) {
   const role = guild.roles.cache.get(cfg.guildeuxRoleId);
   const guildeuxMembers = role ? role.members.map(m => m) : [];
 
-  // Ensure DB rows exist
+  // Ensure DB rows exist for known guildeux members
   for (const m of guildeuxMembers) upsertScoreUser(guildId, m.user.id);
 
   const scores = listScores(guildId);
-  const scoreMap = new Map(scores.map(r => [r.user_id, r]));
 
-  // Sort only guildeux members
-  const entries = guildeuxMembers
-    .map(m => {
-      const s = scoreMap.get(m.user.id) || { ping_count: 0, last_ping_at: null };
-      return { user: m.user, count: s.ping_count || 0, last: s.last_ping_at || 0 };
-    })
-    .sort((a, b) => (b.count - a.count) || (b.last - a.last) || (a.user.id.localeCompare(b.user.id)));
+  let entries;
+  if (guildeuxMembers.length) {
+    const scoreMap = new Map(scores.map(r => [r.user_id, r]));
+    // Sort only guildeux members
+    entries = guildeuxMembers
+      .map(m => {
+        const s = scoreMap.get(m.user.id) || { ping_count: 0, last_ping_at: null };
+        return { userId: m.user.id, count: s.ping_count || 0, last: s.last_ping_at || 0 };
+      })
+      .sort((a, b) => (b.count - a.count) || (b.last - a.last) || (a.userId.localeCompare(b.userId)));
+  } else {
+    // Fallback: show DB scores even if we can't see role members (missing intent/permissions/cache)
+    entries = scores
+      .map(s => ({ userId: s.user_id, count: s.ping_count || 0, last: s.last_ping_at || 0 }))
+      .sort((a, b) => (b.count - a.count) || (b.last - a.last) || (a.userId.localeCompare(b.userId)));
+  }
 
   const top = entries.slice(0, topN);
-
   const lines = top.map((e, i) => {
     const rank = String(i + 1).padStart(2, '0');
-    return `**${rank}.** <@${e.user.id}> — **${e.count}** ping${e.count === 1 ? '' : 's'}`;
+    return `**${rank}.** <@${e.userId}> — **${e.count}** ping${e.count === 1 ? '' : 's'}`;
   });
 
-  const embed = new EmbedBuilder()
+  const note = guildeuxMembers.length
+    ? ''
+    : "\n\n*(Note: impossible de lister les membres @guildeux côté bot — vérifie l'intent 'Server Members' et les permissions.)*";
+
+  return new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle('📊 Classement des pings — Guildeux')
-    .setDescription(lines.length ? lines.join('\n') : 'Aucun guildeux trouvé.')
+    .setDescription((lines.length ? lines.join('\n') : 'Aucun score enregistré.') + note)
     .setFooter({ text: 'Mise à jour automatique après chaque ping.' });
-
-  return embed;
 }
 
 async function maybeWeeklyAnnouncement(guild, channel, { topN = 10 } = {}) {
