@@ -150,6 +150,35 @@ function buildRulesAcceptComponents(guildId, userId) {
   ];
 }
 
+async function updateProfileBox(guild, rc, targetUserId, { statusText }) {
+  if (!rc.profilesChannelId) return;
+  const prof = profiles.getProfile(guild.id, targetUserId);
+  if (!prof?.profile_message_id) return;
+
+  const ch = await guild.client.channels.fetch(rc.profilesChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+
+  const msg = await ch.messages.fetch(prof.profile_message_id).catch(() => null);
+  if (!msg) return;
+
+  const ignList = String(prof.ign || '')
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🎮 Profil joueur')
+    .addFields(
+      { name: 'Discord', value: `<@${targetUserId}> (\`${targetUserId}\`)`, inline: false },
+      { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024) || '—', inline: false },
+      { name: 'Statut', value: statusText, inline: false },
+    )
+    .setFooter({ text: 'Mise à jour automatique par validation staff.' });
+
+  await msg.edit({ embeds: [embed] });
+}
+
 async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
   if (!rc.validationChannelId) return;
 
@@ -538,10 +567,11 @@ async function main() {
                 .addFields(
                   { name: 'Discord', value: `<@${userId}> (\`${userId}\`)`, inline: false },
                   { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024), inline: false },
-                  { name: 'Type', value: choice === 'guildeux' ? '🛡️ Guildeux' : '🎟️ Invité', inline: true },
+                  { name: 'Type', value: choice === 'guildeux' ? '🛡️ Guildeux (en attente validation staff)' : '🎟️ Invité (en attente validation staff)', inline: false },
                 )
                 .setFooter({ text: 'Ajout automatique à l’arrivée.' });
-              await pch.send({ embeds: [embed] });
+              const sent = await pch.send({ embeds: [embed] });
+              try { profiles.setProfileMessageId(guildId, userId, sent.id); } catch {}
             }
           }
 
@@ -1137,6 +1167,11 @@ async function main() {
             if (action === 'approve') {
               if (roleGTO) await target.roles.add(roleGTO);
               if (roleDEF) await target.roles.add(roleDEF);
+
+              await updateProfileBox(interaction.guild, rc, targetUserId, {
+                statusText: `✅ Validé — ${roleGTO ? roleGTO.toString() : '@GTO'} ${roleDEF ? roleDEF.toString() : '@DEF'}`,
+              });
+
               await interaction.message.edit({ components: [] }).catch(() => {});
               return interaction.reply({ content: `✅ Validé. Rôles attribués à ${target}.`, ephemeral: true });
             }
@@ -1144,6 +1179,11 @@ async function main() {
             if (action === 'deny') {
               if (roleGuildeux) await target.roles.remove(roleGuildeux).catch(() => {});
               if (roleInvite) await target.roles.add(roleInvite).catch(() => {});
+
+              await updateProfileBox(interaction.guild, rc, targetUserId, {
+                statusText: `❌ Refusé — ${roleInvite ? roleInvite.toString() : 'Invité'}`,
+              });
+
               await interaction.message.edit({ components: [] }).catch(() => {});
               return interaction.reply({ content: `❌ Refusé. ${target} est maintenant invité.`, ephemeral: true });
             }

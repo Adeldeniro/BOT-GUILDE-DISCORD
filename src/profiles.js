@@ -39,12 +39,19 @@ function appendToProfile(guildId, userId, ignsToAdd) {
 
 function getProfile(guildId, userId) {
   return db.prepare(
-    `SELECT guild_id, user_id, ign, updated_at FROM player_profiles WHERE guild_id=? AND user_id=?`
+    `SELECT guild_id, user_id, ign, updated_at, profile_message_id FROM player_profiles WHERE guild_id=? AND user_id=?`
   ).get(guildId, userId);
+}
+
+function setProfileMessageId(guildId, userId, messageId) {
+  db.prepare(
+    `UPDATE player_profiles SET profile_message_id=?, updated_at=? WHERE guild_id=? AND user_id=?`
+  ).run(messageId, Date.now(), guildId, userId);
 }
 
 module.exports = {
   upsertProfile,
   appendToProfile,
   getProfile,
+  setProfileMessageId,
 };

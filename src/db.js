@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS player_profiles (
   user_id TEXT NOT NULL,
   ign TEXT NOT NULL,
   updated_at INTEGER NOT NULL,
+  profile_message_id TEXT,
   PRIMARY KEY (guild_id, user_id)
 );
 `);
@@ -138,6 +139,12 @@ if (!cfgCols.includes('validation_def_role_id')) {
 }
 if (!cfgCols.includes('profiles_channel_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN profiles_channel_id TEXT'); } catch {}
+}
+
+// Migration for player_profiles
+const profCols = db.prepare(`PRAGMA table_info(player_profiles)`).all().map(r => r.name);
+if (!profCols.includes('profile_message_id')) {
+  try { db.exec('ALTER TABLE player_profiles ADD COLUMN profile_message_id TEXT'); } catch {}
 }
 
 module.exports = db;
