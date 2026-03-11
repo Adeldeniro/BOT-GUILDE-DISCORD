@@ -404,7 +404,9 @@ async function registerCommands(client) {
       .setName('lock_write')
       .setDescription("Bloquer l'écriture dans ce salon (owner only)")
       .addChannelOption(o => o.setName('salon').setDescription('Salon à verrouiller').addChannelTypes(0,5).setRequired(true))
-      .addRoleOption(o => o.setName('role_autorise').setDescription('Rôle autorisé à écrire').setRequired(true))
+      .addRoleOption(o => o.setName('role_autorise1').setDescription('Rôle autorisé à écrire #1').setRequired(true))
+      .addRoleOption(o => o.setName('role_autorise2').setDescription('Rôle autorisé à écrire #2').setRequired(false))
+      .addRoleOption(o => o.setName('role_autorise3').setDescription('Rôle autorisé à écrire #3').setRequired(false))
       .addBooleanOption(o => o.setName('unlock').setDescription('Déverrouiller').setRequired(false)),  
   ].map(c => c.toJSON());
 
@@ -856,12 +858,18 @@ async function main() {
 
           if (interaction.commandName === 'lock_write') {
             const salon = interaction.options.getChannel('salon', true);
-            const role = interaction.options.getRole('role_autorise', true);
+            const role1 = interaction.options.getRole('role_autorise1', true);
+            const role2 = interaction.options.getRole('role_autorise2', false);
+            const role3 = interaction.options.getRole('role_autorise3', false);
             const unlock = interaction.options.getBoolean('unlock') || false;
+            const roles = [role1, role2, role3].filter(Boolean);
 
             if (!salon.isTextBased?.()) {
               return interaction.reply({ content: 'Choisis un salon texte.', ephemeral: true });
             }
+
+            // Avoid interaction timeout
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
             // owner only
             if (interaction.guild.ownerId !== interaction.user.id) {
@@ -878,14 +886,16 @@ async function main() {
               if (unlock) {
                 // Remove overwrite for @everyone to restore inherited perms
                 await salon.permissionOverwrites.delete(everyoneId).catch(() => {});
-                await interaction.reply({ content: `🔓 Déverrouillé : <#${salon.id}>`, ephemeral: true });
+                await interaction.editReply({ content: `🔓 Déverrouillé : <#${salon.id}>` });
               } else {
                 await salon.permissionOverwrites.edit(everyoneId, { SendMessages: false });
-                await salon.permissionOverwrites.edit(role.id, { SendMessages: true });
-                await interaction.reply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${role})`, ephemeral: true });
+                for (const r of roles) {
+                  await salon.permissionOverwrites.edit(r.id, { SendMessages: true });
+                }
+                await interaction.editReply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` });
               }
             } catch (e) {
-              return interaction.reply({ content: `Erreur: ${e.message}`, ephemeral: true });
+              return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
             }
 
             return;
@@ -893,9 +903,13 @@ async function main() {
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
         } else {
-          // Command restriction: only allow admin commands in the panel channel
-          if (rc.panelChannelId && interaction.channelId !== rc.panelChannelId) {
-            return interaction.reply({ content: `Commande autorisée uniquement dans <#${rc.panelChannelId}>.`, ephemeral: true });
+          // Allow some admin utilities anywhere
+          const anywhere = new Set(['clean', 'lock_write', 'role_id']);
+          if (!anywhere.has(interaction.commandName)) {
+            // Command restriction: only allow admin commands in the panel channel
+            if (rc.panelChannelId && interaction.channelId !== rc.panelChannelId) {
+              return interaction.reply({ content: `Commande autorisée uniquement dans <#${rc.panelChannelId}>.`, ephemeral: true });
+            }
           }
         }
 
