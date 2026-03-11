@@ -363,19 +363,14 @@ async function registerCommands(client) {
   const rest = new REST({ version: '10' }).setToken(config.token);
 
   // Important: if old global commands exist (previous versions), Discord clients may show
-  // “commande obsolète” for a while. Clearing global commands avoids stale autocomplete.
-  try {
-    await rest.put(Routes.applicationCommands(client.user.id), { body: [] });
-  } catch (e) {
-    console.warn('[bot] could not clear global commands:', e?.message || e);
-  }
+  // “commande obsolète” for a while.
+  // NOTE: do NOT clear global commands on every startup (can cause missing commands / long propagation).
+  // If you need a reset, do it manually once.
 
-  if (config.guildId) {
-    await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body: commands });
-  } else {
-    // If no default guild is set, register global commands (slower to propagate)
-    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-  }
+
+  // Always register guild commands when possible (fast propagation)
+  if (!config.guildId) throw new Error('GUILD_ID is required for fast slash command propagation');
+  await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body: commands });
 }
 
 async function main() {
