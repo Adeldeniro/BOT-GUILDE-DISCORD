@@ -302,6 +302,8 @@ function buildHelpEmbed() {
         '`/setup_ping panneau:#... alertes:#... def_role:@... (titre) (cooldown)`',
         '`/setup_scoreboard salon:#... role_guildeux:@... (top)`',
         '`/setup_profiles salon:#...` — salon identification (profils IGN)',
+        '`/setup_help salon:#...` — poste le guide staff (ce message)',
+        '`/setup_surveillance salon:#...` — salon de logs (join/leave/invites)',
         '`/setup_reglement salon:#... role_acces:@...` — règlement + accès',
         '`/setup_validation_staff salon:#... staff1:@... (staff2) role_gto:@... role_def:@...`',
         '`/setup_welcome salon:#... guilde:"GTO" ping_everyone:true role_guildeux:@... role_invite:@...`',
