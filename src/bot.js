@@ -117,6 +117,11 @@ async function registerCommands(client) {
       .setName('guilde_supprimer')
       .setDescription('Supprimer un bouton de guilde')
       .addStringOption(o => o.setName('nom').setDescription('Nom interne à supprimer').setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('role_id')
+      .setDescription("Afficher l'ID d'un rôle (debug)")
+      .addRoleOption(o => o.setName('role').setDescription('Rôle').setRequired(true)),
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -313,6 +318,11 @@ async function main() {
           const panelChannel = await interaction.client.channels.fetch(channelId);
           await ensurePanelMessage(panelChannel);
           return interaction.reply({ content: `Guilde ${name} supprimée du panneau.`, ephemeral: true });
+        }
+
+        if (interaction.commandName === 'role_id') {
+          const role = interaction.options.getRole('role', true);
+          return interaction.reply({ content: `ID du rôle ${role} : \`${role.id}\``, ephemeral: true });
         }
       }
 
