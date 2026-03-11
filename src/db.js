@@ -57,7 +57,9 @@ CREATE TABLE IF NOT EXISTS guild_config (
   guildeux_role_id TEXT,
   scoreboard_top_n INTEGER,
   dashboard_channel_id TEXT,
-  dashboard_message_id TEXT
+  dashboard_message_id TEXT,
+  welcome_channel_id TEXT,
+  welcome_guild_name TEXT
 );
 `);
 
@@ -78,6 +80,12 @@ if (!cfgCols.includes('dashboard_channel_id')) {
 }
 if (!cfgCols.includes('dashboard_message_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN dashboard_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('welcome_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN welcome_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('welcome_guild_name')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN welcome_guild_name TEXT'); } catch {}
 }
 
 module.exports = db;

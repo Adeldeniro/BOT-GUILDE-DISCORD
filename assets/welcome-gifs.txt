@@ -1,0 +1,5 @@
+# One GIF URL per line (Tenor/Giphy/CDN). Lines starting with # are ignored.
+https://media.tenor.com/9pH0OqgkV2QAAAAC/welcome.gif
+https://media.tenor.com/1Rk1h3pH0qgAAAAC/welcome-anime.gif
+https://media.tenor.com/3uW7sZ0W6X0AAAAC/welcome-to-the-team.gif
+https://media.tenor.com/0b8QwD4m8EoAAAAC/welcome-home.gif

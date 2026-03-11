@@ -30,6 +30,10 @@ function getConfigForGuild(guildId) {
     // Dashboard
     dashboardChannelId: pick(gc.dashboard_channel_id, null),
     dashboardMessageId: pick(gc.dashboard_message_id, null),
+
+    // Welcome
+    welcomeChannelId: pick(gc.welcome_channel_id, null),
+    welcomeGuildName: pick(gc.welcome_guild_name, 'GTO'),
   };
 }
 

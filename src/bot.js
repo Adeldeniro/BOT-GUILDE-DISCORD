@@ -10,6 +10,7 @@ const scoreboard = require('./scoreboard');
 function buildDashboardEmbed(rc) {
   const okPing = !!(rc.panelChannelId && rc.alertChannelId && rc.defRoleId);
   const okScore = !!(rc.scoreboardChannelId && rc.guildeuxRoleId);
+  const okWelcome = !!rc.welcomeChannelId;
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
@@ -18,16 +19,16 @@ function buildDashboardEmbed(rc) {
     .addFields(
       {
         name: 'État',
-        value: `🛡️ Ping/Alertes: ${okPing ? '✅' : '❌'}\n📊 Scoreboard: ${okScore ? '✅' : '❌'}\n👤 Admin role: ${rc.adminRoleId ? `<@&${rc.adminRoleId}>` : '—'}`,
+        value: `🛡️ Ping/Alertes: ${okPing ? '✅' : '❌'}\n📊 Scoreboard: ${okScore ? '✅' : '❌'}\n👋 Bienvenue: ${okWelcome ? '✅' : '❌'}\n👤 Admin role: ${rc.adminRoleId ? `<@&${rc.adminRoleId}>` : '—'}`,
         inline: false,
       },
       {
         name: 'Raccourci',
-        value: `Panneau: ${rc.panelChannelId ? `<#${rc.panelChannelId}>` : '—'}\nAlertes: ${rc.alertChannelId ? `<#${rc.alertChannelId}>` : '—'}\nDEF: ${rc.defRoleId ? `<@&${rc.defRoleId}>` : '—'}\nScoreboard: ${rc.scoreboardChannelId ? `<#${rc.scoreboardChannelId}>` : '—'}\nGuildeux: ${rc.guildeuxRoleId ? `<@&${rc.guildeuxRoleId}>` : '—'}`,
+        value: `Panneau: ${rc.panelChannelId ? `<#${rc.panelChannelId}>` : '—'}\nAlertes: ${rc.alertChannelId ? `<#${rc.alertChannelId}>` : '—'}\nDEF: ${rc.defRoleId ? `<@&${rc.defRoleId}>` : '—'}\nScoreboard: ${rc.scoreboardChannelId ? `<#${rc.scoreboardChannelId}>` : '—'}\nGuildeux: ${rc.guildeuxRoleId ? `<@&${rc.guildeuxRoleId}>` : '—'}\nBienvenue: ${rc.welcomeChannelId ? `<#${rc.welcomeChannelId}>` : '—'}`,
         inline: false,
       },
     )
-    .setFooter({ text: 'Owner only pour la configuration (setup_*).'});
+    .setFooter({ text: 'Owner only pour la configuration (setup_*).' });
 
   return embed;
 }
@@ -36,7 +37,8 @@ function buildDashboardComponents(guildId) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`dash:${guildId}:ping`).setLabel('🛡️ Config Ping').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`dash:${guildId}:score`).setLabel('📊 Config Scoreboard').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`dash:${guildId}:admin`).setLabel('👤 Config Admin').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:welcome`).setLabel('👋 Config Bienvenue').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:admin`).setLabel('👤 Admin').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId(`dash:${guildId}:status`).setLabel('📌 Status').setStyle(ButtonStyle.Secondary),
   );
   return [row];
@@ -211,6 +213,12 @@ async function registerCommands(client) {
       .setName('setup_dashboard')
       .setDescription('Créer/mettre à jour le dashboard de configuration (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription('Salon où poster le dashboard').setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_welcome')
+      .setDescription('Configurer le message de bienvenue (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription("Salon d'arrivée / bienvenue").setRequired(true))
+      .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false)),
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -295,6 +303,40 @@ async function main() {
       }
     } catch (e) {
       console.error('[bot] ready error', e);
+    }
+  });
+
+  client.on('guildMemberAdd', async (member) => {
+    try {
+      const rc = getConfigForGuild(member.guild.id);
+      if (!rc.welcomeChannelId) return;
+
+      const ch = await member.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
+      if (!ch || !ch.isTextBased()) return;
+
+      // Pick a random GIF URL from assets/welcome-gifs.txt
+      let gifUrl = null;
+      try {
+        const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
+        const raw = require('fs').readFileSync(gifsPath, 'utf8');
+        const urls = raw
+          .split(/\r?\n/)
+          .map(l => l.trim())
+          .filter(l => l && !l.startsWith('#'));
+        if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
+      } catch {}
+
+      const embed = new EmbedBuilder()
+        .setColor(0x3498db)
+        .setTitle('👋 Bienvenue !')
+        .setDescription(`Bienvenue ${member} dans la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\nInstalle-toi, lis les règles, et amuse-toi.`)
+        .setFooter({ text: 'Content de te voir parmi nous.' });
+
+      if (gifUrl) embed.setImage(gifUrl);
+
+      await ch.send({ embeds: [embed] });
+    } catch (e) {
+      console.warn('[bot] welcome error:', e?.message || e);
     }
   });
 
@@ -432,6 +474,7 @@ async function main() {
               `scoreboard_top_n: ${rc2.scoreboardTopN}`,
               `admin_role_id: ${rc2.adminRoleId ? `<@&${rc2.adminRoleId}>` : '—'}`,
               `dashboard: ${rc2.dashboardChannelId ? `<#${rc2.dashboardChannelId}>` : '—'} / ${rc2.dashboardMessageId || '—'}`,
+              `welcome: ${rc2.welcomeChannelId ? `<#${rc2.welcomeChannelId}>` : '—'} (guilde: ${rc2.welcomeGuildName || 'GTO'})`,
             ];
             return interaction.reply({ content: '```\n' + lines.join('\n') + '\n```', ephemeral: true });
           }
@@ -441,6 +484,22 @@ async function main() {
             const rc2 = getConfigForGuild(guild.id);
             const msg = await ensureDashboardMessage(guild, salon, rc2);
             return interaction.reply({ content: `OK. Dashboard posté dans <#${salon.id}> (message ${msg.id}) et épinglé.`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_welcome') {
+            const salon = interaction.options.getChannel('salon', true);
+            const guildeName = interaction.options.getString('guilde') || 'GTO';
+            updateGuildConfig(guild.id, { welcome_channel_id: salon.id, welcome_guild_name: guildeName });
+
+            const rc2 = getConfigForGuild(guild.id);
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2);
+              }
+            }
+
+            return interaction.reply({ content: `OK. Bienvenue configurée dans <#${salon.id}> (guilde: ${guildeName}).`, ephemeral: true });
           }
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
@@ -587,6 +646,9 @@ async function main() {
                 `**/setup_scoreboard** salon:<#...> role_guildeux:<@&...> top:${rc.scoreboardTopN || 25}`,
               ephemeral: true,
             });
+          }
+          if (action === 'welcome') {
+            return interaction.reply({ content: `Utilise :\n**/setup_welcome** salon:<#...> guilde:"${rc.welcomeGuildName || 'GTO'}"`, ephemeral: true });
           }
           if (action === 'admin') {
             return interaction.reply({ content: `Utilise :\n**/setup_admin** role:<@&...>`, ephemeral: true });
