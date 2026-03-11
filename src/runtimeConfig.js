@@ -53,6 +53,9 @@ function getConfigForGuild(guildId) {
     validationDefRoleId: pick(gc.validation_def_role_id, null),
 
     profilesChannelId: pick(gc.profiles_channel_id, null),
+
+    helpChannelId: pick(gc.help_channel_id, null),
+    helpMessageId: pick(gc.help_message_id, null),
   };
 }
 

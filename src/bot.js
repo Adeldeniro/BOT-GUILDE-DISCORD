@@ -290,6 +290,84 @@ async function ensurePanelMessage(channel, rc) {
   return msg;
 }
 
+function buildHelpEmbed() {
+  // Keep this in one place so it stays up to date automatically.
+  // (Update the lists when you add/remove commands.)
+  const sections = [
+    {
+      title: '🧩 Installation / Setup (Owner only)',
+      lines: [
+        '`/setup_dashboard salon:#...` — poste le dashboard de config',
+        '`/setup_admin role:@...` — définit le rôle admin autorisé (optionnel)',
+        '`/setup_ping panneau:#... alertes:#... def_role:@... (titre) (cooldown)`',
+        '`/setup_scoreboard salon:#... role_guildeux:@... (top)`',
+        '`/setup_profiles salon:#...` — salon identification (profils IGN)',
+        '`/setup_reglement salon:#... role_acces:@...` — règlement + accès',
+        '`/setup_validation_staff salon:#... staff1:@... (staff2) role_gto:@... role_def:@...`',
+        '`/setup_welcome salon:#... guilde:"GTO" ping_everyone:true role_guildeux:@... role_invite:@...`',
+        '`/setup_status` — affiche la config actuelle',
+      ],
+    },
+    {
+      title: '📌 Panneau & Guilde (Admin)',
+      lines: [
+        '`/panneau_creer canal:#... canal_alerte:#... (titre) (epingle)`',
+        '`/panneau_actualiser canal:#...`',
+        '`/guilde_ajouter nom:... role:@... (label) (emoji) (prefixe) (ordre)`',
+        '`/guilde_supprimer nom:...`',
+      ],
+    },
+    {
+      title: '🛠️ Outils (Admin)',
+      lines: [
+        '`/clean (nombre)` — supprime des messages dans le salon actuel',
+        '`/lock_write salon:#... role_autorise1:@... (role_autorise2) (role_autorise3) (unlock)`',
+        '`/role_id role:@...` — affiche l’ID d’un rôle',
+      ],
+    },
+    {
+      title: '🎮 Profils (Staff)',
+      lines: [
+        '`/profile_set membre:@... pseudos:"un par ligne"` — modifie un profil',
+        '`/profile_reset membre:@...` — supprime un profil',
+        'Bouton **✏️ Modifier** sur la box profil (Meneur/BD uniquement)',
+      ],
+    },
+  ];
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('📘 Commandes du bot GTO — Guide staff')
+    .setDescription('Résumé clair des commandes disponibles. (Message auto mis à jour lors des évolutions.)');
+
+  for (const s of sections) {
+    embed.addFields({ name: s.title, value: s.lines.join('\n').slice(0, 1024), inline: false });
+  }
+
+  embed.setFooter({ text: 'Astuce: utilisez le Dashboard setup pour installer rapidement sur un nouveau serveur.' });
+  return embed;
+}
+
+async function ensureHelpMessage(guild, rc) {
+  if (!rc.helpChannelId) return;
+  const ch = await guild.client.channels.fetch(rc.helpChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+
+  const embed = buildHelpEmbed();
+
+  if (rc.helpMessageId) {
+    const existing = await ch.messages.fetch(rc.helpMessageId).catch(() => null);
+    if (existing) {
+      await existing.edit({ embeds: [embed] });
+      return;
+    }
+  }
+
+  const msg = await ch.send({ embeds: [embed] });
+  try { await msg.pin(); } catch {}
+  updateGuildConfig(guild.id, { help_channel_id: ch.id, help_message_id: msg.id });
+}
+
 async function registerCommands(client) {
   const commands = [
     new SlashCommandBuilder()
@@ -418,7 +496,12 @@ async function registerCommands(client) {
       .setName('profile_set')
       .setDescription('Modifier les pseudos en jeu d\'un membre (admin)')
       .addUserOption(o => o.setName('membre').setDescription('Membre').setRequired(true))
-      .addStringOption(o => o.setName('pseudos').setDescription('Un pseudo par ligne').setRequired(true)),  
+      .addStringOption(o => o.setName('pseudos').setDescription('Un pseudo par ligne').setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_help')
+      .setDescription('Poster/mettre à jour la box des commandes (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon du guide staff').addChannelTypes(0,5).setRequired(true)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -495,6 +578,11 @@ async function main() {
       if (guild && rc0?.defRoleId) {
         const perm = canPingRole(guild, me, rc0.defRoleId);
         if (!perm.ok) console.warn('[bot] DEF role ping may fail:', perm.reason);
+      }
+
+      // Help/commands box (staff guide)
+      if (guild && rc0?.helpChannelId) {
+        await ensureHelpMessage(guild, rc0);
       }
     } catch (e) {
       console.error('[bot] ready error', e);
@@ -915,6 +1003,17 @@ async function main() {
             }
 
             return interaction.reply({ content: `OK. Salon profils configuré : <#${salon.id}>`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_help') {
+            const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour le guide.', ephemeral: true });
+            }
+            updateGuildConfig(guild.id, { help_channel_id: salon.id });
+            const rc2 = getConfigForGuild(guild.id);
+            await ensureHelpMessage(guild, rc2);
+            return interaction.reply({ content: `OK. Guide staff posté dans <#${salon.id}> (épinglé).`, ephemeral: true });
           }
 
           if (interaction.commandName === 'clean') {
