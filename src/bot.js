@@ -918,7 +918,65 @@ async function main() {
           }
         }
 
-        if (interaction.commandName === 'panneau_creer') {
+        // Admin utilities (available from any channel)
+        if (interaction.commandName === 'clean') {
+          const n = Math.min(100, Math.max(1, interaction.options.getInteger('nombre') || 50));
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+          if (!interaction.channel || !interaction.channel.isTextBased()) {
+            return interaction.editReply({ content: 'Salon invalide.' }).catch(() => {});
+          }
+          if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+            return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les messages**." }).catch(() => {});
+          }
+
+          await interaction.editReply({ content: `🧹 Nettoyage en cours (${n} messages)…` }).catch(() => {});
+          try {
+            const deleted = await interaction.channel.bulkDelete(n, true);
+            return interaction.editReply({ content: `✅ ${deleted.size} messages supprimés.` }).catch(() => {});
+          } catch (e) {
+            return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
+          }
+        }
+
+        if (interaction.commandName === 'lock_write') {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+          const salon = interaction.options.getChannel('salon', true);
+          const role1 = interaction.options.getRole('role_autorise1', true);
+          const role2 = interaction.options.getRole('role_autorise2', false);
+          const role3 = interaction.options.getRole('role_autorise3', false);
+          const unlock = interaction.options.getBoolean('unlock') || false;
+          const roles = [role1, role2, role3].filter(Boolean);
+
+          if (!salon.isTextBased?.()) {
+            return interaction.editReply({ content: 'Choisis un salon texte.' }).catch(() => {});
+          }
+          if (interaction.guild.ownerId !== interaction.user.id) {
+            return interaction.editReply({ content: 'Commande réservée au propriétaire du serveur.' }).catch(() => {});
+          }
+          if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+            return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les salons**." }).catch(() => {});
+          }
+
+          const everyoneId = interaction.guild.roles.everyone.id;
+          try {
+            if (unlock) {
+              await salon.permissionOverwrites.delete(everyoneId).catch(() => {});
+              return interaction.editReply({ content: `🔓 Déverrouillé : <#${salon.id}>` }).catch(() => {});
+            }
+
+            await salon.permissionOverwrites.edit(everyoneId, { SendMessages: false });
+            for (const r of roles) {
+              await salon.permissionOverwrites.edit(r.id, { SendMessages: true });
+            }
+            return interaction.editReply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` }).catch(() => {});
+          } catch (e) {
+            return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
+          }
+        }
+
+        if (interaction.commandName === 'panneau_creer') { 
           const channel = interaction.options.getChannel('canal', true);
           const alertChannel = interaction.options.getChannel('canal_alerte', true);
           const rc = getConfigForGuild(interaction.guild.id);
