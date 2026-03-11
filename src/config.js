@@ -17,7 +17,8 @@ module.exports = {
   adminRoleIds: (process.env.ADMIN_ROLE_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
 
   // Scoreboard (guildeux)
-  guildeuxRoleId: must('GUILDEUX_ROLE_ID'),
-  scoreboardChannelId: must('SCOREBOARD_CHANNEL_ID'),
+  // Optional until configured
+  guildeuxRoleId: process.env.GUILDEUX_ROLE_ID || null,
+  scoreboardChannelId: process.env.SCOREBOARD_CHANNEL_ID || null,
   scoreboardTopN: Number(process.env.SCOREBOARD_TOP_N || 25),
 };

@@ -83,7 +83,12 @@ async function buildScoreboardEmbed(guild, { topN = 25 } = {}) {
   // Requires GuildMembers intent.
   await guild.members.fetch();
 
-  const role = guild.roles.cache.get(require('./config').guildeuxRoleId);
+  const cfg = require('./config');
+  if (!cfg.guildeuxRoleId) {
+    return new EmbedBuilder().setColor(0x3498db).setTitle('📊 Classement des pings — Guildeux').setDescription('Scoreboard non configuré (GUILDEUX_ROLE_ID manquant).');
+  }
+
+  const role = guild.roles.cache.get(cfg.guildeuxRoleId);
   const guildeuxMembers = role ? role.members.map(m => m) : [];
 
   // Ensure DB rows exist

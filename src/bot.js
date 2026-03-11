@@ -159,24 +159,29 @@ async function main() {
 
       await ensurePanelMessage(channel);
 
-      // Scoreboard message in dedicated channel
-      const scoreboardChannel = await client.channels.fetch(config.scoreboardChannelId).catch(() => null);
-      if (scoreboardChannel && scoreboardChannel.isTextBased()) {
-        await scoreboard.ensureScoreboardMessage(guild, scoreboardChannel, { topN: config.scoreboardTopN });
-      } else {
-        console.warn('[bot] scoreboard channel not accessible:', config.scoreboardChannelId);
-      }
-
-      // Weekly announcement scheduler (checks every 30s)
-      setInterval(async () => {
-        try {
-          if (scoreboardChannel && scoreboardChannel.isTextBased()) {
-            await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10 });
-          }
-        } catch (e) {
-          console.warn('[bot] weekly announcement error:', e?.message || e);
+      // Scoreboard message in dedicated channel (only if configured)
+      let scoreboardChannel = null;
+      if (config.scoreboardChannelId && config.guildeuxRoleId) {
+        scoreboardChannel = await client.channels.fetch(config.scoreboardChannelId).catch(() => null);
+        if (scoreboardChannel && scoreboardChannel.isTextBased()) {
+          await scoreboard.ensureScoreboardMessage(guild, scoreboardChannel, { topN: config.scoreboardTopN });
+        } else {
+          console.warn('[bot] scoreboard channel not accessible:', config.scoreboardChannelId);
         }
-      }, 30_000);
+
+        // Weekly announcement scheduler (checks every 30s)
+        setInterval(async () => {
+          try {
+            if (scoreboardChannel && scoreboardChannel.isTextBased()) {
+              await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10 });
+            }
+          } catch (e) {
+            console.warn('[bot] weekly announcement error:', e?.message || e);
+          }
+        }, 30_000);
+      } else {
+        console.warn('[bot] scoreboard disabled (missing SCOREBOARD_CHANNEL_ID or GUILDEUX_ROLE_ID)');
+      }
 
       console.log('[bot] ready');
 
@@ -192,6 +197,8 @@ async function main() {
   client.on('guildMemberUpdate', async (oldMember, newMember) => {
     try {
       // If someone gains the guildeux role, ensure they're listed (0 score) and refresh board
+      if (!config.guildeuxRoleId || !config.scoreboardChannelId) return;
+
       const gained = !oldMember.roles.cache.has(config.guildeuxRoleId) && newMember.roles.cache.has(config.guildeuxRoleId);
       if (!gained) return;
 
@@ -396,12 +403,14 @@ async function main() {
         // Scoreboard: count pings for members who have the @guildeux role
         try {
           const member = interaction.member;
-          const hasGuildeux = !!(member?.roles && member.roles.cache?.has(config.guildeuxRoleId));
-          if (hasGuildeux) {
-            scoreboard.incrementPing(interaction.guild.id, interaction.user.id);
-            const sbChannel = await interaction.client.channels.fetch(config.scoreboardChannelId).catch(() => null);
-            if (sbChannel && sbChannel.isTextBased()) {
-              await scoreboard.ensureScoreboardMessage(interaction.guild, sbChannel, { topN: config.scoreboardTopN });
+          if (config.guildeuxRoleId && config.scoreboardChannelId) {
+            const hasGuildeux = !!(member?.roles && member.roles.cache?.has(config.guildeuxRoleId));
+            if (hasGuildeux) {
+              scoreboard.incrementPing(interaction.guild.id, interaction.user.id);
+              const sbChannel = await interaction.client.channels.fetch(config.scoreboardChannelId).catch(() => null);
+              if (sbChannel && sbChannel.isTextBased()) {
+                await scoreboard.ensureScoreboardMessage(interaction.guild, sbChannel, { topN: config.scoreboardTopN });
+              }
             }
           }
         } catch (e) {
