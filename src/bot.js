@@ -290,63 +290,81 @@ async function ensurePanelMessage(channel, rc) {
   return msg;
 }
 
-function buildHelpEmbed() {
-  // Keep this in one place so it stays up to date automatically.
-  // (Update the lists when you add/remove commands.)
-  const sections = [
-    {
-      title: '🧩 Installation / Setup (Owner only)',
-      lines: [
-        '`/setup_dashboard salon:#...` — poste le dashboard de config',
-        '`/setup_admin role:@...` — définit le rôle admin autorisé (optionnel)',
-        '`/setup_ping panneau:#... alertes:#... def_role:@... (titre) (cooldown)`',
-        '`/setup_scoreboard salon:#... role_guildeux:@... (top)`',
-        '`/setup_profiles salon:#...` — salon identification (profils IGN)',
-        '`/setup_help salon:#...` — poste le guide staff (ce message)',
-        '`/setup_surveillance salon:#...` — salon de logs (join/leave/invites)',
-        '`/setup_reglement salon:#... role_acces:@...` — règlement + accès',
-        '`/setup_validation_staff salon:#... staff1:@... (staff2) role_gto:@... role_def:@...`',
-        '`/setup_welcome salon:#... guilde:"GTO" ping_everyone:true role_guildeux:@... role_invite:@...`',
-        '`/setup_status` — affiche la config actuelle',
-      ],
-    },
-    {
-      title: '📌 Panneau & Guilde (Admin)',
-      lines: [
-        '`/panneau_creer canal:#... canal_alerte:#... (titre) (epingle)`',
-        '`/panneau_actualiser canal:#...`',
-        '`/guilde_ajouter nom:... role:@... (label) (emoji) (prefixe) (ordre)`',
-        '`/guilde_supprimer nom:...`',
-      ],
-    },
-    {
-      title: '🛠️ Outils (Admin)',
-      lines: [
-        '`/clean (nombre)` — supprime des messages dans le salon actuel',
-        '`/lock_write salon:#... role_autorise1:@... (role_autorise2) (role_autorise3) (unlock)`',
-        '`/role_id role:@...` — affiche l’ID d’un rôle',
-      ],
-    },
-    {
-      title: '🎮 Profils (Staff)',
-      lines: [
-        '`/profile_set membre:@... pseudos:"un par ligne"` — modifie un profil',
-        '`/profile_reset membre:@...` — supprime un profil',
-        'Bouton **✏️ Modifier** sur la box profil (Meneur/BD uniquement)',
-      ],
-    },
+function groupCommandName(name) {
+  if (name.startsWith('setup_')) return '🧩 Installation / Setup (Owner only)';
+  if (name.startsWith('panneau_') || name.startsWith('guilde_')) return '📌 Panneau & Guilde (Admin)';
+  if (name.startsWith('profile_')) return '🎮 Profils (Staff)';
+  if (['clean', 'lock_write', 'role_id'].includes(name)) return '🛠️ Outils (Admin)';
+  return '📎 Autres';
+}
+
+function chunkLines(lines, maxLen = 1024) {
+  const chunks = [];
+  let cur = '';
+  for (const line of lines) {
+    const add = (cur ? '\n' : '') + line;
+    if ((cur + add).length > maxLen) {
+      if (cur) chunks.push(cur);
+      cur = line;
+    } else {
+      cur += add;
+    }
+  }
+  if (cur) chunks.push(cur);
+  return chunks;
+}
+
+function buildHelpEmbedFromCommands(commands) {
+  const byGroup = new Map();
+
+  for (const c of commands) {
+    const group = groupCommandName(c.name);
+    if (!byGroup.has(group)) byGroup.set(group, []);
+
+    const opts = (c.options || [])
+      .map(o => `${o.required ? '<' : '['}${o.name}${o.required ? '>' : ']'}`)
+      .join(' ');
+
+    const usage = opts ? `/${c.name} ${opts}` : `/${c.name}`;
+    const desc = c.description || '';
+    byGroup.get(group).push(`• \`${usage}\` — ${desc}`);
+  }
+
+  // Stable group order
+  const groupOrder = [
+    '🧩 Installation / Setup (Owner only)',
+    '📌 Panneau & Guilde (Admin)',
+    '🛠️ Outils (Admin)',
+    '🎮 Profils (Staff)',
+    '📎 Autres',
   ];
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle('📘 Commandes du bot GTO — Guide staff')
-    .setDescription('Résumé clair des commandes disponibles. (Message auto mis à jour lors des évolutions.)');
+    .setDescription('Liste auto-générée depuis les slash commands enregistrées sur le serveur.')
+    .setTimestamp();
 
-  for (const s of sections) {
-    embed.addFields({ name: s.title, value: s.lines.join('\n').slice(0, 1024), inline: false });
+  for (const group of groupOrder) {
+    const lines = byGroup.get(group);
+    if (!lines || !lines.length) continue;
+    const chunks = chunkLines(lines);
+    chunks.forEach((val, idx) => {
+      const name = idx === 0 ? group : `${group} (suite)`;
+      embed.addFields({ name, value: val, inline: false });
+    });
   }
 
-  embed.setFooter({ text: 'Astuce: utilisez le Dashboard setup pour installer rapidement sur un nouveau serveur.' });
+  // Extra notes for features that are not slash commands
+  embed.addFields({
+    name: 'ℹ️ Notes',
+    value:
+      '• Le bouton **✏️ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
+      '• Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.',
+    inline: false,
+  });
+
+  embed.setFooter({ text: 'Astuce: utilisez /setup_dashboard pour installer rapidement.' });
   return embed;
 }
 
@@ -355,7 +373,16 @@ async function ensureHelpMessage(guild, rc) {
   const ch = await guild.client.channels.fetch(rc.helpChannelId).catch(() => null);
   if (!ch || !ch.isTextBased()) return;
 
-  const embed = buildHelpEmbed();
+  // Fetch registered commands for THIS guild to auto-update
+  let commands = [];
+  try {
+    const rest = new REST({ version: '10' }).setToken(config.token);
+    commands = await rest.get(Routes.applicationGuildCommands(guild.client.user.id, guild.id));
+  } catch (e) {
+    console.warn('[bot] could not fetch guild commands for help box:', e?.message || e);
+  }
+
+  const embed = buildHelpEmbedFromCommands(commands);
 
   if (rc.helpMessageId) {
     const existing = await ch.messages.fetch(rc.helpMessageId).catch(() => null);
