@@ -15,4 +15,9 @@ module.exports = {
   cooldownSeconds: Number(process.env.COOLDOWN_SECONDS || 10),
   alertChannelId: process.env.ALERT_CHANNEL_ID || must('DEFAULT_CHANNEL_ID'),
   adminRoleIds: (process.env.ADMIN_ROLE_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
+
+  // Scoreboard (guildeux)
+  guildeuxRoleId: must('GUILDEUX_ROLE_ID'),
+  scoreboardChannelId: must('SCOREBOARD_CHANNEL_ID'),
+  scoreboardTopN: Number(process.env.SCOREBOARD_TOP_N || 25),
 };

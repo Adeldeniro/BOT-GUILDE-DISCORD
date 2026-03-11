@@ -3,6 +3,7 @@ const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
 const panel = require('./panel');
+const scoreboard = require('./scoreboard');
 
 const cooldown = new Map(); // key: buttonKey -> lastTs
 
@@ -133,7 +134,7 @@ async function registerCommands(client) {
 
 async function main() {
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers],
   });
 
   client.once('ready', async () => {
@@ -152,6 +153,26 @@ async function main() {
       });
 
       await ensurePanelMessage(channel);
+
+      // Scoreboard message in dedicated channel
+      const scoreboardChannel = await client.channels.fetch(config.scoreboardChannelId).catch(() => null);
+      if (scoreboardChannel && scoreboardChannel.isTextBased()) {
+        await scoreboard.ensureScoreboardMessage(guild, scoreboardChannel, { topN: config.scoreboardTopN });
+      } else {
+        console.warn('[bot] scoreboard channel not accessible:', config.scoreboardChannelId);
+      }
+
+      // Weekly announcement scheduler (checks every 30s)
+      setInterval(async () => {
+        try {
+          if (scoreboardChannel && scoreboardChannel.isTextBased()) {
+            await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10 });
+          }
+        } catch (e) {
+          console.warn('[bot] weekly announcement error:', e?.message || e);
+        }
+      }, 30_000);
+
       console.log('[bot] ready');
 
       // Validate def role mentionability
@@ -160,6 +181,22 @@ async function main() {
       if (!perm.ok) console.warn('[bot] DEF role ping may fail:', perm.reason);
     } catch (e) {
       console.error('[bot] ready error', e);
+    }
+  });
+
+  client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    try {
+      // If someone gains the guildeux role, ensure they're listed (0 score) and refresh board
+      const gained = !oldMember.roles.cache.has(config.guildeuxRoleId) && newMember.roles.cache.has(config.guildeuxRoleId);
+      if (!gained) return;
+
+      scoreboard.upsertScoreUser(newMember.guild.id, newMember.user.id);
+      const sbChannel = await newMember.client.channels.fetch(config.scoreboardChannelId).catch(() => null);
+      if (sbChannel && sbChannel.isTextBased()) {
+        await scoreboard.ensureScoreboardMessage(newMember.guild, sbChannel, { topN: config.scoreboardTopN });
+      }
+    } catch (e) {
+      console.warn('[bot] guildMemberUpdate scoreboard error:', e?.message || e);
     }
   });
 
@@ -343,6 +380,21 @@ async function main() {
           content,
           allowedMentions: { roles: pingRoles },
         });
+
+        // Scoreboard: count pings for members who have the @guildeux role
+        try {
+          const member = interaction.member;
+          const hasGuildeux = !!(member?.roles && member.roles.cache?.has(config.guildeuxRoleId));
+          if (hasGuildeux) {
+            scoreboard.incrementPing(interaction.guild.id, interaction.user.id);
+            const sbChannel = await interaction.client.channels.fetch(config.scoreboardChannelId).catch(() => null);
+            if (sbChannel && sbChannel.isTextBased()) {
+              await scoreboard.ensureScoreboardMessage(interaction.guild, sbChannel, { topN: config.scoreboardTopN });
+            }
+          }
+        } catch (e) {
+          console.warn('[bot] scoreboard update failed:', e?.message || e);
+        }
 
         // No ephemeral ack on success (avoid noise). Only reply on errors/cooldown.
         return interaction.deferUpdate();

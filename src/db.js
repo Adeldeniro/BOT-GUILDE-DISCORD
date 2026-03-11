@@ -27,6 +27,22 @@ CREATE TABLE IF NOT EXISTS guild_buttons (
   sort_order INTEGER DEFAULT 0,
   PRIMARY KEY (guild_id, channel_id, name)
 );
+
+-- Scoreboard (guildeux)
+CREATE TABLE IF NOT EXISTS guildeux_scores (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  ping_count INTEGER NOT NULL DEFAULT 0,
+  last_ping_at INTEGER,
+  PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS scoreboard_state (
+  guild_id TEXT NOT NULL PRIMARY KEY,
+  channel_id TEXT,
+  message_id TEXT,
+  last_weekly_announce_date TEXT
+);
 `);
 
 // Migration for older DBs
