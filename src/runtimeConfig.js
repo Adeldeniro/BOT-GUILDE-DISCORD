@@ -37,6 +37,11 @@ function getConfigForGuild(guildId) {
     welcomePingEveryone: Boolean(Number(pick(gc.welcome_ping_everyone, 0) || 0)),
     welcomeRoleGuildeuxId: pick(gc.welcome_role_guildeux_id, null),
     welcomeRoleInviteId: pick(gc.welcome_role_invite_id, null),
+
+    // Rules gating
+    rulesChannelId: pick(gc.rules_channel_id, null),
+    rulesMessageId: pick(gc.rules_message_id, null),
+    rulesAccessRoleId: pick(gc.rules_access_role_id, null),
   };
 }
 

@@ -62,7 +62,10 @@ CREATE TABLE IF NOT EXISTS guild_config (
   welcome_guild_name TEXT,
   welcome_ping_everyone INTEGER,
   welcome_role_guildeux_id TEXT,
-  welcome_role_invite_id TEXT
+  welcome_role_invite_id TEXT,
+  rules_channel_id TEXT,
+  rules_message_id TEXT,
+  rules_access_role_id TEXT
 );
 `);
 
@@ -98,6 +101,15 @@ if (!cfgCols.includes('welcome_role_guildeux_id')) {
 }
 if (!cfgCols.includes('welcome_role_invite_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN welcome_role_invite_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('rules_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN rules_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('rules_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN rules_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('rules_access_role_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN rules_access_role_id TEXT'); } catch {}
 }
 
 module.exports = db;

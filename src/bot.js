@@ -19,7 +19,7 @@ function buildDashboardEmbed(rc) {
     .addFields(
       {
         name: 'État',
-        value: `🛡️ Ping/Alertes: ${okPing ? '✅' : '❌'}\n📊 Scoreboard: ${okScore ? '✅' : '❌'}\n👋 Bienvenue: ${okWelcome ? '✅' : '❌'}\n👤 Admin role: ${rc.adminRoleId ? `<@&${rc.adminRoleId}>` : '—'}`,
+        value: `🛡️ Ping/Alertes: ${okPing ? '✅' : '❌'}\n📊 Scoreboard: ${okScore ? '✅' : '❌'}\n👋 Bienvenue: ${okWelcome ? '✅' : '❌'}\n📜 Règlement: ${rc.rulesChannelId && rc.rulesAccessRoleId ? '✅' : '❌'}\n👤 Admin role: ${rc.adminRoleId ? `<@&${rc.adminRoleId}>` : '—'}`,
         inline: false,
       },
       {
@@ -38,6 +38,7 @@ function buildDashboardComponents(guildId) {
     new ButtonBuilder().setCustomId(`dash:${guildId}:ping`).setLabel('🛡️ Config Ping').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`dash:${guildId}:score`).setLabel('📊 Config Scoreboard').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`dash:${guildId}:welcome`).setLabel('👋 Config Bienvenue').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:rules`).setLabel('📜 Config Règlement').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`dash:${guildId}:admin`).setLabel('👤 Admin').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId(`dash:${guildId}:status`).setLabel('📌 Status').setStyle(ButtonStyle.Secondary),
   );
@@ -102,6 +103,69 @@ function canPingRole(guild, me, roleId) {
     return { ok: false, reason: `role @${role.name} not mentionable and bot lacks MentionEveryone` };
   }
   return { ok: true };
+}
+
+function buildRulesEmbed(rc) {
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('📜 CHARTE DE LA GUILDE GTO — RP • ENTRAIDE • PVP • PVM')
+    .setDescription(
+      [
+        '**⚔️ 1) Esprit GTO**',
+        'Fraternité, respect, loyauté. On se chambre, pas de manque de respect.',
+        '',
+        '**🤝 2) Entraide**',
+        'PVM, conseils, organisation : on s’aide et on progresse ensemble.',
+        '',
+        '**🛡️ 3) PVP**',
+        'Fair-play et discipline. On suit les calls en combat.',
+        '',
+        '**🏰 4) Défense**',
+        'Quand l’alerte tombe, on se mobilise si possible. Pas de faux pings.',
+        '',
+        '**🗣️ 5) Communication**',
+        'Pas de spam, bons salons, respect en vocal.',
+        '',
+        '**👑 6) Staff**',
+        'Si souci : MP staff, pas de drama public.',
+        '',
+        '✅ **Pour accéder au serveur, valide le règlement ci-dessous.**',
+      ].join('\n')
+    )
+    .setFooter({ text: 'Clique sur “J’accepte” pour continuer.' });
+
+  return embed;
+}
+
+function buildRulesComponents(guildId, userId) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`rulesok:${guildId}:${userId}`)
+        .setLabel('✅ J’accepte le règlement')
+        .setStyle(ButtonStyle.Success)
+    ),
+  ];
+}
+
+async function ensureRulesMessage(channel, rc) {
+  const embed = buildRulesEmbed(rc);
+
+  // If already exists, update it
+  if (rc.rulesChannelId === channel.id && rc.rulesMessageId) {
+    try {
+      const msg = await channel.messages.fetch(rc.rulesMessageId);
+      await msg.edit({ embeds: [embed] });
+      return msg;
+    } catch {
+      // recreate
+    }
+  }
+
+  const msg = await channel.send({ embeds: [embed] });
+  try { await msg.pin(); } catch {}
+  updateGuildConfig(rc.guildId, { rules_channel_id: channel.id, rules_message_id: msg.id });
+  return msg;
 }
 
 async function ensurePanelMessage(channel, rc) {
@@ -228,7 +292,17 @@ async function registerCommands(client) {
       .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false))
       .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false))
       .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle donné aux membres de la guilde').setRequired(false))
-      .addRoleOption(o => o.setName('role_invite').setDescription('Rôle donné aux invités').setRequired(false)), 
+      .addRoleOption(o => o.setName('role_invite').setDescription('Rôle donné aux invités').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('setup_reglement')
+      .setDescription('Configurer le salon règlement + validation (owner only)')
+      .addChannelOption(o => o
+        .setName('salon')
+        .setDescription('Salon #reglement')
+        .addChannelTypes(0, 5)
+        .setRequired(true))
+      .addRoleOption(o => o.setName('role_acces').setDescription("Rôle donné après validation du règlement").setRequired(true)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -316,93 +390,10 @@ async function main() {
     }
   });
 
+  // NOTE: welcome message is sent after rules acceptance (see rulesok button handler)
   client.on('guildMemberAdd', async (member) => {
-    try {
-      const rc = getConfigForGuild(member.guild.id);
-      if (!rc.welcomeChannelId) return;
-
-      const ch = await member.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
-      if (!ch || !ch.isTextBased()) return;
-
-      // Pick a random GIF URL from assets/welcome-gifs.txt
-      let gifUrl = null;
-      try {
-        const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
-        const raw = require('fs').readFileSync(gifsPath, 'utf8');
-        const urls = raw
-          .split(/\r?\n/)
-          .map(l => l.trim())
-          .filter(l => l && !l.startsWith('#'));
-        if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
-      } catch {}
-
-      const embed = new EmbedBuilder()
-        .setColor(0x3498db)
-        .setAuthor({ name: `Nouvel arrivant`, iconURL: member.user.displayAvatarURL?.({ size: 128 }) })
-        .setTitle('👋 Bienvenue parmi nous !')
-        .setDescription(
-          `✨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
-          `Ici c’est **fraternité**, **entraide** et **bonne ambiance**.\n` +
-          `Passe dire bonjour et installe-toi tranquillement.`
-        )
-        .addFields(
-          {
-            name: '📌 Petit rappel',
-            value: 'Présente-toi vite fait et n’hésite pas à demander de l’aide — on est là pour ça.',
-            inline: false,
-          },
-        )
-        .setFooter({ text: 'GTO — on est contents de te compter parmi nous.' });
-
-      // Role buttons (optional)
-      const components = [];
-      if (rc.welcomeRoleGuildeuxId || rc.welcomeRoleInviteId) {
-        embed.addFields({ name: '✅ Choisis ton accès', value: 'Clique sur un bouton ci-dessous pour rejoindre le bon espace.', inline: false });
-        const row = new ActionRowBuilder();
-        if (rc.welcomeRoleGuildeuxId) {
-          row.addComponents(
-            new ButtonBuilder()
-              .setCustomId(`welrole:${member.guild.id}:${member.user.id}:guildeux`)
-              .setLabel('🛡️ Je suis Guildeux')
-              .setStyle(ButtonStyle.Primary)
-          );
-        }
-        if (rc.welcomeRoleInviteId) {
-          row.addComponents(
-            new ButtonBuilder()
-              .setCustomId(`welrole:${member.guild.id}:${member.user.id}:invite`)
-              .setLabel('🎟️ Je suis Invité')
-              .setStyle(ButtonStyle.Secondary)
-          );
-        }
-        components.push(row);
-      }
-
-      const content = rc.welcomePingEveryone ? '@everyone' : '';
-
-      // Make GIFs reliable: download and attach, then point embed image to attachment://
-      const files = [];
-      if (gifUrl) {
-        try {
-          const resp = await fetch(gifUrl);
-          if (resp.ok) {
-            const buf = Buffer.from(await resp.arrayBuffer());
-            files.push({ attachment: buf, name: 'welcome.gif' });
-            embed.setImage('attachment://welcome.gif');
-          }
-        } catch {}
-      }
-
-      await ch.send({
-        content,
-        embeds: [embed],
-        components,
-        files,
-        allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
-      });
-    } catch (e) {
-      console.warn('[bot] welcome error:', e?.message || e);
-    }
+    // Intentionally empty for now.
+    // Rules gating is done via the #reglement accept button.
   });
 
   client.on('guildMemberUpdate', async (oldMember, newMember) => {
@@ -577,7 +568,32 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Bienvenue configurée dans <#${salon.id}> (guilde: ${guildeName}) (ping everyone: ${pingEveryone ? 'ON' : 'OFF'}) (roles: ${roleGuildeux ? roleGuildeux.toString() : '—'} / ${roleInvite ? roleInvite.toString() : '—'}).`, ephemeral: true });
+            return interaction.reply({ content: `OK. Salon arrivée configuré : <#${salon.id}> (guilde: ${guildeName}) (ping everyone: ${pingEveryone ? 'ON' : 'OFF'}) (roles: ${roleGuildeux ? roleGuildeux.toString() : '—'} / ${roleInvite ? roleInvite.toString() : '—'}).`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_reglement') {
+            const salon = interaction.options.getChannel('salon', true);
+            const roleAcces = interaction.options.getRole('role_acces', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour le règlement.', ephemeral: true });
+            }
+
+            updateGuildConfig(guild.id, {
+              rules_channel_id: salon.id,
+              rules_access_role_id: roleAcces.id,
+            });
+
+            const rc2 = getConfigForGuild(guild.id);
+            await ensureRulesMessage(salon, rc2);
+
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
+              }
+            }
+
+            return interaction.reply({ content: `OK. Règlement configuré dans <#${salon.id}>. Rôle après validation : ${roleAcces}`, ephemeral: true });
           }
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
@@ -692,6 +708,135 @@ async function main() {
       }
 
       if (interaction.isButton()) {
+        // Rules acceptance button
+        if (interaction.customId.startsWith('rulesok:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const targetUserId = parts[2];
+
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+          if (interaction.user.id !== targetUserId) {
+            return interaction.reply({ content: "Ce bouton est réservé au nouveau membre.", ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guild.id);
+          if (!rc.rulesAccessRoleId) {
+            return interaction.reply({ content: "Règlement non configuré (role_acces manquant).", ephemeral: true });
+          }
+
+          // Add access role
+          if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+            return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+          }
+
+          const accessRole = interaction.guild.roles.cache.get(rc.rulesAccessRoleId);
+          if (!accessRole) return interaction.reply({ content: "Rôle d'accès introuvable.", ephemeral: true });
+
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!member) return interaction.reply({ content: 'Impossible de te récupérer.', ephemeral: true });
+
+          try {
+            await member.roles.add(accessRole);
+          } catch (e) {
+            return interaction.reply({ content: `Erreur rôle: ${e.message}`, ephemeral: true });
+          }
+
+          // Send welcome message now (arrival step)
+          if (!rc.welcomeChannelId) {
+            return interaction.reply({ content: `✅ Règlement validé. (Salon arrivée non configuré)`, ephemeral: true });
+          }
+
+          const ch = await interaction.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
+          if (!ch || !ch.isTextBased()) {
+            return interaction.reply({ content: `✅ Règlement validé. (Salon arrivée inaccessible)`, ephemeral: true });
+          }
+
+          // Build welcome message
+          let gifUrl = null;
+          try {
+            const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
+            const raw = require('fs').readFileSync(gifsPath, 'utf8');
+            const urls = raw
+              .split(/\r?\n/)
+              .map(l => l.trim())
+              .filter(l => l && !l.startsWith('#'));
+            if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
+          } catch {}
+
+          const embed = new EmbedBuilder()
+            .setColor(0x3498db)
+            .setAuthor({ name: `Nouvel arrivant`, iconURL: member.user.displayAvatarURL?.({ size: 128 }) })
+            .setTitle('👋 Bienvenue parmi nous !')
+            .setDescription(
+              `✨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
+              `Ici c’est **fraternité**, **entraide** et **bonne ambiance**.\n` +
+              `Passe dire bonjour et installe-toi tranquillement.`
+            )
+            .addFields(
+              { name: '✅ Étape suivante', value: 'Choisis ci-dessous si tu es **Guildeux** ou **Invité**.', inline: false },
+              {
+                name: '🛡️ Vérification staff',
+                value: 'Après tes choix, un membre du staff vérifiera ton adhésion. Si tu es bien un membre de la guilde, les rôles **GTO** et **DEF** te seront attribués pour être notifié de l’activité.',
+                inline: false,
+              },
+            )
+            .setFooter({ text: 'Bienvenue à toi.' });
+
+          const components = [];
+          if (rc.welcomeRoleGuildeuxId || rc.welcomeRoleInviteId) {
+            const row = new ActionRowBuilder();
+            if (rc.welcomeRoleGuildeuxId) {
+              row.addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`welrole:${member.guild.id}:${member.user.id}:guildeux`)
+                  .setLabel('🛡️ Je suis Guildeux')
+                  .setStyle(ButtonStyle.Primary)
+              );
+            }
+            if (rc.welcomeRoleInviteId) {
+              row.addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`welrole:${member.guild.id}:${member.user.id}:invite`)
+                  .setLabel('🎟️ Je suis Invité')
+                  .setStyle(ButtonStyle.Secondary)
+              );
+            }
+            components.push(row);
+          }
+
+          const files = [];
+          if (gifUrl) {
+            try {
+              const resp = await fetch(gifUrl);
+              if (resp.ok) {
+                const buf = Buffer.from(await resp.arrayBuffer());
+                files.push({ attachment: buf, name: 'welcome.gif' });
+                embed.setImage('attachment://welcome.gif');
+              }
+            } catch {}
+          }
+
+          const content = rc.welcomePingEveryone ? '@everyone' : '';
+          await ch.send({
+            content,
+            embeds: [embed],
+            components,
+            files,
+            allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
+          });
+
+          // Remove button from rules message for this user (optional): just disable/ack
+          try {
+            await interaction.update({ components: [] });
+          } catch {
+            try { await interaction.deferUpdate(); } catch {}
+          }
+
+          return;
+        }
+
         // Welcome role buttons
         if (interaction.customId.startsWith('welrole:')) {
           const parts = interaction.customId.split(':');
@@ -778,6 +923,9 @@ async function main() {
                 `**/setup_welcome** salon:<#...> guilde:"${rc.welcomeGuildName || 'GTO'}" ping_everyone:true role_guildeux:<@&...> role_invite:<@&...>`,
               ephemeral: true,
             });
+          }
+          if (action === 'rules') {
+            return interaction.reply({ content: `Utilise :\n**/setup_reglement** salon:<#...> role_acces:<@&...>`, ephemeral: true });
           }
           if (action === 'admin') {
             return interaction.reply({ content: `Utilise :\n**/setup_admin** role:<@&...>`, ephemeral: true });
