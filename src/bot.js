@@ -841,22 +841,30 @@ async function main() {
 
           if (interaction.commandName === 'clean') {
             const n = Math.min(100, Math.max(1, interaction.options.getInteger('nombre') || 50));
+
+            // Avoid interaction timeout
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
             if (!interaction.channel || !interaction.channel.isTextBased()) {
-              return interaction.reply({ content: 'Salon invalide.', ephemeral: true });
+              return interaction.editReply({ content: 'Salon invalide.' }).catch(() => {});
             }
             if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les messages**.", ephemeral: true });
+              return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les messages**." }).catch(() => {});
             }
-            await interaction.reply({ content: `🧹 Nettoyage en cours (${n} messages)…`, ephemeral: true });
+
+            await interaction.editReply({ content: `🧹 Nettoyage en cours (${n} messages)…` }).catch(() => {});
             try {
               const deleted = await interaction.channel.bulkDelete(n, true);
-              return interaction.followUp({ content: `✅ ${deleted.size} messages supprimés.`, ephemeral: true });
+              return interaction.editReply({ content: `✅ ${deleted.size} messages supprimés.` }).catch(() => {});
             } catch (e) {
-              return interaction.followUp({ content: `Erreur: ${e.message}`, ephemeral: true });
+              return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
             }
           }
 
           if (interaction.commandName === 'lock_write') {
+            // Avoid interaction timeout ASAP
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
             const salon = interaction.options.getChannel('salon', true);
             const role1 = interaction.options.getRole('role_autorise1', true);
             const role2 = interaction.options.getRole('role_autorise2', false);
@@ -865,19 +873,16 @@ async function main() {
             const roles = [role1, role2, role3].filter(Boolean);
 
             if (!salon.isTextBased?.()) {
-              return interaction.reply({ content: 'Choisis un salon texte.', ephemeral: true });
+              return interaction.editReply({ content: 'Choisis un salon texte.' }).catch(() => {});
             }
-
-            // Avoid interaction timeout
-            await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
             // owner only
             if (interaction.guild.ownerId !== interaction.user.id) {
-              return interaction.reply({ content: 'Commande réservée au propriétaire du serveur.', ephemeral: true });
+              return interaction.editReply({ content: 'Commande réservée au propriétaire du serveur.' }).catch(() => {});
             }
 
             if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les salons**.", ephemeral: true });
+              return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les salons**." }).catch(() => {});
             }
 
             const everyoneId = interaction.guild.roles.everyone.id;
