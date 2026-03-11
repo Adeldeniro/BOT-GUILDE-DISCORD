@@ -402,7 +402,9 @@ async function main() {
       const content = `${member} bienvenue ! Lis le règlement ci-dessus, puis valide en cliquant sur le bouton ci-dessous.`;
       const components = buildRulesAcceptComponents(member.guild.id, member.user.id);
 
-      await ch.send({ content, components, allowedMentions: { users: [member.id] } });
+      // Auto-delete this prompt after 2 minutes to keep the channel clean.
+      const prompt = await ch.send({ content, components, allowedMentions: { users: [member.id] } });
+      setTimeout(() => prompt.delete().catch(() => {}), 120_000);
     } catch (e) {
       console.warn('[bot] join rules prompt error:', e?.message || e);
     }
@@ -839,8 +841,8 @@ async function main() {
             allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
           });
 
-          // Remove the prompt message buttons after success
-          try { await interaction.message.edit({ components: [] }); } catch {}
+          // Remove the prompt message entirely after success (less visible to others)
+          try { await interaction.message.delete(); } catch {}
 
           // Ack
           try {
