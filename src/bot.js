@@ -2,6 +2,8 @@ const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashComma
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
+const { getConfigForGuild } = require('./runtimeConfig');
+const { updateGuildConfig } = require('./guildConfig');
 const panel = require('./panel');
 const scoreboard = require('./scoreboard');
 
@@ -41,17 +43,17 @@ function canPingRole(guild, me, roleId) {
   return { ok: true };
 }
 
-async function ensurePanelMessage(channel) {
+async function ensurePanelMessage(channel, rc) {
   // Ensure panel record exists; keep any per-channel alert override if already set.
-  const existing = panel.getPanel(config.guildId, channel.id);
-  panel.upsertPanel(config.guildId, channel.id, {
-    title: config.panelTitle,
-    alertChannelId: existing?.alert_channel_id || config.alertChannelId,
+  const existing = panel.getPanel(rc.guildId, channel.id);
+  panel.upsertPanel(rc.guildId, channel.id, {
+    title: rc.panelTitle,
+    alertChannelId: existing?.alert_channel_id || rc.alertChannelId,
   });
-  const p = panel.getPanel(config.guildId, channel.id);
-  const components = panel.buildComponents(config.guildId, channel.id);
+  const p = panel.getPanel(rc.guildId, channel.id);
+  const components = panel.buildComponents(rc.guildId, channel.id);
 
-  const title = p?.title || config.panelTitle;
+  const title = p?.title || rc.panelTitle;
 
   // Embed = best “official announcement” look on Discord
   const embed = new EmbedBuilder()
@@ -81,7 +83,7 @@ async function ensurePanelMessage(channel) {
   }
 
   const msg = await channel.send({ content, embeds: [embed], components });
-  panel.setPanelMessageId(config.guildId, channel.id, msg.id);
+  panel.setPanelMessageId(rc.guildId, channel.id, msg.id);
   // Always pin the panel message if possible
   try { await msg.pin(); } catch {}
   return msg;
@@ -122,6 +124,31 @@ async function registerCommands(client) {
       .setName('role_id')
       .setDescription("Afficher l'ID d'un rôle (debug)")
       .addRoleOption(o => o.setName('role').setDescription('Rôle').setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_admin')
+      .setDescription('Configurer le rôle admin autorisé (owner only)')
+      .addRoleOption(o => o.setName('role').setDescription('Rôle admin (ex: Dev mode)').setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_ping')
+      .setDescription('Configurer le panneau de ping (owner only)')
+      .addChannelOption(o => o.setName('panneau').setDescription('Salon du panneau (boutons)').setRequired(true))
+      .addChannelOption(o => o.setName('alertes').setDescription('Salon des alertes (pings)').setRequired(true))
+      .addRoleOption(o => o.setName('def_role').setDescription('Rôle DEF à ping').setRequired(true))
+      .addStringOption(o => o.setName('titre').setDescription('Titre du panneau').setRequired(false))
+      .addIntegerOption(o => o.setName('cooldown').setDescription('Cooldown en secondes').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('setup_scoreboard')
+      .setDescription('Configurer le scoreboard guildeux (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon du classement').setRequired(true))
+      .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle @guildeux').setRequired(true))
+      .addIntegerOption(o => o.setName('top').setDescription('Top N (ex: 25)').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('setup_status')
+      .setDescription('Afficher la config actuelle (owner only)'),
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -134,7 +161,12 @@ async function registerCommands(client) {
     console.warn('[bot] could not clear global commands:', e?.message || e);
   }
 
-  await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body: commands });
+  if (config.guildId) {
+    await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body: commands });
+  } else {
+    // If no default guild is set, register global commands (slower to propagate)
+    await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+  }
 }
 
 async function main() {
@@ -146,49 +178,59 @@ async function main() {
     try {
       await registerCommands(client);
 
-      const guild = await client.guilds.fetch(config.guildId);
-      const channel = await client.channels.fetch(config.defaultChannelId);
+      const guild = config.guildId ? await client.guilds.fetch(config.guildId) : null;
 
-      // Seed first button if not present
-      panel.upsertGuildButton(config.guildId, config.defaultChannelId, {
-        name: 'GTO',
-        roleId: '1480657602382790902',
-        label: 'GTO',
-        sortOrder: 0,
-      });
+      if (guild && config.defaultChannelId) {
+        const channel = await client.channels.fetch(config.defaultChannelId);
 
-      await ensurePanelMessage(channel);
+        // Seed first button if not present (legacy)
+        panel.upsertGuildButton(guild.id, config.defaultChannelId, {
+          name: 'GTO',
+          roleId: '1480657602382790902',
+          label: 'GTO',
+          sortOrder: 0,
+        });
+
+        const rc = getConfigForGuild(guild.id);
+        await ensurePanelMessage(channel, rc);
+      }
 
       // Scoreboard message in dedicated channel (only if configured)
       let scoreboardChannel = null;
-      if (config.scoreboardChannelId && config.guildeuxRoleId) {
-        scoreboardChannel = await client.channels.fetch(config.scoreboardChannelId).catch(() => null);
-        if (scoreboardChannel && scoreboardChannel.isTextBased()) {
-          await scoreboard.ensureScoreboardMessage(guild, scoreboardChannel, { topN: config.scoreboardTopN });
-        } else {
-          console.warn('[bot] scoreboard channel not accessible:', config.scoreboardChannelId);
-        }
-
-        // Weekly announcement scheduler (checks every 30s)
-        setInterval(async () => {
-          try {
-            if (scoreboardChannel && scoreboardChannel.isTextBased()) {
-              await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10 });
-            }
-          } catch (e) {
-            console.warn('[bot] weekly announcement error:', e?.message || e);
+      if (guild) {
+        const rc0 = getConfigForGuild(guild.id);
+        if (rc0.scoreboardChannelId && rc0.guildeuxRoleId) {
+          scoreboardChannel = await client.channels.fetch(rc0.scoreboardChannelId).catch(() => null);
+          if (scoreboardChannel && scoreboardChannel.isTextBased()) {
+            await scoreboard.ensureScoreboardMessage(guild, scoreboardChannel, { topN: rc0.scoreboardTopN });
+          } else {
+            console.warn('[bot] scoreboard channel not accessible:', rc0.scoreboardChannelId);
           }
-        }, 30_000);
-      } else {
-        console.warn('[bot] scoreboard disabled (missing SCOREBOARD_CHANNEL_ID or GUILDEUX_ROLE_ID)');
+
+          // Weekly announcement scheduler (checks every 30s)
+          setInterval(async () => {
+            try {
+              if (scoreboardChannel && scoreboardChannel.isTextBased()) {
+                await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10 });
+              }
+            } catch (e) {
+              console.warn('[bot] weekly announcement error:', e?.message || e);
+            }
+          }, 30_000);
+        } else {
+          console.warn('[bot] scoreboard disabled (missing config in DB)');
+        }
       }
 
       console.log('[bot] ready');
 
-      // Validate def role mentionability
+      // Validate def role mentionability (if configured)
       const me = client.user;
-      const perm = canPingRole(guild, me, config.defRoleId);
-      if (!perm.ok) console.warn('[bot] DEF role ping may fail:', perm.reason);
+      const rc0 = guild ? getConfigForGuild(guild.id) : null;
+      if (guild && rc0?.defRoleId) {
+        const perm = canPingRole(guild, me, rc0.defRoleId);
+        if (!perm.ok) console.warn('[bot] DEF role ping may fail:', perm.reason);
+      }
     } catch (e) {
       console.error('[bot] ready error', e);
     }
@@ -197,15 +239,16 @@ async function main() {
   client.on('guildMemberUpdate', async (oldMember, newMember) => {
     try {
       // If someone gains the guildeux role, ensure they're listed (0 score) and refresh board
-      if (!config.guildeuxRoleId || !config.scoreboardChannelId) return;
+      const rc = getConfigForGuild(newMember.guild.id);
+      if (!rc.guildeuxRoleId || !rc.scoreboardChannelId) return;
 
-      const gained = !oldMember.roles.cache.has(config.guildeuxRoleId) && newMember.roles.cache.has(config.guildeuxRoleId);
+      const gained = !oldMember.roles.cache.has(rc.guildeuxRoleId) && newMember.roles.cache.has(rc.guildeuxRoleId);
       if (!gained) return;
 
       scoreboard.upsertScoreUser(newMember.guild.id, newMember.user.id);
-      const sbChannel = await newMember.client.channels.fetch(config.scoreboardChannelId).catch(() => null);
+      const sbChannel = await newMember.client.channels.fetch(rc.scoreboardChannelId).catch(() => null);
       if (sbChannel && sbChannel.isTextBased()) {
-        await scoreboard.ensureScoreboardMessage(newMember.guild, sbChannel, { topN: config.scoreboardTopN });
+        await scoreboard.ensureScoreboardMessage(newMember.guild, sbChannel, { topN: rc.scoreboardTopN });
       }
     } catch (e) {
       console.warn('[bot] guildMemberUpdate scoreboard error:', e?.message || e);
@@ -219,31 +262,107 @@ async function main() {
         const guild = interaction.guild;
         const isOwner = guild && interaction.user && guild.ownerId === interaction.user.id;
         const memberRoles = interaction.member?.roles;
-        const hasAllowedRole = !!(memberRoles && config.adminRoleIds.some(rid => memberRoles.cache?.has(rid)));
 
-        if (!isOwner && !hasAllowedRole) {
-          return interaction.reply({ content: "Permissions insuffisantes (réservé à l'Owner, @meneur, @dev mode).", ephemeral: true });
+        const rc = getConfigForGuild(guild.id);
+        const hasLegacyAdmin = !!(memberRoles && rc.adminRoleIdsLegacy.some(rid => memberRoles.cache?.has(rid)));
+        const hasConfiguredAdmin = !!(rc.adminRoleId && memberRoles && memberRoles.cache?.has(rc.adminRoleId));
+        const isAdmin = isOwner || hasLegacyAdmin || hasConfiguredAdmin;
+
+        // Owner-only setup commands
+        if (interaction.commandName.startsWith('setup_')) {
+          if (!isOwner) return interaction.reply({ content: 'Commande réservée au propriétaire du serveur.', ephemeral: true });
+        } else if (!isAdmin) {
+          return interaction.reply({ content: "Permissions insuffisantes (réservé à l'Owner ou rôle admin configuré).", ephemeral: true });
         }
 
-        // Allow /role_id anywhere (useful on mobile), keep other admin commands restricted
+        // Allow /role_id anywhere (useful on mobile)
         if (interaction.commandName === 'role_id') {
           const role = interaction.options.getRole('role', true);
           return interaction.reply({ content: `ID du rôle ${role} : \`${role.id}\``, ephemeral: true });
         }
 
-        // Command restriction: only allow admin commands in the panel channel
-        if (interaction.channelId !== config.defaultChannelId) {
-          return interaction.reply({ content: `Commande autorisée uniquement dans <#${config.defaultChannelId}>.`, ephemeral: true });
+        // Setup commands: allowed anywhere
+        if (interaction.commandName.startsWith('setup_')) {
+          if (interaction.commandName === 'setup_admin') {
+            const role = interaction.options.getRole('role', true);
+            updateGuildConfig(guild.id, { admin_role_id: role.id });
+            return interaction.reply({ content: `OK. Rôle admin configuré : ${role} (\`${role.id}\`).`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_ping') {
+            const panneau = interaction.options.getChannel('panneau', true);
+            const alertes = interaction.options.getChannel('alertes', true);
+            const defRole = interaction.options.getRole('def_role', true);
+            const titre = interaction.options.getString('titre');
+            const cooldown = interaction.options.getInteger('cooldown');
+
+            updateGuildConfig(guild.id, {
+              panel_channel_id: panneau.id,
+              alert_channel_id: alertes.id,
+              def_role_id: defRole.id,
+              panel_title: titre || null,
+              cooldown_seconds: cooldown || null,
+            });
+
+            const rc2 = getConfigForGuild(guild.id);
+            // Create/update panel message
+            const msg = await ensurePanelMessage(panneau, rc2);
+            return interaction.reply({ content: `OK. Panneau configuré dans <#${panneau.id}> (alertes: <#${alertes.id}>) (message ${msg.id}).`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_scoreboard') {
+            const salon = interaction.options.getChannel('salon', true);
+            const roleG = interaction.options.getRole('role_guildeux', true);
+            const top = interaction.options.getInteger('top');
+
+            updateGuildConfig(guild.id, {
+              scoreboard_channel_id: salon.id,
+              guildeux_role_id: roleG.id,
+              scoreboard_top_n: top || null,
+            });
+
+            const rc2 = getConfigForGuild(guild.id);
+            const sbChannel = await interaction.client.channels.fetch(rc2.scoreboardChannelId).catch(() => null);
+            if (sbChannel && sbChannel.isTextBased()) {
+              const msg = await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
+              return interaction.reply({ content: `OK. Scoreboard configuré dans <#${sbChannel.id}> (message ${msg.id}).`, ephemeral: true });
+            }
+            return interaction.reply({ content: `Scoreboard configuré, mais salon inaccessible: <#${salon.id}>.`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_status') {
+            const rc2 = getConfigForGuild(guild.id);
+            const lines = [
+              `panel_channel_id: ${rc2.panelChannelId ? `<#${rc2.panelChannelId}>` : '❌'}`,
+              `alert_channel_id: ${rc2.alertChannelId ? `<#${rc2.alertChannelId}>` : '❌'}`,
+              `def_role_id: ${rc2.defRoleId ? `<@&${rc2.defRoleId}>` : '❌'}`,
+              `panel_title: ${rc2.panelTitle || '—'}`,
+              `cooldown_seconds: ${rc2.cooldownSeconds}`,
+              `scoreboard_channel_id: ${rc2.scoreboardChannelId ? `<#${rc2.scoreboardChannelId}>` : '❌'}`,
+              `guildeux_role_id: ${rc2.guildeuxRoleId ? `<@&${rc2.guildeuxRoleId}>` : '❌'}`,
+              `scoreboard_top_n: ${rc2.scoreboardTopN}`,
+              `admin_role_id: ${rc2.adminRoleId ? `<@&${rc2.adminRoleId}>` : '—'}`,
+            ];
+            return interaction.reply({ content: '```\n' + lines.join('\n') + '\n```', ephemeral: true });
+          }
+
+          return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
+        } else {
+          // Command restriction: only allow admin commands in the panel channel
+          if (rc.panelChannelId && interaction.channelId !== rc.panelChannelId) {
+            return interaction.reply({ content: `Commande autorisée uniquement dans <#${rc.panelChannelId}>.`, ephemeral: true });
+          }
         }
 
         if (interaction.commandName === 'panneau_creer') {
           const channel = interaction.options.getChannel('canal', true);
           const alertChannel = interaction.options.getChannel('canal_alerte', true);
-          const title = interaction.options.getString('titre') || config.panelTitle;
+          const rc = getConfigForGuild(interaction.guild.id);
+          const title = interaction.options.getString('titre') || rc.panelTitle;
           const pin = interaction.options.getBoolean('epingle') || false;
 
-          panel.upsertPanel(config.guildId, channel.id, { title, alertChannelId: alertChannel.id });
-          const msg = await ensurePanelMessage(channel);
+          panel.upsertPanel(interaction.guild.id, channel.id, { title, alertChannelId: alertChannel.id });
+          const msg = await ensurePanelMessage(channel, rc);
           if (pin) {
             try { await msg.pin(); } catch {}
           }
@@ -252,12 +371,14 @@ async function main() {
 
         if (interaction.commandName === 'panneau_actualiser') {
           const channel = interaction.options.getChannel('canal', true);
-          const msg = await ensurePanelMessage(channel);
+          const rc = getConfigForGuild(interaction.guild.id);
+          const msg = await ensurePanelMessage(channel, rc);
           return interaction.reply({ content: `Panneau actualisé dans <#${channel.id}> (message ${msg.id}).`, ephemeral: true });
         }
 
         if (interaction.commandName === 'guilde_ajouter') {
-          const channelId = config.defaultChannelId;
+          const rc = getConfigForGuild(interaction.guild.id);
+          const channelId = rc.panelChannelId;
           const name = interaction.options.getString('nom', true).toUpperCase();
           const role = interaction.options.getRole('role', true);
           const label = (interaction.options.getString('label') || name).slice(0, 80);
@@ -310,7 +431,7 @@ async function main() {
             }
           }
 
-          panel.upsertGuildButton(config.guildId, channelId, {
+          panel.upsertGuildButton(interaction.guild.id, channelId, {
             name,
             roleId: role.id,
             label,
@@ -320,16 +441,17 @@ async function main() {
           });
 
           const panelChannel = await interaction.client.channels.fetch(channelId);
-          await ensurePanelMessage(panelChannel);
+          await ensurePanelMessage(panelChannel, rc);
           return interaction.reply({ content: `Guilde ${name} ajoutée/modifiée → <@&${role.id}>.`, ephemeral: true });
         }
 
         if (interaction.commandName === 'guilde_supprimer') {
-          const channelId = config.defaultChannelId;
+          const rc = getConfigForGuild(interaction.guild.id);
+          const channelId = rc.panelChannelId;
           const name = interaction.options.getString('nom', true).toUpperCase();
-          panel.removeGuildButton(config.guildId, channelId, name);
+          panel.removeGuildButton(interaction.guild.id, channelId, name);
           const panelChannel = await interaction.client.channels.fetch(channelId);
-          await ensurePanelMessage(panelChannel);
+          await ensurePanelMessage(panelChannel, rc);
           return interaction.reply({ content: `Guilde ${name} supprimée du panneau.`, ephemeral: true });
         }
 
@@ -342,7 +464,8 @@ async function main() {
         // Cooldown per button
         const key = `${channelId}:${name}`;
         const last = cooldown.get(key) || 0;
-        if (nowMs() - last < config.cooldownSeconds * 1000) {
+        const rc = getConfigForGuild(interaction.guild.id);
+        if (nowMs() - last < rc.cooldownSeconds * 1000) {
           const gifPath = path.join(__dirname, '..', 'assets', 'calme-toi-zebi.gif');
           return interaction.reply({
             content: `**LES TROUPES SONT DÉJÀ ALERTÉ !**`,
@@ -353,18 +476,19 @@ async function main() {
         cooldown.set(key, nowMs());
 
         const guild = interaction.guild;
-        const btn = panel.resolveButton(config.guildId, channelId, name);
+
+        const btn = panel.resolveButton(interaction.guild.id, channelId, name);
         if (!btn) return interaction.reply({ content: 'Button not configured.', ephemeral: true });
 
-        const p = panel.getPanel(config.guildId, channelId);
-        const alertChannelId = p?.alert_channel_id || config.alertChannelId;
+        const p = panel.getPanel(interaction.guild.id, channelId);
+        const alertChannelId = p?.alert_channel_id || rc.alertChannelId;
         const alertChannel = await interaction.client.channels.fetch(alertChannelId).catch(() => null);
         if (!alertChannel || !alertChannel.isTextBased()) {
           return interaction.reply({ content: `Alert channel not accessible (<#${alertChannelId}>).`, ephemeral: true });
         }
 
         // Always include DEF role in all pings
-        const pingRoles = [config.defRoleId, btn.role_id];
+        const pingRoles = [rc.defRoleId, btn.role_id].filter(Boolean);
 
         // Mention control: allow only these roles
         const emojiPrefix = btn.emoji ? `<${String(btn.emoji).match(/^\d+$/) ? ':' : ''}>` : '';
@@ -403,13 +527,13 @@ async function main() {
         // Scoreboard: count pings for members who have the @guildeux role
         try {
           const member = interaction.member;
-          if (config.guildeuxRoleId && config.scoreboardChannelId) {
-            const hasGuildeux = !!(member?.roles && member.roles.cache?.has(config.guildeuxRoleId));
+          if (rc.guildeuxRoleId && rc.scoreboardChannelId) {
+            const hasGuildeux = !!(member?.roles && member.roles.cache?.has(rc.guildeuxRoleId));
             if (hasGuildeux) {
               scoreboard.incrementPing(interaction.guild.id, interaction.user.id);
-              const sbChannel = await interaction.client.channels.fetch(config.scoreboardChannelId).catch(() => null);
+              const sbChannel = await interaction.client.channels.fetch(rc.scoreboardChannelId).catch(() => null);
               if (sbChannel && sbChannel.isTextBased()) {
-                await scoreboard.ensureScoreboardMessage(interaction.guild, sbChannel, { topN: config.scoreboardTopN });
+                await scoreboard.ensureScoreboardMessage(interaction.guild, sbChannel, { topN: rc.scoreboardTopN });
               }
             }
           }

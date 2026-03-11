@@ -43,6 +43,20 @@ CREATE TABLE IF NOT EXISTS scoreboard_state (
   message_id TEXT,
   last_weekly_announce_date TEXT
 );
+
+-- Per-guild config (makes installation easy)
+CREATE TABLE IF NOT EXISTS guild_config (
+  guild_id TEXT NOT NULL PRIMARY KEY,
+  admin_role_id TEXT,
+  panel_channel_id TEXT,
+  alert_channel_id TEXT,
+  def_role_id TEXT,
+  panel_title TEXT,
+  cooldown_seconds INTEGER,
+  scoreboard_channel_id TEXT,
+  guildeux_role_id TEXT,
+  scoreboard_top_n INTEGER
+);
 `);
 
 // Migration for older DBs
