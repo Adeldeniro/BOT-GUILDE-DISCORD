@@ -407,7 +407,18 @@ async function registerCommands(client) {
       .addRoleOption(o => o.setName('role_autorise1').setDescription('Rôle autorisé à écrire #1').setRequired(true))
       .addRoleOption(o => o.setName('role_autorise2').setDescription('Rôle autorisé à écrire #2').setRequired(false))
       .addRoleOption(o => o.setName('role_autorise3').setDescription('Rôle autorisé à écrire #3').setRequired(false))
-      .addBooleanOption(o => o.setName('unlock').setDescription('Déverrouiller').setRequired(false)),  
+      .addBooleanOption(o => o.setName('unlock').setDescription('Déverrouiller').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('profile_reset')
+      .setDescription('Supprimer le profil (et la box) d\'un membre (admin)')
+      .addUserOption(o => o.setName('membre').setDescription('Membre').setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('profile_set')
+      .setDescription('Modifier les pseudos en jeu d\'un membre (admin)')
+      .addUserOption(o => o.setName('membre').setDescription('Membre').setRequired(true))
+      .addStringOption(o => o.setName('pseudos').setDescription('Un pseudo par ligne').setRequired(true)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -550,7 +561,49 @@ async function main() {
     try {
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith('ign:')) {
+        if (interaction.customId.startsWith('profset:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const targetUserId = parts[2];
+          const msgId = parts[3];
+
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.reply({ content: 'Réservé Meneur / Bras droit.', ephemeral: true });
+
+          const pseudos = (interaction.fields.getTextInputValue('pseudos') || '').trim();
+          if (!pseudos) return interaction.reply({ content: 'Liste vide.', ephemeral: true });
+
+          profiles.upsertProfile(guildId, targetUserId, pseudos);
+
+          // refresh box
+          await updateProfileBox(interaction.guild, rc, targetUserId, {
+            statusText: '✏️ Mis à jour par le staff',
+          }).catch(() => {});
+
+          // keep edit button
+          try {
+            const ch = await interaction.client.channels.fetch(rc.profilesChannelId).catch(() => null);
+            if (ch && ch.isTextBased()) {
+              const m = await ch.messages.fetch(msgId).catch(() => null);
+              if (m) {
+                const row = new ActionRowBuilder().addComponents(
+                  new ButtonBuilder().setCustomId(`profedit:${guildId}:${targetUserId}`).setLabel('✏️ Modifier').setStyle(ButtonStyle.Secondary)
+                );
+                await m.edit({ components: [row] }).catch(() => {});
+              }
+            }
+          } catch {}
+
+          return interaction.reply({ content: '✅ Profil mis à jour.', ephemeral: true });
+        }
+
+        if (interaction.customId.startsWith('ign:')) { 
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
           const userId = parts[2];
@@ -586,10 +639,18 @@ async function main() {
                 .addFields(
                   { name: 'Discord', value: `<@${userId}> (\`${userId}\`)`, inline: false },
                   { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024), inline: false },
-                  { name: 'Type', value: choice === 'guildeux' ? '🛡️ Guildeux (en attente validation staff)' : '🎟️ Invité (en attente validation staff)', inline: false },
+                  { name: 'Statut', value: choice === 'guildeux' ? '🛡️ Guildeux (en attente validation staff)' : '🎟️ Invité (en attente validation staff)', inline: false },
                 )
                 .setFooter({ text: 'Ajout automatique à l’arrivée.' });
-              const sent = await pch.send({ embeds: [embed] });
+
+              const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`profedit:${guildId}:${userId}`)
+                  .setLabel('✏️ Modifier')
+                  .setStyle(ButtonStyle.Secondary)
+              );
+
+              const sent = await pch.send({ embeds: [embed], components: [row] });
               try { profiles.setProfileMessageId(guildId, userId, sent.id); } catch {}
             }
           }
@@ -936,6 +997,38 @@ async function main() {
         }
 
         // Admin utilities (available from any channel)
+        if (interaction.commandName === 'profile_reset') {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+          const rc = getConfigForGuild(interaction.guild.id);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = interaction.guild.ownerId === interaction.user.id || !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.editReply({ content: 'Réservé Meneur / Bras droit / Owner.' }).catch(() => {});
+
+          const user = interaction.options.getUser('membre', true);
+          const existing = profiles.deleteProfile(interaction.guild.id, user.id);
+          if (rc.profilesChannelId && existing?.profile_message_id) {
+            const ch = await interaction.client.channels.fetch(rc.profilesChannelId).catch(() => null);
+            if (ch && ch.isTextBased()) {
+              await ch.messages.delete(existing.profile_message_id).catch(() => {});
+            }
+          }
+          return interaction.editReply({ content: `✅ Profil supprimé pour ${user}.` }).catch(() => {});
+        }
+
+        if (interaction.commandName === 'profile_set') {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+          const rc = getConfigForGuild(interaction.guild.id);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = interaction.guild.ownerId === interaction.user.id || !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.editReply({ content: 'Réservé Meneur / Bras droit / Owner.' }).catch(() => {});
+
+          const user = interaction.options.getUser('membre', true);
+          const pseudos = interaction.options.getString('pseudos', true);
+          profiles.upsertProfile(interaction.guild.id, user.id, pseudos);
+          await updateProfileBox(interaction.guild, rc, user.id, { statusText: '✏️ Mis à jour par le staff' }).catch(() => {});
+          return interaction.editReply({ content: `✅ Profil mis à jour pour ${user}.` }).catch(() => {});
+        }
+
         if (interaction.commandName === 'clean') {
           const n = Math.min(100, Math.max(1, interaction.options.getInteger('nombre') || 50));
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
@@ -1225,6 +1318,37 @@ async function main() {
           } catch {}
 
           return;
+        }
+
+        // Profile edit button (staff only)
+        if (interaction.customId.startsWith('profedit:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const targetUserId = parts[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guild.id);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.reply({ content: 'Réservé Meneur / Bras droit.', ephemeral: true });
+
+          const current = profiles.getProfile(guildId, targetUserId);
+          const modal = new ModalBuilder()
+            .setCustomId(`profset:${guildId}:${targetUserId}:${interaction.message.id}`)
+            .setTitle('Modifier pseudos en jeu');
+
+          const input = new TextInputBuilder()
+            .setCustomId('pseudos')
+            .setLabel('Pseudos (un par ligne)')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+            .setMaxLength(800)
+            .setValue(String(current?.ign || '').slice(0, 800));
+
+          modal.addComponents(new ActionRowBuilder().addComponents(input));
+          return interaction.showModal(modal);
         }
 
         // Staff validation buttons
