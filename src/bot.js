@@ -369,7 +369,14 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('clean')
       .setDescription('Nettoyer les messages dans ce salon (admin)')
-      .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages à supprimer (1-100)').setRequired(false)),  
+      .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages à supprimer (1-100)').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('lock_write')
+      .setDescription("Bloquer l'écriture dans ce salon (owner only)")
+      .addChannelOption(o => o.setName('salon').setDescription('Salon à verrouiller').addChannelTypes(0,5).setRequired(true))
+      .addRoleOption(o => o.setName('role_autorise').setDescription('Rôle autorisé à écrire').setRequired(true))
+      .addBooleanOption(o => o.setName('unlock').setDescription('Déverrouiller').setRequired(false)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -509,13 +516,17 @@ async function main() {
           }
 
           const rc = getConfigForGuild(guildId);
-          const ign = (interaction.fields.getTextInputValue('ign') || '').trim();
-          if (!ign || ign.length < 2) {
+          const ignRaw = (interaction.fields.getTextInputValue('ign') || '').trim();
+          if (!ignRaw || ignRaw.length < 2) {
             return interaction.reply({ content: 'Pseudo en jeu invalide.', ephemeral: true });
           }
 
-          // Save profile
-          profiles.upsertProfile(guildId, userId, ign);
+          // Save profile (append, so user can submit again later if needed)
+          const prof = profiles.appendToProfile(guildId, userId, ignRaw);
+          const ignList = String(prof?.ign || '')
+            .split(/\r?\n/)
+            .map(s => s.trim())
+            .filter(Boolean);
 
           // Post profile box
           if (rc.profilesChannelId) {
@@ -526,7 +537,7 @@ async function main() {
                 .setTitle('🎮 Profil joueur')
                 .addFields(
                   { name: 'Discord', value: `<@${userId}> (\`${userId}\`)`, inline: false },
-                  { name: 'Pseudo en jeu', value: `**${ign}**`, inline: false },
+                  { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024), inline: false },
                   { name: 'Type', value: choice === 'guildeux' ? '🛡️ Guildeux' : '🎟️ Invité', inline: true },
                 )
                 .setFooter({ text: 'Ajout automatique à l’arrivée.' });
@@ -811,6 +822,43 @@ async function main() {
             } catch (e) {
               return interaction.followUp({ content: `Erreur: ${e.message}`, ephemeral: true });
             }
+          }
+
+          if (interaction.commandName === 'lock_write') {
+            const salon = interaction.options.getChannel('salon', true);
+            const role = interaction.options.getRole('role_autorise', true);
+            const unlock = interaction.options.getBoolean('unlock') || false;
+
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un salon texte.', ephemeral: true });
+            }
+
+            // owner only
+            if (interaction.guild.ownerId !== interaction.user.id) {
+              return interaction.reply({ content: 'Commande réservée au propriétaire du serveur.', ephemeral: true });
+            }
+
+            if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
+              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les salons**.", ephemeral: true });
+            }
+
+            const everyoneId = interaction.guild.roles.everyone.id;
+
+            try {
+              if (unlock) {
+                // Remove overwrite for @everyone to restore inherited perms
+                await salon.permissionOverwrites.delete(everyoneId).catch(() => {});
+                await interaction.reply({ content: `🔓 Déverrouillé : <#${salon.id}>`, ephemeral: true });
+              } else {
+                await salon.permissionOverwrites.edit(everyoneId, { SendMessages: false });
+                await salon.permissionOverwrites.edit(role.id, { SendMessages: true });
+                await interaction.reply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${role})`, ephemeral: true });
+              }
+            } catch (e) {
+              return interaction.reply({ content: `Erreur: ${e.message}`, ephemeral: true });
+            }
+
+            return;
           }
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
@@ -1141,12 +1189,12 @@ async function main() {
 
               const input = new TextInputBuilder()
                 .setCustomId('ign')
-                .setLabel('Ton pseudo en jeu')
-                .setStyle(TextInputStyle.Short)
+                .setLabel('Tes pseudos en jeu (un par ligne)')
+                .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true)
                 .setMinLength(2)
-                .setMaxLength(32)
-                .setPlaceholder('Ex: TonyMerguez');
+                .setMaxLength(800)
+                .setPlaceholder('Ex:\nTonyMerguez\nTonyMerguez-2\nMageTony');
 
               modal.addComponents(new ActionRowBuilder().addComponents(input));
               return interaction.showModal(modal);
