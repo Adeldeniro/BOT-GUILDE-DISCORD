@@ -69,7 +69,16 @@ CREATE TABLE IF NOT EXISTS guild_config (
   validation_channel_id TEXT,
   validation_staff_role_ids TEXT,
   validation_gto_role_id TEXT,
-  validation_def_role_id TEXT
+  validation_def_role_id TEXT,
+  profiles_channel_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS player_profiles (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  ign TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
 );
 `);
 
@@ -126,6 +135,9 @@ if (!cfgCols.includes('validation_gto_role_id')) {
 }
 if (!cfgCols.includes('validation_def_role_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN validation_def_role_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('profiles_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN profiles_channel_id TEXT'); } catch {}
 }
 
 module.exports = db;

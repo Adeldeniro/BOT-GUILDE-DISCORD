@@ -51,6 +51,8 @@ function getConfigForGuild(guildId) {
       .filter(Boolean),
     validationGtoRoleId: pick(gc.validation_gto_role_id, null),
     validationDefRoleId: pick(gc.validation_def_role_id, null),
+
+    profilesChannelId: pick(gc.profiles_channel_id, null),
   };
 }
 

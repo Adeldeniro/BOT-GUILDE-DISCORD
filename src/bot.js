@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -6,6 +6,7 @@ const { getConfigForGuild } = require('./runtimeConfig');
 const { updateGuildConfig } = require('./guildConfig');
 const panel = require('./panel');
 const scoreboard = require('./scoreboard');
+const profiles = require('./profiles');
 
 function buildDashboardEmbed(rc) {
   const okPing = !!(rc.panelChannelId && rc.alertChannelId && rc.defRoleId);
@@ -358,7 +359,17 @@ async function registerCommands(client) {
       .addRoleOption(o => o.setName('staff1').setDescription('Rôle staff autorisé #1').setRequired(true))
       .addRoleOption(o => o.setName('role_gto').setDescription('Rôle GTO à attribuer').setRequired(true))
       .addRoleOption(o => o.setName('role_def').setDescription('Rôle DEF à attribuer').setRequired(true))
-      .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false)),  
+      .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('setup_profiles')
+      .setDescription('Configurer le salon des profils (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster les profils (IGN)').addChannelTypes(0,5).setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('clean')
+      .setDescription('Nettoyer les messages dans ce salon (admin)')
+      .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages à supprimer (1-100)').setRequired(false)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -482,6 +493,83 @@ async function main() {
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      // Modal: collect in-game name (IGN)
+      if (interaction.isModalSubmit && interaction.isModalSubmit()) {
+        if (interaction.customId.startsWith('ign:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const userId = parts[2];
+          const choice = parts[3];
+
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+          if (interaction.user.id !== userId) {
+            return interaction.reply({ content: 'Ce formulaire ne te concerne pas.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const ign = (interaction.fields.getTextInputValue('ign') || '').trim();
+          if (!ign || ign.length < 2) {
+            return interaction.reply({ content: 'Pseudo en jeu invalide.', ephemeral: true });
+          }
+
+          // Save profile
+          profiles.upsertProfile(guildId, userId, ign);
+
+          // Post profile box
+          if (rc.profilesChannelId) {
+            const pch = await interaction.client.channels.fetch(rc.profilesChannelId).catch(() => null);
+            if (pch && pch.isTextBased()) {
+              const embed = new EmbedBuilder()
+                .setColor(0x3498db)
+                .setTitle('🎮 Profil joueur')
+                .addFields(
+                  { name: 'Discord', value: `<@${userId}> (\`${userId}\`)`, inline: false },
+                  { name: 'Pseudo en jeu', value: `**${ign}**`, inline: false },
+                  { name: 'Type', value: choice === 'guildeux' ? '🛡️ Guildeux' : '🎟️ Invité', inline: true },
+                )
+                .setFooter({ text: 'Ajout automatique à l’arrivée.' });
+              await pch.send({ embeds: [embed] });
+            }
+          }
+
+          // Assign role based on choice (same as clicking button)
+          const member = await interaction.guild.members.fetch(userId).catch(() => null);
+          if (member) {
+            const roleG = rc.welcomeRoleGuildeuxId ? interaction.guild.roles.cache.get(rc.welcomeRoleGuildeuxId) : null;
+            const roleI = rc.welcomeRoleInviteId ? interaction.guild.roles.cache.get(rc.welcomeRoleInviteId) : null;
+            if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+            }
+            if (choice === 'guildeux' && roleG) {
+              await member.roles.add(roleG).catch(() => {});
+              if (roleI) await member.roles.remove(roleI).catch(() => {});
+              await postStaffValidationAlert(interaction.guild, rc, userId, 'Guildeux');
+            }
+            if (choice === 'invite' && roleI) {
+              await member.roles.add(roleI).catch(() => {});
+              if (roleG) await member.roles.remove(roleG).catch(() => {});
+              await postStaffValidationAlert(interaction.guild, rc, userId, 'Invité');
+            }
+          }
+
+          // Remove welcome buttons message if we still have it
+          const msgId = parts[4];
+          if (msgId) {
+            try {
+              const wch = await interaction.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
+              if (wch && wch.isTextBased()) {
+                const m = await wch.messages.fetch(msgId).catch(() => null);
+                if (m) await m.edit({ components: [] }).catch(() => {});
+              }
+            } catch {}
+          }
+
+          return interaction.reply({ content: '✅ Pseudo enregistré, merci !', ephemeral: true });
+        }
+      }
+
       if (interaction.isChatInputCommand()) {
         // Admin auth: guild owner OR one of the allowed roles (meneur/dev mode)
         const guild = interaction.guild;
@@ -687,7 +775,42 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Validation staff configurée dans <#${salon.id}>. Staff: ${staff1}${staff2 ? ' ' + staff2 : ''}.`, ephemeral: true });
+            return interaction.reply({ content: `OK. Validation staff configurée dans <#${salon.id}>.`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_profiles') {
+            const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour les profils.', ephemeral: true });
+            }
+            updateGuildConfig(guild.id, { profiles_channel_id: salon.id });
+
+            const rc2 = getConfigForGuild(guild.id);
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
+              }
+            }
+
+            return interaction.reply({ content: `OK. Salon profils configuré : <#${salon.id}>`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'clean') {
+            const n = Math.min(100, Math.max(1, interaction.options.getInteger('nombre') || 50));
+            if (!interaction.channel || !interaction.channel.isTextBased()) {
+              return interaction.reply({ content: 'Salon invalide.', ephemeral: true });
+            }
+            if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
+              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les messages**.", ephemeral: true });
+            }
+            await interaction.reply({ content: `🧹 Nettoyage en cours (${n} messages)…`, ephemeral: true });
+            try {
+              const deleted = await interaction.channel.bulkDelete(n, true);
+              return interaction.followUp({ content: `✅ ${deleted.size} messages supprimés.`, ephemeral: true });
+            } catch (e) {
+              return interaction.followUp({ content: `Erreur: ${e.message}`, ephemeral: true });
+            }
           }
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
@@ -1010,33 +1133,23 @@ async function main() {
           const roleI = rc.welcomeRoleInviteId ? interaction.guild.roles.cache.get(rc.welcomeRoleInviteId) : null;
 
           try {
-            if (kind === 'guildeux' && roleG) {
-              await member.roles.add(roleG);
-              if (roleI) await member.roles.remove(roleI).catch(() => {});
+            if ((kind === 'guildeux' && roleG) || (kind === 'invite' && roleI)) {
+              // Ask for IGN via modal first; roles + staff alert will happen on modal submit.
+              const modal = new ModalBuilder()
+                .setCustomId(`ign:${interaction.guild.id}:${interaction.user.id}:${kind}:${interaction.message.id}`)
+                .setTitle('Pseudo en jeu');
 
-              // Staff validation alert (only after the user did their part)
-              await postStaffValidationAlert(interaction.guild, rc, member.user.id, 'Guildeux');
+              const input = new TextInputBuilder()
+                .setCustomId('ign')
+                .setLabel('Ton pseudo en jeu')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setMinLength(2)
+                .setMaxLength(32)
+                .setPlaceholder('Ex: TonyMerguez');
 
-              // Remove buttons from the original welcome message after successful choice
-              try {
-                await interaction.message.edit({ components: [] });
-              } catch (e) {
-                console.warn('[bot] could not remove welcome buttons:', e?.message || e);
-              }
-              return interaction.reply({ content: `✅ Rôle ajouté : ${roleG}`, ephemeral: true });
-            }
-            if (kind === 'invite' && roleI) {
-              await member.roles.add(roleI);
-              if (roleG) await member.roles.remove(roleG).catch(() => {});
-
-              await postStaffValidationAlert(interaction.guild, rc, member.user.id, 'Invité');
-
-              try {
-                await interaction.message.edit({ components: [] });
-              } catch (e) {
-                console.warn('[bot] could not remove welcome buttons:', e?.message || e);
-              }
-              return interaction.reply({ content: `✅ Rôle ajouté : ${roleI}`, ephemeral: true });
+              modal.addComponents(new ActionRowBuilder().addComponents(input));
+              return interaction.showModal(modal);
             }
             return interaction.reply({ content: 'Rôle non configuré.', ephemeral: true });
           } catch (e) {
