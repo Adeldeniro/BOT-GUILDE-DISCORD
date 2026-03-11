@@ -218,6 +218,12 @@ async function main() {
           return interaction.reply({ content: "Permissions insuffisantes (réservé à l'Owner, @meneur, @dev mode).", ephemeral: true });
         }
 
+        // Allow /role_id anywhere (useful on mobile), keep other admin commands restricted
+        if (interaction.commandName === 'role_id') {
+          const role = interaction.options.getRole('role', true);
+          return interaction.reply({ content: `ID du rôle ${role} : \`${role.id}\``, ephemeral: true });
+        }
+
         // Command restriction: only allow admin commands in the panel channel
         if (interaction.channelId !== config.defaultChannelId) {
           return interaction.reply({ content: `Commande autorisée uniquement dans <#${config.defaultChannelId}>.`, ephemeral: true });
@@ -320,10 +326,6 @@ async function main() {
           return interaction.reply({ content: `Guilde ${name} supprimée du panneau.`, ephemeral: true });
         }
 
-        if (interaction.commandName === 'role_id') {
-          const role = interaction.options.getRole('role', true);
-          return interaction.reply({ content: `ID du rôle ${role} : \`${role.id}\``, ephemeral: true });
-        }
       }
 
       if (interaction.isButton()) {
