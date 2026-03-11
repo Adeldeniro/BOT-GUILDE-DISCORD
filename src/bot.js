@@ -1022,7 +1022,11 @@ async function main() {
               await postStaffValidationAlert(interaction.guild, rc, member.user.id, 'Guildeux');
 
               // Remove buttons from the original welcome message after successful choice
-              try { await interaction.message.edit({ components: [] }); } catch {}
+              try {
+                await interaction.message.edit({ components: [] });
+              } catch (e) {
+                console.warn('[bot] could not remove welcome buttons:', e?.message || e);
+              }
               return interaction.reply({ content: `✅ Rôle ajouté : ${roleG}`, ephemeral: true });
             }
             if (kind === 'invite' && roleI) {
@@ -1031,7 +1035,11 @@ async function main() {
 
               await postStaffValidationAlert(interaction.guild, rc, member.user.id, 'Invité');
 
-              try { await interaction.message.edit({ components: [] }); } catch {}
+              try {
+                await interaction.message.edit({ components: [] });
+              } catch (e) {
+                console.warn('[bot] could not remove welcome buttons:', e?.message || e);
+              }
               return interaction.reply({ content: `✅ Rôle ajouté : ${roleI}`, ephemeral: true });
             }
             return interaction.reply({ content: 'Rôle non configuré.', ephemeral: true });
