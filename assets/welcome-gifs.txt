@@ -1,23 +1,4 @@
-# One GIF URL per line (Tenor/Giphy/CDN). Lines starting with # are ignored.
+# One URL per line.
+# Use direct CDN links (cdn.discordapp.com) or other static hosts.
 # Theme: welcome / bienvenue
-https://media.tenor.com/9pH0OqgkV2QAAAAC/welcome.gif
-https://media.tenor.com/1Rk1h3pH0qgAAAAC/welcome-anime.gif
-https://media.tenor.com/3uW7sZ0W6X0AAAAC/welcome-to-the-team.gif
-https://media.tenor.com/0b8QwD4m8EoAAAAC/welcome-home.gif
-https://media.tenor.com/t1kZp9mH9y0AAAAC/welcome-friends.gif
-https://media.tenor.com/3QnY2fF2jW8AAAAC/bienvenue-welcome.gif
-https://media.tenor.com/lbU3bI2G3dAAAAAC/welcome-cute.gif
-https://media.tenor.com/XxT6xXy8mWwAAAAC/welcome-cat.gif
-https://media.tenor.com/HJcTQ8gq8bQAAAAC/welcome-party.gif
-https://media.tenor.com/6d2xQ9bG9rQAAAAC/welcome-in.gif
-https://media.tenor.com/1Q8PqV4tR3gAAAAC/welcome-handshake.gif
-https://media.tenor.com/1cZp0bBq2f0AAAAC/welcome-dance.gif
-https://media.tenor.com/0Dqf2fWm8WkAAAAC/welcome-hello.gif
-https://media.tenor.com/4oV8rYQqjz0AAAAC/welcome-spongebob.gif
-https://media.tenor.com/p5n7oQ0p5n0AAAAC/welcome-minions.gif
-https://media.tenor.com/2Y0GdOe5sKQAAAAC/welcome-hug.gif
-https://media.tenor.com/xK8mY6c2j1sAAAAC/bienvenue.gif
-https://media.tenor.com/QnP3n1mC1JgAAAAC/welcome-sign.gif
-https://media.tenor.com/0pQdYt2H3m0AAAAC/welcome-home-balloons.gif
-https://media.tenor.com/Zz2pS5Qb1xwAAAAC/welcome-to-the-crew.gif
-https://media.tenor.com/9hVf8bK2m1kAAAAC/welcome-gif.gif
+https://cdn.discordapp.com/attachments/1480657353266430045/1481150352580411402/image0.gif?ex=69b24442&is=69b0f2c2&hm=2a9ca943df8e62fa1747c004f8b717f2c49d950f9490622e6dc36cd85d2bfc92&
