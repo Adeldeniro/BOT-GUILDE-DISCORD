@@ -218,7 +218,8 @@ async function registerCommands(client) {
       .setName('setup_welcome')
       .setDescription('Configurer le message de bienvenue (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription("Salon d'arrivée / bienvenue").setRequired(true))
-      .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false)),
+      .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false))
+      .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false)),
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -329,12 +330,13 @@ async function main() {
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
         .setTitle('👋 Bienvenue !')
-        .setDescription(`Bienvenue ${member} dans la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\nInstalle-toi, lis les règles, et amuse-toi.`)
-        .setFooter({ text: 'Content de te voir parmi nous.' });
+        .setDescription(`Bienvenue ${member} dans la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\nVenez lui souhaiter la bienvenue et préparez-vous à défendre le blason.`)
+        .setFooter({ text: 'Nouveau membre détecté.' });
 
       if (gifUrl) embed.setImage(gifUrl);
 
-      await ch.send({ embeds: [embed] });
+      const content = rc.welcomePingEveryone ? '@everyone' : '';
+      await ch.send({ content, embeds: [embed], allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] } });
     } catch (e) {
       console.warn('[bot] welcome error:', e?.message || e);
     }
@@ -489,7 +491,12 @@ async function main() {
           if (interaction.commandName === 'setup_welcome') {
             const salon = interaction.options.getChannel('salon', true);
             const guildeName = interaction.options.getString('guilde') || 'GTO';
-            updateGuildConfig(guild.id, { welcome_channel_id: salon.id, welcome_guild_name: guildeName });
+            const pingEveryone = interaction.options.getBoolean('ping_everyone');
+            updateGuildConfig(guild.id, {
+              welcome_channel_id: salon.id,
+              welcome_guild_name: guildeName,
+              welcome_ping_everyone: pingEveryone ? 1 : 0,
+            });
 
             const rc2 = getConfigForGuild(guild.id);
             if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
@@ -499,7 +506,7 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Bienvenue configurée dans <#${salon.id}> (guilde: ${guildeName}).`, ephemeral: true });
+            return interaction.reply({ content: `OK. Bienvenue configurée dans <#${salon.id}> (guilde: ${guildeName}) (ping everyone: ${pingEveryone ? 'ON' : 'OFF'}).`, ephemeral: true });
           }
 
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });

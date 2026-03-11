@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS guild_config (
   dashboard_channel_id TEXT,
   dashboard_message_id TEXT,
   welcome_channel_id TEXT,
-  welcome_guild_name TEXT
+  welcome_guild_name TEXT,
+  welcome_ping_everyone INTEGER
 );
 `);
 
@@ -86,6 +87,9 @@ if (!cfgCols.includes('welcome_channel_id')) {
 }
 if (!cfgCols.includes('welcome_guild_name')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN welcome_guild_name TEXT'); } catch {}
+}
+if (!cfgCols.includes('welcome_ping_everyone')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN welcome_ping_everyone INTEGER'); } catch {}
 }
 
 module.exports = db;
