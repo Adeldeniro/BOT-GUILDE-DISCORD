@@ -713,11 +713,14 @@ async function main() {
             if (kind === 'guildeux' && roleG) {
               await member.roles.add(roleG);
               if (roleI) await member.roles.remove(roleI).catch(() => {});
+              // Remove buttons from the original welcome message after successful choice
+              try { await interaction.message.edit({ components: [] }); } catch {}
               return interaction.reply({ content: `✅ Rôle ajouté : ${roleG}`, ephemeral: true });
             }
             if (kind === 'invite' && roleI) {
               await member.roles.add(roleI);
               if (roleG) await member.roles.remove(roleG).catch(() => {});
+              try { await interaction.message.edit({ components: [] }); } catch {}
               return interaction.reply({ content: `✅ Rôle ajouté : ${roleI}`, ephemeral: true });
             }
             return interaction.reply({ content: 'Rôle non configuré.', ephemeral: true });
