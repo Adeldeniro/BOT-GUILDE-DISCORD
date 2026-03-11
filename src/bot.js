@@ -368,6 +368,26 @@ async function ensureHelpMessage(guild, rc) {
   updateGuildConfig(guild.id, { help_channel_id: ch.id, help_message_id: msg.id });
 }
 
+// Invite tracking (best effort)
+const inviteCache = new Map(); // guildId -> Collection(code -> invite)
+
+async function refreshInvites(guild) {
+  try {
+    if (!guild.members.me.permissions.has(PermissionsBitField.Flags.ManageGuild)) return;
+    const invites = await guild.invites.fetch();
+    inviteCache.set(guild.id, invites);
+  } catch {
+    // ignore
+  }
+}
+
+async function sendSurveillance(guild, rc, embed) {
+  if (!rc.surveillanceChannelId) return;
+  const ch = await guild.client.channels.fetch(rc.surveillanceChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+  await ch.send({ embeds: [embed] });
+}
+
 async function registerCommands(client) {
   const commands = [
     new SlashCommandBuilder()
@@ -501,7 +521,12 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_help')
       .setDescription('Poster/mettre à jour la box des commandes (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon du guide staff').addChannelTypes(0,5).setRequired(true)),  
+      .addChannelOption(o => o.setName('salon').setDescription('Salon du guide staff').addChannelTypes(0,5).setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_surveillance')
+      .setDescription('Configurer le salon de surveillance (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon logs (join/leave/invite)').addChannelTypes(0,5).setRequired(true)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -519,7 +544,12 @@ async function registerCommands(client) {
 
 async function main() {
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers],
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildInvites,
+    ],
   });
 
   client.once('ready', async () => {
@@ -584,6 +614,11 @@ async function main() {
       if (guild && rc0?.helpChannelId) {
         await ensureHelpMessage(guild, rc0);
       }
+
+      // Preload invite cache for surveillance
+      if (guild) {
+        await refreshInvites(guild);
+      }
     } catch (e) {
       console.error('[bot] ready error', e);
     }
@@ -593,28 +628,83 @@ async function main() {
   client.on('guildMemberAdd', async (member) => {
     try {
       const rc = getConfigForGuild(member.guild.id);
-      if (!rc.rulesChannelId) return;
 
-      const ch = await member.client.channels.fetch(rc.rulesChannelId).catch(() => null);
-      if (!ch || !ch.isTextBased()) return;
+      // Surveillance log (who invited)
+      try {
+        const before = inviteCache.get(member.guild.id);
+        await refreshInvites(member.guild);
+        const after = inviteCache.get(member.guild.id);
+        let used = null;
+        if (before && after) {
+          for (const [code, inv] of after.entries()) {
+            const prev = before.get(code);
+            if (prev && inv.uses > prev.uses) {
+              used = inv;
+              break;
+            }
+          }
+        }
 
-      const content = `${member} bienvenue ! Lis le règlement ci-dessus, puis valide en cliquant sur le bouton ci-dessous.`;
-      const components = buildRulesAcceptComponents(member.guild.id, member.user.id);
+        const embed = new EmbedBuilder()
+          .setColor(0x2ecc71)
+          .setTitle('✅ Arrivée sur le serveur')
+          .addFields(
+            { name: 'Membre', value: `${member} (\`${member.id}\`)`, inline: false },
+            { name: 'Compte', value: member.user.tag || member.user.username, inline: true },
+            { name: 'Créé le', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+            {
+              name: 'Invité par',
+              value: used?.inviter ? `${used.inviter} (code: \`${used.code}\`, uses: **${used.uses}**)` : 'Inconnu (permissions/intent invites manquants)',
+              inline: false,
+            },
+          )
+          .setTimestamp();
 
-      // Auto-delete this prompt after 2 minutes to keep the channel clean.
-      const prompt = await ch.send({ content, components, allowedMentions: { users: [member.id] } });
-      setTimeout(() => prompt.delete().catch(() => {}), 120_000);
+        await sendSurveillance(member.guild, rc, embed);
+      } catch {}
+
+      // Rules prompt
+      if (rc.rulesChannelId) {
+        const ch = await member.client.channels.fetch(rc.rulesChannelId).catch(() => null);
+        if (ch && ch.isTextBased()) {
+          const content = `${member} bienvenue ! Lis le règlement ci-dessus, puis valide en cliquant sur le bouton ci-dessous.`;
+          const components = buildRulesAcceptComponents(member.guild.id, member.user.id);
+          const prompt = await ch.send({ content, components, allowedMentions: { users: [member.id] } });
+          setTimeout(() => prompt.delete().catch(() => {}), 120_000);
+        }
+      }
     } catch (e) {
-      console.warn('[bot] join rules prompt error:', e?.message || e);
+      console.warn('[bot] join handler error:', e?.message || e);
     }
   });
 
   client.on('guildMemberRemove', async (member) => {
-    // Cleanup profiles when someone leaves / is kicked to avoid duplicates on rejoin
+    // Surveillance + cleanup profiles when someone leaves / is kicked
     try {
       const rc = getConfigForGuild(member.guild.id);
-      const existing = profiles.deleteProfile(member.guild.id, member.user.id);
 
+      // Determine leave vs kick (best effort: audit log)
+      let kickedBy = null;
+      try {
+        if (member.guild.members.me.permissions.has(PermissionsBitField.Flags.ViewAuditLog)) {
+          const logs = await member.guild.fetchAuditLogs({ limit: 5, type: 20 }); // MEMBER_KICK
+          const entry = logs.entries.find(e => e.target?.id === member.id && Date.now() - e.createdTimestamp < 60_000);
+          if (entry) kickedBy = entry.executor;
+        }
+      } catch {}
+
+      const embed = new EmbedBuilder()
+        .setColor(kickedBy ? 0xe74c3c : 0x95a5a6)
+        .setTitle(kickedBy ? '⛔ Membre expulsé' : '🚪 Membre parti')
+        .addFields(
+          { name: 'Membre', value: `<@${member.id}> (\`${member.id}\`)`, inline: false },
+          { name: 'Action', value: kickedBy ? `Kick par ${kickedBy}` : 'Départ volontaire', inline: false },
+        )
+        .setTimestamp();
+      await sendSurveillance(member.guild, rc, embed);
+
+      // Cleanup profile + delete profile box
+      const existing = profiles.deleteProfile(member.guild.id, member.user.id);
       if (rc.profilesChannelId && existing?.profile_message_id) {
         const ch = await member.client.channels.fetch(rc.profilesChannelId).catch(() => null);
         if (ch && ch.isTextBased()) {
@@ -622,7 +712,7 @@ async function main() {
         }
       }
     } catch (e) {
-      console.warn('[bot] profile cleanup error:', e?.message || e);
+      console.warn('[bot] memberRemove error:', e?.message || e);
     }
   });
 
@@ -1014,6 +1104,15 @@ async function main() {
             const rc2 = getConfigForGuild(guild.id);
             await ensureHelpMessage(guild, rc2);
             return interaction.reply({ content: `OK. Guide staff posté dans <#${salon.id}> (épinglé).`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_surveillance') {
+            const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour la surveillance.', ephemeral: true });
+            }
+            updateGuildConfig(guild.id, { surveillance_channel_id: salon.id });
+            return interaction.reply({ content: `OK. Surveillance configurée dans <#${salon.id}>.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'clean') {
