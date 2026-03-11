@@ -508,7 +508,7 @@ async function main() {
             if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
               const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
               if (dashChannel && dashChannel.isTextBased()) {
-                await ensureDashboardMessage(guild, dashChannel, rc2);
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
               }
             }
 
