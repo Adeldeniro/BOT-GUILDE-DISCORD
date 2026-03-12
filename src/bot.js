@@ -259,20 +259,28 @@ async function ensurePanelMessage(channel, rc) {
   // Embed = best “official announcement” look on Discord
   const embed = new EmbedBuilder()
     .setColor(0xe74c3c) // alert red
-    .setAuthor({ name: 'GTO — Système d’alerte', iconURL: channel.guild?.iconURL?.({ size: 128 }) || undefined })
-    .setTitle(`🚨 PING DEF — ${title}`)
-    .setDescription('Clique sur un bouton pour déclencher une alerte immédiate dans le salon d’alerte.')
+    .setAuthor({ name: 'GTO — Centre de commandement', iconURL: channel.guild?.iconURL?.({ size: 128 }) || undefined })
+    .setTitle(`⚔️ ALERTE DEF — ${title}`)
+    .setDescription('**EN CAS D’ATTAQUE : sélectionne la guilde et déclenche l’alerte.**')
     .addFields(
-      { name: '🎯 Objectif', value: 'ALERTER LA GUILDE ATTAQUÉE.', inline: false },
       {
-        name: '🧭 Comment faire',
-        value: 'Choisis la guilde concernée → l’alerte ping **DEF** + le rôle de la guilde dans le salon d’alerte.',
+        name: '📣 Procédure',
+        value: '1) Identifie la guilde concernée\n2) Clique sur le bouton correspondant\n3) Renforts en route',
         inline: false,
       },
-      { name: '📌 Règles', value: '• Pas de spam inutile (cooldown actif)\n• Erreur de clic : on assume, on se calme, et on repart', inline: false },
+      {
+        name: '🎯 Effet',
+        value: 'Ping **DEF** + ping rôle de guilde dans le salon d’alerte.',
+        inline: false,
+      },
+      {
+        name: '🛡️ Discipline',
+        value: '• Pas de spam\n• Une erreur = on assume, on corrige, et on se regroupe',
+        inline: false,
+      },
     )
     .setImage('attachment://pingdef-banner.png')
-    .setFooter({ text: "⚠️ EN CAS D’ATTAQUE\n⬇️ Clique sur un bouton ⬇️" });
+    .setFooter({ text: "⬇️ Clique sur un bouton ⬇️" });
 
   const content = '';
 
