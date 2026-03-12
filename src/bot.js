@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -7,6 +7,7 @@ const { updateGuildConfig } = require('./guildConfig');
 const panel = require('./panel');
 const scoreboard = require('./scoreboard');
 const profiles = require('./profiles');
+const ev = require('./events');
 
 function buildDashboardEmbed(rc) {
   const okPing = !!(rc.panelChannelId && rc.alertChannelId && rc.defRoleId);
@@ -387,6 +388,35 @@ function buildHelpEmbedFromCommands(commands) {
   return embed;
 }
 
+async function ensureEventScoreboard(guild, rc) {
+  if (!rc.eventScoreboardChannelId) return;
+  const ch = await guild.client.channels.fetch(rc.eventScoreboardChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+
+  const top = ev.listScores(guild.id, 25);
+  const lines = top.map((r, i) => `**${String(i + 1).padStart(2, '0')}.** <@${r.user_id}> — **${r.points}** pts`).join('\n') || 'Aucun score pour le moment.';
+
+  const embed = new EmbedBuilder()
+    .setColor(0x3498db)
+    .setTitle('🏆 Classement événements — All‑time')
+    .setDescription(lines)
+    .setFooter({ text: 'Validé par le staff à partir des preuves (screens).' });
+
+  const state = ev.getScoreboardState(guild.id);
+  if (state?.message_id && state?.channel_id === ch.id) {
+    const msg = await ch.messages.fetch(state.message_id).catch(() => null);
+    if (msg) {
+      await msg.edit({ embeds: [embed] });
+      return msg;
+    }
+  }
+
+  const msg = await ch.send({ embeds: [embed] });
+  try { await msg.pin(); } catch {}
+  ev.setScoreboardState(guild.id, ch.id, msg.id);
+  return msg;
+}
+
 async function ensureHelpMessage(guild, rc) {
   if (!rc.helpChannelId) return;
   const ch = await guild.client.channels.fetch(rc.helpChannelId).catch(() => null);
@@ -625,7 +655,14 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_activity_logs')
       .setDescription('Configurer le salon des logs activité (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon logs activité (edit/delete/commands)').addChannelTypes(0,5).setRequired(true)),  
+      .addChannelOption(o => o.setName('salon').setDescription('Salon logs activité (edit/delete/commands)').addChannelTypes(0,5).setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_events')
+      .setDescription('Configurer le système d\'événements perco (owner only)')
+      .addChannelOption(o => o.setName('preuves').setDescription('Salon où les joueurs postent les screens').addChannelTypes(0,5).setRequired(true))
+      .addChannelOption(o => o.setName('validation').setDescription('Salon staff de validation').addChannelTypes(0,5).setRequired(true))
+      .addChannelOption(o => o.setName('classement').setDescription('Salon du classement all-time').addChannelTypes(0,5).setRequired(true)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -726,6 +763,95 @@ async function main() {
   });
 
   // On join: guide the user to the rules channel/message (Discord can't "auto-redirect" a user).
+  client.on('messageCreate', async (message) => {
+    try {
+      if (!message.guild || message.author.bot) return;
+      const rc = getConfigForGuild(message.guild.id);
+      if (!rc.eventProofsChannelId || message.channelId !== rc.eventProofsChannelId) return;
+
+      const atts = [...message.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
+      if (atts.length < 1 || atts.length > 2) return; // accept only 1-2 images
+
+      const participants = [...message.mentions.users.keys()]; // array of user ids
+      const participantsText = participants.join(',');
+
+      // Download + reupload attachments (keeps channel clean even if original is deleted)
+      const files = [];
+      for (let i = 0; i < atts.length; i++) {
+        const a = atts[i];
+        try {
+          const resp = await fetch(a.url);
+          if (!resp.ok) continue;
+          const buf = Buffer.from(await resp.arrayBuffer());
+          files.push({ attachment: buf, name: `preuve-${i + 1}.png` });
+        } catch {}
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(0xf1c40f)
+        .setTitle('📸 Preuve événement perco')
+        .setDescription('Preuve en attente de validation staff.')
+        .addFields(
+          { name: 'Posté par', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
+          { name: 'Participants', value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun participant mentionné', inline: false },
+          { name: 'Statut', value: '🟡 En attente de validation', inline: false },
+        )
+        .setTimestamp();
+
+      const repost = await message.channel.send({ embeds: [embed], files, allowedMentions: { parse: [] } });
+
+      const sid = ev.createSubmission({
+        guildId: message.guild.id,
+        authorId: message.author.id,
+        participants: participantsText,
+        proofsChannelId: message.channelId,
+        proofsMessageId: repost.id,
+      });
+
+      // Staff ticket
+      if (rc.eventValidationChannelId) {
+        const vch = await message.client.channels.fetch(rc.eventValidationChannelId).catch(() => null);
+        if (vch && vch.isTextBased()) {
+          const select = new StringSelectMenuBuilder()
+            .setCustomId(`evdef:${sid}`)
+            .setPlaceholder('Défenseurs présents (perco inclus)')
+            .addOptions(
+              { label: '1', value: '1' },
+              { label: '2', value: '2' },
+              { label: '3', value: '3' },
+              { label: '4', value: '4' },
+              { label: '5', value: '5' },
+            );
+
+          const row1 = new ActionRowBuilder().addComponents(select);
+          const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`evval:${sid}:approve`).setLabel('✅ Valider').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`evval:${sid}:deny`).setLabel('❌ Refuser').setStyle(ButtonStyle.Danger),
+          );
+
+          const staffEmbed = new EmbedBuilder()
+            .setColor(0xf1c40f)
+            .setTitle('🧾 Validation événement perco')
+            .setDescription(`[Voir la preuve](${repost.url})`)
+            .addFields(
+              { name: 'Auteur', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
+              { name: 'Participants', value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun mention', inline: false },
+              { name: 'Règle points', value: 'Points par joueur = nombre de défenseurs présents (perco inclus).', inline: false },
+            )
+            .setTimestamp();
+
+          const staffMsg = await vch.send({ embeds: [staffEmbed], components: [row1, row2], allowedMentions: { parse: [] } });
+          ev.setStaffMessageId(sid, staffMsg.id);
+        }
+      }
+
+      // Delete original to keep channel clean
+      await message.delete().catch(() => {});
+    } catch (e) {
+      console.warn('[bot] event proofs handler error:', e?.message || e);
+    }
+  });
+
   client.on('guildMemberAdd', async (member) => {
     try {
       const rc = getConfigForGuild(member.guild.id);
@@ -1018,6 +1144,25 @@ async function main() {
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      // Event validation select
+      if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
+        if (interaction.customId.startsWith('evdef:')) {
+          const id = Number(interaction.customId.split(':')[1]);
+          const defenders = Number(interaction.values?.[0]);
+          if (!Number.isFinite(id) || !Number.isFinite(defenders)) {
+            return interaction.reply({ content: 'Valeur invalide.', ephemeral: true });
+          }
+          // staff only
+          const rc = getConfigForGuild(interaction.guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+
+          ev.setDefendersPresent(id, defenders);
+          return interaction.reply({ content: `OK. Défenseurs présents = ${defenders} (points par joueur).`, ephemeral: true });
+        }
+      }
+
       // Activity log: slash commands usage (no pings)
       if (interaction.isChatInputCommand && interaction.isChatInputCommand()) {
         // Avoid logging the logger setup itself before it exists
@@ -1425,6 +1570,23 @@ async function main() {
             const rc2 = getConfigForGuild(guild.id);
             await ensureActivityLogHeader(guild, rc2);
             return interaction.reply({ content: `OK. Activity logs configurés dans <#${salon.id}>.`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_events') {
+            const preuves = interaction.options.getChannel('preuves', true);
+            const validation = interaction.options.getChannel('validation', true);
+            const classement = interaction.options.getChannel('classement', true);
+            if (!preuves.isTextBased?.() || !validation.isTextBased?.() || !classement.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis uniquement des salons texte.', ephemeral: true });
+            }
+
+            updateGuildConfig(guild.id, {
+              event_proofs_channel_id: preuves.id,
+              event_validation_channel_id: validation.id,
+              event_scoreboard_channel_id: classement.id,
+            });
+
+            return interaction.reply({ content: `OK. Events configurés. Preuves: <#${preuves.id}>, Validation: <#${validation.id}>, Classement: <#${classement.id}>`, ephemeral: true });
           }
 
           if (interaction.commandName === 'clean') {
@@ -1859,6 +2021,78 @@ async function main() {
 
           modal.addComponents(new ActionRowBuilder().addComponents(input));
           return interaction.showModal(modal);
+        }
+
+        // Event validation buttons
+        if (interaction.customId.startsWith('evval:')) {
+          const parts = interaction.customId.split(':');
+          const id = Number(parts[1]);
+          const action = parts[2];
+
+          const rc = getConfigForGuild(interaction.guild.id);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+
+          const sub = ev.getSubmission(id);
+          if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
+
+          if (action === 'approve') {
+            const defenders = Number(sub.defenders_present);
+            if (!defenders || defenders < 1 || defenders > 5) {
+              return interaction.reply({ content: 'Choisis d’abord le nombre de défenseurs (1-5).', ephemeral: true });
+            }
+
+            const participantIds = String(sub.participants || '')
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean);
+            if (!participantIds.length) {
+              return interaction.reply({ content: 'Aucun participant mentionné.', ephemeral: true });
+            }
+
+            for (const uid of participantIds) ev.addPoints(sub.guild_id, uid, defenders);
+            ev.markApproved(id, { points: defenders, validatedBy: interaction.user.id });
+
+            // Update proofs message status
+            try {
+              const proofsCh = await interaction.client.channels.fetch(sub.proofs_channel_id).catch(() => null);
+              if (proofsCh && proofsCh.isTextBased()) {
+                const msg = await proofsCh.messages.fetch(sub.proofs_message_id).catch(() => null);
+                if (msg) {
+                  const embed = EmbedBuilder.from(msg.embeds[0]);
+                  embed.setColor(0x2ecc71);
+                  embed.addFields({ name: 'Statut', value: `✅ Validé par <@${interaction.user.id}> — **+${defenders} pts** / joueur`, inline: false });
+                  await msg.edit({ embeds: [embed] }).catch(() => {});
+                }
+              }
+            } catch {}
+
+            await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
+
+            await interaction.message.edit({ components: [] }).catch(() => {});
+            return interaction.reply({ content: `✅ Validé : +${defenders} pts à ${participantIds.length} joueur(s).`, ephemeral: true });
+          }
+
+          if (action === 'deny') {
+            ev.markDenied(id, { validatedBy: interaction.user.id });
+            try {
+              const proofsCh = await interaction.client.channels.fetch(sub.proofs_channel_id).catch(() => null);
+              if (proofsCh && proofsCh.isTextBased()) {
+                const msg = await proofsCh.messages.fetch(sub.proofs_message_id).catch(() => null);
+                if (msg) {
+                  const embed = EmbedBuilder.from(msg.embeds[0]);
+                  embed.setColor(0xe74c3c);
+                  embed.addFields({ name: 'Statut', value: `❌ Refusé par <@${interaction.user.id}>`, inline: false });
+                  await msg.edit({ embeds: [embed] }).catch(() => {});
+                }
+              }
+            } catch {}
+            await interaction.message.edit({ components: [] }).catch(() => {});
+            return interaction.reply({ content: '❌ Refusé.', ephemeral: true });
+          }
+
+          return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
         }
 
         // Staff validation buttons

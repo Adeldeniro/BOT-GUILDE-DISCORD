@@ -74,8 +74,42 @@ CREATE TABLE IF NOT EXISTS guild_config (
   help_channel_id TEXT,
   help_message_id TEXT,
   surveillance_channel_id TEXT,
-  activitylog_channel_id TEXT
+  activitylog_channel_id TEXT,
+  event_proofs_channel_id TEXT,
+  event_validation_channel_id TEXT,
+  event_scoreboard_channel_id TEXT
 );
+
+CREATE TABLE IF NOT EXISTS event_submissions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  author_id TEXT NOT NULL,
+  participants TEXT NOT NULL,
+  proofs_channel_id TEXT NOT NULL,
+  proofs_message_id TEXT NOT NULL,
+  staff_message_id TEXT,
+  defenders_present INTEGER,
+  points INTEGER,
+  status TEXT NOT NULL DEFAULT 'pending',
+  validated_by TEXT,
+  validated_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS event_scores (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  points INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER,
+  PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS event_scoreboard_state (
+  guild_id TEXT NOT NULL PRIMARY KEY,
+  channel_id TEXT,
+  message_id TEXT
+);
+
 
 CREATE TABLE IF NOT EXISTS player_profiles (
   guild_id TEXT NOT NULL,
@@ -155,6 +189,15 @@ if (!cfgCols.includes('surveillance_channel_id')) {
 }
 if (!cfgCols.includes('activitylog_channel_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN activitylog_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('event_proofs_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_proofs_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('event_validation_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_validation_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('event_scoreboard_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_scoreboard_channel_id TEXT'); } catch {}
 }
 
 // Migration for player_profiles

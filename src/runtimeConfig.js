@@ -60,6 +60,10 @@ function getConfigForGuild(guildId) {
     surveillanceChannelId: pick(gc.surveillance_channel_id, null),
 
     activityLogChannelId: pick(gc.activitylog_channel_id, null),
+
+    eventProofsChannelId: pick(gc.event_proofs_channel_id, null),
+    eventValidationChannelId: pick(gc.event_validation_channel_id, null),
+    eventScoreboardChannelId: pick(gc.event_scoreboard_channel_id, null),
   };
 }
 
