@@ -258,32 +258,43 @@ async function ensurePanelMessage(channel, rc) {
 
   // Embed = best “official announcement” look on Discord
   const embed = new EmbedBuilder()
-    .setColor(0x3498db) // blue
-    .setTitle(`📣 ANNONCE OFFICIELLE — ${title}`)
+    .setColor(0xe74c3c) // alert red
+    .setAuthor({ name: 'GTO — Système d’alerte', iconURL: channel.guild?.iconURL?.({ size: 128 }) || undefined })
+    .setTitle(`🚨 PING DEF — ${title}`)
+    .setDescription('Clique sur un bouton pour déclencher une alerte immédiate dans le salon d’alerte.')
     .addFields(
-      { name: 'Objectif', value: 'ALERTER LA GUILDE ATTAQUÉE.', inline: false },
+      { name: '🎯 Objectif', value: 'ALERTER LA GUILDE ATTAQUÉE.', inline: false },
       {
-        name: 'Comment faire',
-        value: 'Clique sur le bouton correspondant pour envoyer l’alerte (ping DEF + rôle de la guilde) dans le salon d’alerte.',
+        name: '🧭 Comment faire',
+        value: 'Choisis la guilde concernée → l’alerte ping **DEF** + le rôle de la guilde dans le salon d’alerte.',
         inline: false,
       },
-      { name: 'Règles', value: '• PAS DE SPAM inutile ! (cooldown actif)\n• Erreur de clic : on assume, on se calme, et on repart.', inline: false },
+      { name: '📌 Règles', value: '• Pas de spam inutile (cooldown actif)\n• Erreur de clic : on assume, on se calme, et on repart', inline: false },
     )
-    .setFooter({ text: '⚠️ EN CAS D’ATTAQUE\n⬇️ Clique sur un bouton ⬇️' });
+    .setImage('attachment://pingdef-banner.png')
+    .setFooter({ text: "⚠️ EN CAS D’ATTAQUE\n⬇️ Clique sur un bouton ⬇️" });
 
   const content = '';
+
+  const bannerPath = path.join(__dirname, '..', 'assets', 'panel', 'pingdef-banner.png');
+  const files = [];
+  try {
+    if (require('fs').existsSync(bannerPath)) {
+      files.push({ attachment: bannerPath, name: 'pingdef-banner.png' });
+    }
+  } catch {}
 
   if (p && p.message_id) {
     try {
       const msg = await channel.messages.fetch(p.message_id);
-      await msg.edit({ content, embeds: [embed], components });
+      await msg.edit({ content, embeds: [embed], components, files });
       return msg;
     } catch {
       // fallthrough: recreate
     }
   }
 
-  const msg = await channel.send({ content, embeds: [embed], components });
+  const msg = await channel.send({ content, embeds: [embed], components, files });
   panel.setPanelMessageId(rc.guildId, channel.id, msg.id);
   // Always pin the panel message if possible
   try { await msg.pin(); } catch {}
