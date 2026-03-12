@@ -73,7 +73,8 @@ CREATE TABLE IF NOT EXISTS guild_config (
   profiles_channel_id TEXT,
   help_channel_id TEXT,
   help_message_id TEXT,
-  surveillance_channel_id TEXT
+  surveillance_channel_id TEXT,
+  activitylog_channel_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS player_profiles (
@@ -151,6 +152,9 @@ if (!cfgCols.includes('help_message_id')) {
 }
 if (!cfgCols.includes('surveillance_channel_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN surveillance_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('activitylog_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN activitylog_channel_id TEXT'); } catch {}
 }
 
 // Migration for player_profiles

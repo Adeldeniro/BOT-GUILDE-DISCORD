@@ -58,6 +58,8 @@ function getConfigForGuild(guildId) {
     helpMessageId: pick(gc.help_message_id, null),
 
     surveillanceChannelId: pick(gc.surveillance_channel_id, null),
+
+    activityLogChannelId: pick(gc.activitylog_channel_id, null),
   };
 }
 

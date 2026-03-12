@@ -433,7 +433,14 @@ async function sendSurveillance(guild, rc, embed) {
   if (!rc.surveillanceChannelId) return;
   const ch = await guild.client.channels.fetch(rc.surveillanceChannelId).catch(() => null);
   if (!ch || !ch.isTextBased()) return;
-  await ch.send({ embeds: [embed] });
+  await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
+}
+
+async function sendActivityLog(guild, rc, embed) {
+  if (!rc.activityLogChannelId) return;
+  const ch = await guild.client.channels.fetch(rc.activityLogChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+  await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
 }
 
 async function registerCommands(client) {
@@ -574,7 +581,12 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_surveillance')
       .setDescription('Configurer le salon de surveillance (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon logs (join/leave/invite)').addChannelTypes(0,5).setRequired(true)),  
+      .addChannelOption(o => o.setName('salon').setDescription('Salon logs (join/leave/invite)').addChannelTypes(0,5).setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_activity_logs')
+      .setDescription('Configurer le salon des logs activité (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon logs activité (edit/delete/commands)').addChannelTypes(0,5).setRequired(true)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -598,6 +610,7 @@ async function main() {
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildInvites,
     ],
+    partials: ['MESSAGE', 'CHANNEL'],
   });
 
   client.once('ready', async () => {
@@ -726,7 +739,52 @@ async function main() {
     }
   });
 
-  client.on('guildMemberRemove', async (member) => {
+  client.on('messageDelete', async (message) => {
+    try {
+      if (!message.guild) return;
+      const rc = getConfigForGuild(message.guild.id);
+
+      const author = message.author ? `${message.author.tag || message.author.username} (\`${message.author.id}\`)` : 'Inconnu (partial)';
+      const embed = new EmbedBuilder()
+        .setColor(0xe67e22)
+        .setTitle('🗑️ Message supprimé')
+        .addFields(
+          { name: 'Auteur', value: author, inline: false },
+          { name: 'Salon', value: message.channelId ? `<#${message.channelId}>` : '—', inline: true },
+          { name: 'Message ID', value: `\`${message.id}\``, inline: true },
+        )
+        .setTimestamp();
+
+      await sendActivityLog(message.guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('messageUpdate', async (oldMessage, newMessage) => {
+    try {
+      if (!newMessage.guild) return;
+      const rc = getConfigForGuild(newMessage.guild.id);
+
+      const author = newMessage.author ? `${newMessage.author.tag || newMessage.author.username} (\`${newMessage.author.id}\`)` : 'Inconnu (partial)';
+      const before = (oldMessage?.content || '').slice(0, 200);
+      const after = (newMessage?.content || '').slice(0, 200);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x3498db)
+        .setTitle('✏️ Message modifié')
+        .addFields(
+          { name: 'Auteur', value: author, inline: false },
+          { name: 'Salon', value: newMessage.channelId ? `<#${newMessage.channelId}>` : '—', inline: true },
+          { name: 'Message ID', value: `\`${newMessage.id}\``, inline: true },
+          { name: 'Avant', value: before ? `\`${before}\`` : '(contenu non dispo)', inline: false },
+          { name: 'Après', value: after ? `\`${after}\`` : '(contenu non dispo)', inline: false },
+        )
+        .setTimestamp();
+
+      await sendActivityLog(newMessage.guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('guildMemberRemove', async (member) => { 
     // Surveillance + cleanup profiles when someone leaves / is kicked
     try {
       const rc = getConfigForGuild(member.guild.id);
@@ -785,6 +843,23 @@ async function main() {
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      // Activity log: slash commands usage (no pings)
+      if (interaction.isChatInputCommand && interaction.isChatInputCommand()) {
+        const rc = getConfigForGuild(interaction.guildId);
+        const opts = interaction.options?.data
+          ? interaction.options.data.map(o => `${o.name}=${o.value ?? '[obj]'}`).join(' ')
+          : '';
+        const embed = new EmbedBuilder()
+          .setColor(0x8e44ad)
+          .setTitle('⌨️ Commande exécutée')
+          .addFields(
+            { name: 'Commande', value: `/${interaction.commandName} ${opts}`.trim().slice(0, 1024), inline: false },
+            { name: 'Par', value: `${interaction.user.tag || interaction.user.username} (\`${interaction.user.id}\`)`, inline: true },
+            { name: 'Salon', value: interaction.channelId ? `<#${interaction.channelId}>` : '—', inline: true },
+          )
+          .setTimestamp();
+        await sendActivityLog(interaction.guild, rc, embed);
+      }
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
         if (interaction.customId.startsWith('profset:')) {
@@ -1161,6 +1236,15 @@ async function main() {
             }
             updateGuildConfig(guild.id, { surveillance_channel_id: salon.id });
             return interaction.reply({ content: `OK. Surveillance configurée dans <#${salon.id}>.`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_activity_logs') {
+            const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour les activity logs.', ephemeral: true });
+            }
+            updateGuildConfig(guild.id, { activitylog_channel_id: salon.id });
+            return interaction.reply({ content: `OK. Activity logs configurés dans <#${salon.id}>.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'clean') {
