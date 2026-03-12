@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -443,6 +443,29 @@ async function sendActivityLog(guild, rc, embed) {
   await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
 }
 
+async function ensureActivityLogHeader(guild, rc) {
+  if (!rc.activityLogChannelId) return;
+  const ch = await guild.client.channels.fetch(rc.activityLogChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2c3e50)
+    .setTitle('👁️ Activity Logs — Serveur')
+    .setDescription('Ce salon enregistre automatiquement : commandes, messages modifiés/supprimés, etc. (aucune mention)')
+    .addFields(
+      { name: 'Notes', value: '• Certains contenus peuvent être indisponibles si Discord ne fournit pas le message (cache/partials).\n• Les suppressions via /clean sont loggées en bloc.', inline: false },
+    )
+    .setFooter({ text: 'Logs silencieux (no ping).' });
+
+  // Pin a single header (best effort)
+  const recent = await ch.messages.fetch({ limit: 10 }).catch(() => null);
+  const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '👁️ Activity Logs — Serveur');
+  if (existing) return;
+
+  const msg = await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
+  try { await msg.pin(); } catch {}
+}
+
 async function registerCommands(client) {
   const commands = [
     new SlashCommandBuilder()
@@ -609,8 +632,9 @@ async function main() {
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildInvites,
+      GatewayIntentBits.MessageContent,
     ],
-    partials: ['MESSAGE', 'CHANNEL'],
+    partials: [Partials.Message, Partials.Channel],
   });
 
   client.once('ready', async () => {
@@ -759,6 +783,25 @@ async function main() {
     } catch {}
   });
 
+  client.on('messageDeleteBulk', async (messages) => {
+    try {
+      const first = messages.first();
+      if (!first?.guild) return;
+      const rc = getConfigForGuild(first.guild.id);
+
+      const embed = new EmbedBuilder()
+        .setColor(0xd35400)
+        .setTitle('🧹 Suppression en masse')
+        .addFields(
+          { name: 'Nombre', value: String(messages.size), inline: true },
+          { name: 'Salon', value: first.channelId ? `<#${first.channelId}>` : '—', inline: true },
+        )
+        .setTimestamp();
+
+      await sendActivityLog(first.guild, rc, embed);
+    } catch {}
+  });
+
   client.on('messageUpdate', async (oldMessage, newMessage) => {
     try {
       if (!newMessage.guild) return;
@@ -845,20 +888,23 @@ async function main() {
     try {
       // Activity log: slash commands usage (no pings)
       if (interaction.isChatInputCommand && interaction.isChatInputCommand()) {
-        const rc = getConfigForGuild(interaction.guildId);
-        const opts = interaction.options?.data
-          ? interaction.options.data.map(o => `${o.name}=${o.value ?? '[obj]'}`).join(' ')
-          : '';
-        const embed = new EmbedBuilder()
-          .setColor(0x8e44ad)
-          .setTitle('⌨️ Commande exécutée')
-          .addFields(
-            { name: 'Commande', value: `/${interaction.commandName} ${opts}`.trim().slice(0, 1024), inline: false },
-            { name: 'Par', value: `${interaction.user.tag || interaction.user.username} (\`${interaction.user.id}\`)`, inline: true },
-            { name: 'Salon', value: interaction.channelId ? `<#${interaction.channelId}>` : '—', inline: true },
-          )
-          .setTimestamp();
-        await sendActivityLog(interaction.guild, rc, embed);
+        // Avoid logging the logger setup itself before it exists
+        if (interaction.commandName !== 'setup_activity_logs') {
+          const rc = getConfigForGuild(interaction.guildId);
+          const opts = interaction.options?.data
+            ? interaction.options.data.map(o => `${o.name}=${o.value ?? '[obj]'}`).join(' ')
+            : '';
+          const embed = new EmbedBuilder()
+            .setColor(0x8e44ad)
+            .setTitle('⌨️ Commande exécutée')
+            .addFields(
+              { name: 'Commande', value: `/${interaction.commandName} ${opts}`.trim().slice(0, 1024), inline: false },
+              { name: 'Par', value: `${interaction.user.tag || interaction.user.username} (\`${interaction.user.id}\`)`, inline: true },
+              { name: 'Salon', value: interaction.channelId ? `<#${interaction.channelId}>` : '—', inline: true },
+            )
+            .setTimestamp();
+          await sendActivityLog(interaction.guild, rc, embed);
+        }
       }
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
@@ -1244,6 +1290,8 @@ async function main() {
               return interaction.reply({ content: 'Choisis un **salon texte** pour les activity logs.', ephemeral: true });
             }
             updateGuildConfig(guild.id, { activitylog_channel_id: salon.id });
+            const rc2 = getConfigForGuild(guild.id);
+            await ensureActivityLogHeader(guild, rc2);
             return interaction.reply({ content: `OK. Activity logs configurés dans <#${salon.id}>.`, ephemeral: true });
           }
 
