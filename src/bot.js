@@ -778,6 +778,21 @@ async function main() {
       const draft = drafts.getDraft(message.guild.id, message.author.id);
       if (!draft || draft.thread_id !== message.channelId) return;
 
+      // Stage 1: participants message (no images)
+      if (draft.stage === 'need_participants') {
+        const ids = [...message.mentions.users.keys()];
+        if (!ids.length) {
+          await message.reply({ content: '⚠️ Mentionne au moins 1 participant (@personne).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+        const participantsText = ids.join(',');
+        drafts.setParticipants(message.guild.id, message.author.id, participantsText);
+        drafts.setStage(message.guild.id, message.author.id, 'need_images');
+        await message.reply({ content: '✅ Participants enregistrés. **Étape 2/2 :** envoie maintenant **1 ou 2 screenshots** (date/heure visibles).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        return;
+      }
+
+      // Stage 2: images
       const atts = [...message.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
       if (atts.length < 1) return;
       if (atts.length > 2) {
@@ -1202,44 +1217,6 @@ async function main() {
       }
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith('evsubmit:')) {
-          const parts = interaction.customId.split(':');
-          const guildId = parts[1];
-          if (!interaction.guild || interaction.guild.id !== guildId) {
-            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
-          }
-
-          const rc = getConfigForGuild(guildId);
-          if (!rc.eventProofsChannelId) return interaction.reply({ content: 'Events non configurés.', ephemeral: true });
-
-          const raw = (interaction.fields.getTextInputValue('participants') || '').trim();
-          const ids = raw.match(/\d{17,20}/g)?.map(s => s.trim()).filter(Boolean) || [];
-          const uniq = [...new Set(ids)];
-          const participantsText = uniq.join(',');
-
-          const proofsCh = await interaction.client.channels.fetch(rc.eventProofsChannelId).catch(() => null);
-          if (!proofsCh || !proofsCh.isTextBased()) return interaction.reply({ content: 'Salon preuves inaccessible.', ephemeral: true });
-
-          // Create a thread for this submission
-          const threadName = `combat-${interaction.user.username}-${new Date().toISOString().slice(11, 16)}`;
-          const thread = await proofsCh.threads.create({
-            name: threadName.slice(0, 90),
-            autoArchiveDuration: 1440,
-            type: ChannelType.PublicThread,
-            reason: 'Soumission événement perco',
-          });
-
-          drafts.setDraft({ guildId, authorId: interaction.user.id, threadId: thread.id, participants: participantsText });
-
-          await thread.send({
-            content:
-              `${interaction.user} — envoie **1 ou 2 screenshots** ici (date/heure visibles).\n` +
-              `Participants: ${uniq.length ? uniq.map(id => `<@${id}>`).join(' ') : '⚠️ aucun (à corriger)'}`,
-            allowedMentions: { users: [interaction.user.id], parse: [] },
-          });
-
-          return interaction.reply({ content: `✅ Thread créé : <#${thread.id}>. Poste tes 1–2 images dedans.`, ephemeral: true });
-        }
 
         if (interaction.customId.startsWith('evparts:')) { 
           const id = Number(interaction.customId.split(':')[1]);
@@ -2175,23 +2152,37 @@ async function main() {
           return interaction.showModal(modal);
         }
 
-        // Event open submission (create thread via modal)
+        // Event open submission (create thread)
         if (interaction.customId.startsWith('evopen:')) {
           const guildId = interaction.customId.split(':')[1];
           if (!interaction.guild || interaction.guild.id !== guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true });
           }
 
-          const modal = new ModalBuilder().setCustomId(`evsubmit:${guildId}`).setTitle('Soumettre un combat');
-          const input = new TextInputBuilder()
-            .setCustomId('participants')
-            .setLabel('Participants (mentions @personnes)')
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
-            .setMaxLength(800)
-            .setPlaceholder('@A @B @C @D @E');
-          modal.addComponents(new ActionRowBuilder().addComponents(input));
-          return interaction.showModal(modal);
+          const rc = getConfigForGuild(guildId);
+          if (!rc.eventProofsChannelId) return interaction.reply({ content: 'Events non configurés.', ephemeral: true });
+
+          const proofsCh = await interaction.client.channels.fetch(rc.eventProofsChannelId).catch(() => null);
+          if (!proofsCh || !proofsCh.isTextBased()) return interaction.reply({ content: 'Salon preuves inaccessible.', ephemeral: true });
+
+          const threadName = `combat-${interaction.user.username}-${new Date().toISOString().slice(11, 16)}`;
+          const thread = await proofsCh.threads.create({
+            name: threadName.slice(0, 90),
+            autoArchiveDuration: 1440,
+            type: ChannelType.PublicThread,
+            reason: 'Soumission événement perco',
+          });
+
+          drafts.setDraft({ guildId, authorId: interaction.user.id, threadId: thread.id, participants: '', stage: 'need_participants' });
+
+          await thread.send({
+            content:
+              `${interaction.user} — **Étape 1/2 :** mentionne maintenant les participants (**@personnes**) dans ce thread.\n` +
+              `Ex: @A @B @C @D @E`,
+            allowedMentions: { users: [interaction.user.id], parse: [] },
+          });
+
+          return interaction.reply({ content: `✅ Thread créé : <#${thread.id}>`, ephemeral: true });
         }
 
         // Event validation buttons
