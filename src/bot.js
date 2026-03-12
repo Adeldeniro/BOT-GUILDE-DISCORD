@@ -1655,6 +1655,10 @@ async function main() {
               event_scoreboard_channel_id: classement.id,
             });
 
+            const rc2 = getConfigForGuild(guild.id);
+            // Create/update the scoreboard immediately so you see something
+            await ensureEventScoreboard(guild, rc2).catch(() => {});
+
             return interaction.reply({ content: `OK. Events configurés. Preuves: <#${preuves.id}>, Validation: <#${validation.id}>, Classement: <#${classement.id}>`, ephemeral: true });
           }
 
