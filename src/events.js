@@ -1,16 +1,24 @@
 const db = require('./db');
 
-function createSubmission({ guildId, authorId, participants, proofsChannelId, proofsMessageId }) {
+function createSubmission({ guildId, authorId, participants, proofsChannelId, proofsMessageId, pendingReplyMessageId = null }) {
   const stmt = db.prepare(
-    `INSERT INTO event_submissions (guild_id, author_id, participants, proofs_channel_id, proofs_message_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO event_submissions (guild_id, author_id, participants, proofs_channel_id, proofs_message_id, pending_reply_message_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
-  const info = stmt.run(guildId, authorId, participants, proofsChannelId, proofsMessageId, Date.now());
+  const info = stmt.run(guildId, authorId, participants, proofsChannelId, proofsMessageId, pendingReplyMessageId, Date.now());
   return info.lastInsertRowid;
 }
 
 function setStaffMessageId(id, staffMessageId) {
   db.prepare(`UPDATE event_submissions SET staff_message_id=? WHERE id=?`).run(staffMessageId, id);
+}
+
+function setPendingReplyMessageId(id, pendingReplyMessageId) {
+  db.prepare(`UPDATE event_submissions SET pending_reply_message_id=? WHERE id=?`).run(pendingReplyMessageId, id);
+}
+
+function setParticipantsOverride(id, participantsOverride) {
+  db.prepare(`UPDATE event_submissions SET participants_override=? WHERE id=?`).run(participantsOverride, id);
 }
 
 function setDefendersPresent(id, defendersPresent) {
@@ -29,12 +37,12 @@ function markApproved(id, { points, validatedBy }) {
   ).run(points, validatedBy, Date.now(), id);
 }
 
-function markDenied(id, { validatedBy }) {
+function markDenied(id, { validatedBy, reason }) {
   db.prepare(
     `UPDATE event_submissions
-     SET status='denied', validated_by=?, validated_at=?
+     SET status='denied', validated_by=?, validated_at=?, deny_reason=?
      WHERE id=?`
-  ).run(validatedBy, Date.now(), id);
+  ).run(validatedBy, Date.now(), reason || null, id);
 }
 
 function addPoints(guildId, userId, delta) {
@@ -66,7 +74,9 @@ function setScoreboardState(guildId, channelId, messageId) {
 module.exports = {
   createSubmission,
   setStaffMessageId,
+  setPendingReplyMessageId,
   setDefendersPresent,
+  setParticipantsOverride,
   getSubmission,
   markApproved,
   markDenied,

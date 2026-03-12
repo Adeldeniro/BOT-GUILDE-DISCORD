@@ -770,12 +770,40 @@ async function main() {
       if (!rc.eventProofsChannelId || message.channelId !== rc.eventProofsChannelId) return;
 
       const atts = [...message.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
-      if (atts.length < 1 || atts.length > 2) return; // accept only 1-2 images
+      if (atts.length < 1) return;
+      if (atts.length > 2) {
+        await message.reply({ content: '⚠️ Maximum **2 images** par combat.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        return;
+      }
 
-      const participants = [...message.mentions.users.keys()]; // array of user ids
+      // Mentions = participants
+      const participants = [...message.mentions.users.keys()];
       const participantsText = participants.join(',');
 
-      // Download + reupload attachments (keeps channel clean even if original is deleted)
+      // Acknowledge in the event channel (pending)
+      const pendingEmbed = new EmbedBuilder()
+        .setColor(0xf1c40f)
+        .setTitle('🟡 En attente de confirmation')
+        .setDescription('Ton combat a été envoyé au staff pour validation.\nEn cas de refus, tu seras ping avec la raison.')
+        .addFields({
+          name: 'Participants',
+          value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun participant mentionné',
+          inline: false,
+        })
+        .setTimestamp();
+
+      const pendingMsg = await message.reply({ embeds: [pendingEmbed], allowedMentions: { users: [message.author.id] } }).catch(() => null);
+
+      const sid = ev.createSubmission({
+        guildId: message.guild.id,
+        authorId: message.author.id,
+        participants: participantsText,
+        proofsChannelId: message.channelId,
+        proofsMessageId: message.id,
+        pendingReplyMessageId: pendingMsg?.id || null,
+      });
+
+      // Download + reupload attachments to staff ticket
       const files = [];
       for (let i = 0; i < atts.length; i++) {
         const a = atts[i];
@@ -786,27 +814,6 @@ async function main() {
           files.push({ attachment: buf, name: `preuve-${i + 1}.png` });
         } catch {}
       }
-
-      const embed = new EmbedBuilder()
-        .setColor(0xf1c40f)
-        .setTitle('📸 Preuve événement perco')
-        .setDescription('Preuve en attente de validation staff.')
-        .addFields(
-          { name: 'Posté par', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
-          { name: 'Participants', value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun participant mentionné', inline: false },
-          { name: 'Statut', value: '🟡 En attente de validation', inline: false },
-        )
-        .setTimestamp();
-
-      const repost = await message.channel.send({ embeds: [embed], files, allowedMentions: { parse: [] } });
-
-      const sid = ev.createSubmission({
-        guildId: message.guild.id,
-        authorId: message.author.id,
-        participants: participantsText,
-        proofsChannelId: message.channelId,
-        proofsMessageId: repost.id,
-      });
 
       // Staff ticket
       if (rc.eventValidationChannelId) {
@@ -827,26 +834,24 @@ async function main() {
           const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`evval:${sid}:approve`).setLabel('✅ Valider').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`evval:${sid}:deny`).setLabel('❌ Refuser').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`evval:${sid}:editparts`).setLabel('✏️ Participants').setStyle(ButtonStyle.Secondary),
           );
 
           const staffEmbed = new EmbedBuilder()
             .setColor(0xf1c40f)
             .setTitle('🧾 Validation événement perco')
-            .setDescription(`[Voir la preuve](${repost.url})`)
+            .setDescription(`[Voir le message joueur](${message.url})`)
             .addFields(
               { name: 'Auteur', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
-              { name: 'Participants', value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun mention', inline: false },
-              { name: 'Règle points', value: 'Points par joueur = nombre de défenseurs présents (perco inclus).', inline: false },
+              { name: 'Participants (détectés)', value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun', inline: false },
+              { name: 'Règle points', value: 'Points / joueur = nombre de défenseurs présents (perco inclus).', inline: false },
             )
             .setTimestamp();
 
-          const staffMsg = await vch.send({ embeds: [staffEmbed], components: [row1, row2], allowedMentions: { parse: [] } });
+          const staffMsg = await vch.send({ embeds: [staffEmbed], components: [row1, row2], files, allowedMentions: { parse: [] } });
           ev.setStaffMessageId(sid, staffMsg.id);
         }
       }
-
-      // Delete original to keep channel clean
-      await message.delete().catch(() => {});
     } catch (e) {
       console.warn('[bot] event proofs handler error:', e?.message || e);
     }
@@ -1185,6 +1190,70 @@ async function main() {
       }
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
+        if (interaction.customId.startsWith('evparts:')) {
+          const id = Number(interaction.customId.split(':')[1]);
+          const rc = getConfigForGuild(interaction.guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+
+          const raw = (interaction.fields.getTextInputValue('participants') || '').trim();
+          const ids = raw
+            .match(/\d{17,20}/g)
+            ?.map(s => s.trim())
+            .filter(Boolean) || [];
+          const uniq = [...new Set(ids)];
+          ev.setParticipantsOverride(id, uniq.join(','));
+          return interaction.reply({ content: `✅ Participants mis à jour (${uniq.length}).`, ephemeral: true });
+        }
+
+        if (interaction.customId.startsWith('evdeny:')) {
+          const id = Number(interaction.customId.split(':')[1]);
+          const rc = getConfigForGuild(interaction.guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
+          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+
+          const reason = (interaction.fields.getTextInputValue('reason') || '').trim();
+          const sub = ev.getSubmission(id);
+          if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
+
+          ev.markDenied(id, { validatedBy: interaction.user.id, reason });
+
+          // Update pending reply
+          try {
+            const proofsCh = await interaction.client.channels.fetch(sub.proofs_channel_id).catch(() => null);
+            if (proofsCh && proofsCh.isTextBased() && sub.pending_reply_message_id) {
+              const msg = await proofsCh.messages.fetch(sub.pending_reply_message_id).catch(() => null);
+              if (msg) {
+                const embed = new EmbedBuilder()
+                  .setColor(0xe74c3c)
+                  .setTitle('❌ Refusé')
+                  .setDescription(`Refusé par <@${interaction.user.id}>`)
+                  .addFields({ name: 'Raison', value: reason.slice(0, 1024), inline: false })
+                  .setTimestamp();
+                await msg.edit({ embeds: [embed] }).catch(() => {});
+              }
+            }
+
+            // Ping player with reason on original message
+            if (proofsCh && proofsCh.isTextBased()) {
+              const original = await proofsCh.messages.fetch(sub.proofs_message_id).catch(() => null);
+              if (original) {
+                await original.reply({
+                  content: `<@${sub.author_id}> ❌ Preuve refusée.\n**Raison :** ${reason}`,
+                  allowedMentions: { users: [sub.author_id] },
+                }).catch(() => {});
+              }
+            }
+          } catch {}
+
+          // Remove staff components
+          try { await interaction.message.edit({ components: [] }); } catch {}
+
+          return interaction.reply({ content: '❌ Refus enregistré et envoyé au joueur.', ephemeral: true });
+        }
+
         if (interaction.customId.startsWith('profset:')) {
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
@@ -2037,13 +2106,31 @@ async function main() {
           const sub = ev.getSubmission(id);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
 
+          if (action === 'editparts') {
+            const modal = new ModalBuilder()
+              .setCustomId(`evparts:${id}`)
+              .setTitle('Modifier participants');
+
+            const input = new TextInputBuilder()
+              .setCustomId('participants')
+              .setLabel('Mentions ou IDs (séparés par espaces/retours)')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true)
+              .setMaxLength(800)
+              .setValue(String(sub.participants_override || '').trim() || String(sub.participants || '').split(',').filter(Boolean).map(id2 => `<@${id2}>`).join(' '));
+
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+            return interaction.showModal(modal);
+          }
+
           if (action === 'approve') {
             const defenders = Number(sub.defenders_present);
             if (!defenders || defenders < 1 || defenders > 5) {
               return interaction.reply({ content: 'Choisis d’abord le nombre de défenseurs (1-5).', ephemeral: true });
             }
 
-            const participantIds = String(sub.participants || '')
+            const baseList = String(sub.participants_override || sub.participants || '');
+            const participantIds = baseList
               .split(',')
               .map(s => s.trim())
               .filter(Boolean);
@@ -2054,15 +2141,18 @@ async function main() {
             for (const uid of participantIds) ev.addPoints(sub.guild_id, uid, defenders);
             ev.markApproved(id, { points: defenders, validatedBy: interaction.user.id });
 
-            // Update proofs message status
+            // Update pending reply under the player's message
             try {
               const proofsCh = await interaction.client.channels.fetch(sub.proofs_channel_id).catch(() => null);
-              if (proofsCh && proofsCh.isTextBased()) {
-                const msg = await proofsCh.messages.fetch(sub.proofs_message_id).catch(() => null);
+              if (proofsCh && proofsCh.isTextBased() && sub.pending_reply_message_id) {
+                const msg = await proofsCh.messages.fetch(sub.pending_reply_message_id).catch(() => null);
                 if (msg) {
-                  const embed = EmbedBuilder.from(msg.embeds[0]);
-                  embed.setColor(0x2ecc71);
-                  embed.addFields({ name: 'Statut', value: `✅ Validé par <@${interaction.user.id}> — **+${defenders} pts** / joueur`, inline: false });
+                  const embed = new EmbedBuilder()
+                    .setColor(0x2ecc71)
+                    .setTitle('✅ Validé')
+                    .setDescription(`Validé par <@${interaction.user.id}> — **+${defenders} pts** / joueur`)
+                    .addFields({ name: 'Participants', value: participantIds.map(u => `<@${u}>`).join(' '), inline: false })
+                    .setTimestamp();
                   await msg.edit({ embeds: [embed] }).catch(() => {});
                 }
               }
@@ -2075,21 +2165,17 @@ async function main() {
           }
 
           if (action === 'deny') {
-            ev.markDenied(id, { validatedBy: interaction.user.id });
-            try {
-              const proofsCh = await interaction.client.channels.fetch(sub.proofs_channel_id).catch(() => null);
-              if (proofsCh && proofsCh.isTextBased()) {
-                const msg = await proofsCh.messages.fetch(sub.proofs_message_id).catch(() => null);
-                if (msg) {
-                  const embed = EmbedBuilder.from(msg.embeds[0]);
-                  embed.setColor(0xe74c3c);
-                  embed.addFields({ name: 'Statut', value: `❌ Refusé par <@${interaction.user.id}>`, inline: false });
-                  await msg.edit({ embeds: [embed] }).catch(() => {});
-                }
-              }
-            } catch {}
-            await interaction.message.edit({ components: [] }).catch(() => {});
-            return interaction.reply({ content: '❌ Refusé.', ephemeral: true });
+            // Ask reason via modal
+            const modal = new ModalBuilder().setCustomId(`evdeny:${id}`).setTitle('Refuser la preuve');
+            const input = new TextInputBuilder()
+              .setCustomId('reason')
+              .setLabel('Raison du refus (obligatoire)')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(true)
+              .setMaxLength(400)
+              .setPlaceholder('Ex: heure/date non visible, participants incomplets, screen flou…');
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+            return interaction.showModal(modal);
           }
 
           return interaction.reply({ content: 'Action inconnue.', ephemeral: true });

@@ -85,14 +85,17 @@ CREATE TABLE IF NOT EXISTS event_submissions (
   guild_id TEXT NOT NULL,
   author_id TEXT NOT NULL,
   participants TEXT NOT NULL,
+  participants_override TEXT,
   proofs_channel_id TEXT NOT NULL,
   proofs_message_id TEXT NOT NULL,
+  pending_reply_message_id TEXT,
   staff_message_id TEXT,
   defenders_present INTEGER,
   points INTEGER,
   status TEXT NOT NULL DEFAULT 'pending',
   validated_by TEXT,
   validated_at INTEGER,
+  deny_reason TEXT,
   created_at INTEGER NOT NULL
 );
 
@@ -198,6 +201,18 @@ if (!cfgCols.includes('event_validation_channel_id')) {
 }
 if (!cfgCols.includes('event_scoreboard_channel_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN event_scoreboard_channel_id TEXT'); } catch {}
+}
+
+// Migration for event_submissions
+const evCols = db.prepare(`PRAGMA table_info(event_submissions)`).all().map(r => r.name);
+if (!evCols.includes('participants_override')) {
+  try { db.exec('ALTER TABLE event_submissions ADD COLUMN participants_override TEXT'); } catch {}
+}
+if (!evCols.includes('pending_reply_message_id')) {
+  try { db.exec('ALTER TABLE event_submissions ADD COLUMN pending_reply_message_id TEXT'); } catch {}
+}
+if (!evCols.includes('deny_reason')) {
+  try { db.exec('ALTER TABLE event_submissions ADD COLUMN deny_reason TEXT'); } catch {}
 }
 
 // Migration for player_profiles
