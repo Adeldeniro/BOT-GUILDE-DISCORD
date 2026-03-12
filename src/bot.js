@@ -443,6 +443,22 @@ async function sendActivityLog(guild, rc, embed) {
   await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
 }
 
+async function getAuditActor(guild, { type, targetId, windowMs = 15_000 }) {
+  // Best-effort: audit logs can be delayed/ambiguous.
+  try {
+    if (!guild?.members?.me?.permissions?.has(PermissionsBitField.Flags.ViewAuditLog)) return null;
+    const logs = await guild.fetchAuditLogs({ limit: 6, type });
+    const now = Date.now();
+    const entry = logs.entries.find(e => {
+      if (targetId && e.target?.id !== targetId) return false;
+      return now - e.createdTimestamp < windowMs;
+    });
+    return entry ? { executor: entry.executor, reason: entry.reason || null, entry } : null;
+  } catch {
+    return null;
+  }
+}
+
 async function ensureActivityLogHeader(guild, rc) {
   if (!rc.activityLogChannelId) return;
   const ch = await guild.client.channels.fetch(rc.activityLogChannelId).catch(() => null);
@@ -769,11 +785,14 @@ async function main() {
       const rc = getConfigForGuild(message.guild.id);
 
       const author = message.author ? `${message.author.tag || message.author.username} (\`${message.author.id}\`)` : 'Inconnu (partial)';
+      const actor = await getAuditActor(message.guild, { type: 72, targetId: message.author?.id || null }); // MESSAGE_DELETE
+
       const embed = new EmbedBuilder()
         .setColor(0xe67e22)
         .setTitle('🗑️ Message supprimé')
         .addFields(
           { name: 'Auteur', value: author, inline: false },
+          { name: 'Supprimé par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu / auteur', inline: false },
           { name: 'Salon', value: message.channelId ? `<#${message.channelId}>` : '—', inline: true },
           { name: 'Message ID', value: `\`${message.id}\``, inline: true },
         )
@@ -789,12 +808,16 @@ async function main() {
       if (!first?.guild) return;
       const rc = getConfigForGuild(first.guild.id);
 
+      // Best-effort actor detection (often a mod or bot)
+      const actor = await getAuditActor(first.guild, { type: 73, windowMs: 20_000 }); // MESSAGE_BULK_DELETE
+
       const embed = new EmbedBuilder()
         .setColor(0xd35400)
         .setTitle('🧹 Suppression en masse')
         .addFields(
           { name: 'Nombre', value: String(messages.size), inline: true },
           { name: 'Salon', value: first.channelId ? `<#${first.channelId}>` : '—', inline: true },
+          { name: 'Par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu', inline: false },
         )
         .setTimestamp();
 
@@ -808,8 +831,11 @@ async function main() {
       const rc = getConfigForGuild(newMessage.guild.id);
 
       const author = newMessage.author ? `${newMessage.author.tag || newMessage.author.username} (\`${newMessage.author.id}\`)` : 'Inconnu (partial)';
-      const before = (oldMessage?.content || '').slice(0, 200);
-      const after = (newMessage?.content || '').slice(0, 200);
+      const before = (oldMessage?.content || '').slice(0, 400);
+      const after = (newMessage?.content || '').slice(0, 400);
+
+      // Skip noisy updates (embeds/pins) where content didn't change
+      if (before === after) return;
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
@@ -824,6 +850,112 @@ async function main() {
         .setTimestamp();
 
       await sendActivityLog(newMessage.guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('roleUpdate', async (oldRole, newRole) => {
+    try {
+      if (!newRole.guild) return;
+      const rc = getConfigForGuild(newRole.guild.id);
+      const actor = await getAuditActor(newRole.guild, { type: 31, targetId: newRole.id, windowMs: 20_000 }); // ROLE_UPDATE
+
+      const embed = new EmbedBuilder()
+        .setColor(0x9b59b6)
+        .setTitle('🧩 Rôle modifié')
+        .addFields(
+          { name: 'Rôle', value: `${newRole} (\`${newRole.id}\`)`, inline: false },
+          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+        )
+        .setTimestamp();
+      await sendActivityLog(newRole.guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('channelCreate', async (channel) => {
+    try {
+      if (!channel.guild) return;
+      const rc = getConfigForGuild(channel.guild.id);
+      const actor = await getAuditActor(channel.guild, { type: 10, targetId: channel.id, windowMs: 20_000 }); // CHANNEL_CREATE
+      const embed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle('📁 Salon créé')
+        .addFields(
+          { name: 'Salon', value: `<#${channel.id}> (\`${channel.id}\`)`, inline: false },
+          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+        )
+        .setTimestamp();
+      await sendActivityLog(channel.guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('channelDelete', async (channel) => {
+    try {
+      if (!channel.guild) return;
+      const rc = getConfigForGuild(channel.guild.id);
+      const actor = await getAuditActor(channel.guild, { type: 12, targetId: channel.id, windowMs: 20_000 }); // CHANNEL_DELETE
+      const embed = new EmbedBuilder()
+        .setColor(0xe74c3c)
+        .setTitle('🗑️ Salon supprimé')
+        .addFields(
+          { name: 'Salon', value: `#${channel.name} (\`${channel.id}\`)`, inline: false },
+          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+        )
+        .setTimestamp();
+      await sendActivityLog(channel.guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('channelUpdate', async (oldCh, newCh) => {
+    try {
+      if (!newCh.guild) return;
+      const rc = getConfigForGuild(newCh.guild.id);
+      if (oldCh.name === newCh.name) return;
+      const actor = await getAuditActor(newCh.guild, { type: 11, targetId: newCh.id, windowMs: 20_000 }); // CHANNEL_UPDATE
+      const embed = new EmbedBuilder()
+        .setColor(0xf1c40f)
+        .setTitle('✏️ Salon renommé')
+        .addFields(
+          { name: 'Avant', value: String(oldCh.name), inline: true },
+          { name: 'Après', value: String(newCh.name), inline: true },
+          { name: 'Salon', value: `<#${newCh.id}> (\`${newCh.id}\`)`, inline: false },
+          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+        )
+        .setTimestamp();
+      await sendActivityLog(newCh.guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('guildBanAdd', async (ban) => {
+    try {
+      const guild = ban.guild;
+      const rc = getConfigForGuild(guild.id);
+      const actor = await getAuditActor(guild, { type: 22, targetId: ban.user.id, windowMs: 30_000 }); // MEMBER_BAN_ADD
+      const embed = new EmbedBuilder()
+        .setColor(0xc0392b)
+        .setTitle('⛔ Ban')
+        .addFields(
+          { name: 'Membre', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: false },
+          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+        )
+        .setTimestamp();
+      await sendActivityLog(guild, rc, embed);
+    } catch {}
+  });
+
+  client.on('guildBanRemove', async (ban) => {
+    try {
+      const guild = ban.guild;
+      const rc = getConfigForGuild(guild.id);
+      const actor = await getAuditActor(guild, { type: 23, targetId: ban.user.id, windowMs: 30_000 }); // MEMBER_BAN_REMOVE
+      const embed = new EmbedBuilder()
+        .setColor(0x27ae60)
+        .setTitle('✅ Unban')
+        .addFields(
+          { name: 'Membre', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: false },
+          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+        )
+        .setTimestamp();
+      await sendActivityLog(guild, rc, embed);
     } catch {}
   });
 
