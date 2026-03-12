@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -8,6 +8,7 @@ const panel = require('./panel');
 const scoreboard = require('./scoreboard');
 const profiles = require('./profiles');
 const ev = require('./events');
+const drafts = require('./eventDrafts');
 
 function buildDashboardEmbed(rc) {
   const okPing = !!(rc.panelChannelId && rc.alertChannelId && rc.defRoleId);
@@ -767,7 +768,15 @@ async function main() {
     try {
       if (!message.guild || message.author.bot) return;
       const rc = getConfigForGuild(message.guild.id);
-      if (!rc.eventProofsChannelId || message.channelId !== rc.eventProofsChannelId) return;
+      if (!rc.eventProofsChannelId) return;
+
+      // We accept proofs in threads under the proofs channel
+      const isThread = message.channel?.isThread?.();
+      const parentId = isThread ? message.channel.parentId : null;
+      if (!isThread || parentId !== rc.eventProofsChannelId) return;
+
+      const draft = drafts.getDraft(message.guild.id, message.author.id);
+      if (!draft || draft.thread_id !== message.channelId) return;
 
       const atts = [...message.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
       if (atts.length < 1) return;
@@ -776,18 +785,17 @@ async function main() {
         return;
       }
 
-      // Mentions = participants
-      const participants = [...message.mentions.users.keys()];
-      const participantsText = participants.join(',');
+      const participantsText = String(draft.participants || '');
+      const participantIds = participantsText.split(',').map(s => s.trim()).filter(Boolean);
 
-      // Acknowledge in the event channel (pending)
+      // Acknowledge in the thread (pending)
       const pendingEmbed = new EmbedBuilder()
         .setColor(0xf1c40f)
         .setTitle('🟡 En attente de confirmation')
         .setDescription('Ton combat a été envoyé au staff pour validation.\nEn cas de refus, tu seras ping avec la raison.')
         .addFields({
           name: 'Participants',
-          value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun participant mentionné',
+          value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun participant',
           inline: false,
         })
         .setTimestamp();
@@ -840,10 +848,10 @@ async function main() {
           const staffEmbed = new EmbedBuilder()
             .setColor(0xf1c40f)
             .setTitle('🧾 Validation événement perco')
-            .setDescription(`[Voir le message joueur](${message.url})`)
+            .setDescription(`[Voir la preuve](${message.url})`)
             .addFields(
               { name: 'Auteur', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
-              { name: 'Participants (détectés)', value: participants.length ? participants.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun', inline: false },
+              { name: 'Participants (déclarés)', value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun', inline: false },
               { name: 'Règle points', value: 'Points / joueur = nombre de défenseurs présents (perco inclus).', inline: false },
             )
             .setTimestamp();
@@ -852,6 +860,10 @@ async function main() {
           ev.setStaffMessageId(sid, staffMsg.id);
         }
       }
+
+      // Draft consumed
+      drafts.clearDraft(message.guild.id, message.author.id);
+
     } catch (e) {
       console.warn('[bot] event proofs handler error:', e?.message || e);
     }
@@ -1190,7 +1202,46 @@ async function main() {
       }
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith('evparts:')) {
+        if (interaction.customId.startsWith('evsubmit:')) {
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          if (!rc.eventProofsChannelId) return interaction.reply({ content: 'Events non configurés.', ephemeral: true });
+
+          const raw = (interaction.fields.getTextInputValue('participants') || '').trim();
+          const ids = raw.match(/\d{17,20}/g)?.map(s => s.trim()).filter(Boolean) || [];
+          const uniq = [...new Set(ids)];
+          const participantsText = uniq.join(',');
+
+          const proofsCh = await interaction.client.channels.fetch(rc.eventProofsChannelId).catch(() => null);
+          if (!proofsCh || !proofsCh.isTextBased()) return interaction.reply({ content: 'Salon preuves inaccessible.', ephemeral: true });
+
+          // Create a thread for this submission
+          const threadName = `combat-${interaction.user.username}-${new Date().toISOString().slice(11, 16)}`;
+          const thread = await proofsCh.threads.create({
+            name: threadName.slice(0, 90),
+            autoArchiveDuration: 1440,
+            type: ChannelType.PublicThread,
+            reason: 'Soumission événement perco',
+          });
+
+          drafts.setDraft({ guildId, authorId: interaction.user.id, threadId: thread.id, participants: participantsText });
+
+          await thread.send({
+            content:
+              `${interaction.user} — envoie **1 ou 2 screenshots** ici (date/heure visibles).\n` +
+              `Participants: ${uniq.length ? uniq.map(id => `<@${id}>`).join(' ') : '⚠️ aucun (à corriger)'}`,
+            allowedMentions: { users: [interaction.user.id], parse: [] },
+          });
+
+          return interaction.reply({ content: `✅ Thread créé : <#${thread.id}>. Poste tes 1–2 images dedans.`, ephemeral: true });
+        }
+
+        if (interaction.customId.startsWith('evparts:')) { 
           const id = Number(interaction.customId.split(':')[1]);
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
@@ -1656,8 +1707,36 @@ async function main() {
             });
 
             const rc2 = getConfigForGuild(guild.id);
-            // Create/update the scoreboard immediately so you see something
             await ensureEventScoreboard(guild, rc2).catch(() => {});
+
+            // Post pinned submission panel in proofs channel
+            const panelEmbed = new EmbedBuilder()
+              .setColor(0x3498db)
+              .setTitle('📸 Événements Perco — Soumission')
+              .setDescription(
+                [
+                  '1) Clique sur **Soumettre un combat**',
+                  '2) Indique les **participants** (mentions @personnes)',
+                  '3) Envoie ensuite **1 ou 2 screenshots** dans le thread créé',
+                  '',
+                  '📌 Le staff valide ensuite. En cas de refus, tu seras ping avec la raison.',
+                ].join('\n')
+              )
+              .addFields(
+                { name: 'Règles', value: '• Date + heure visibles\n• Tous les attaquants + défenseurs (perco inclus) visibles\n• Max 2 images', inline: false },
+              );
+
+            const panelRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(`evopen:${guild.id}`).setLabel('📤 Soumettre un combat').setStyle(ButtonStyle.Primary),
+            );
+
+            // pin one panel (best effort)
+            const recent = await preuves.messages.fetch({ limit: 20 }).catch(() => null);
+            const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📸 Événements Perco — Soumission');
+            const panelMsg = existing
+              ? await existing.edit({ embeds: [panelEmbed], components: [panelRow] }).then(() => existing)
+              : await preuves.send({ embeds: [panelEmbed], components: [panelRow] });
+            try { await panelMsg.pin(); } catch {}
 
             return interaction.reply({ content: `OK. Events configurés. Preuves: <#${preuves.id}>, Validation: <#${validation.id}>, Classement: <#${classement.id}>`, ephemeral: true });
           }
@@ -2092,6 +2171,25 @@ async function main() {
             .setMaxLength(800)
             .setValue(String(current?.ign || '').slice(0, 800));
 
+          modal.addComponents(new ActionRowBuilder().addComponents(input));
+          return interaction.showModal(modal);
+        }
+
+        // Event open submission (create thread via modal)
+        if (interaction.customId.startsWith('evopen:')) {
+          const guildId = interaction.customId.split(':')[1];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const modal = new ModalBuilder().setCustomId(`evsubmit:${guildId}`).setTitle('Soumettre un combat');
+          const input = new TextInputBuilder()
+            .setCustomId('participants')
+            .setLabel('Participants (mentions @personnes)')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+            .setMaxLength(800)
+            .setPlaceholder('@A @B @C @D @E');
           modal.addComponents(new ActionRowBuilder().addComponents(input));
           return interaction.showModal(modal);
         }

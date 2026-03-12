@@ -113,6 +113,15 @@ CREATE TABLE IF NOT EXISTS event_scoreboard_state (
   message_id TEXT
 );
 
+CREATE TABLE IF NOT EXISTS event_drafts (
+  guild_id TEXT NOT NULL,
+  author_id TEXT NOT NULL,
+  thread_id TEXT NOT NULL,
+  participants TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, author_id)
+);
+
 
 CREATE TABLE IF NOT EXISTS player_profiles (
   guild_id TEXT NOT NULL,
@@ -214,6 +223,8 @@ if (!evCols.includes('pending_reply_message_id')) {
 if (!evCols.includes('deny_reason')) {
   try { db.exec('ALTER TABLE event_submissions ADD COLUMN deny_reason TEXT'); } catch {}
 }
+
+// event_drafts table may already exist; create-if-not-exists is in schema above
 
 // Migration for player_profiles
 const profCols = db.prepare(`PRAGMA table_info(player_profiles)`).all().map(r => r.name);
