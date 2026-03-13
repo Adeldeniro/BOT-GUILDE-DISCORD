@@ -2652,16 +2652,7 @@ async function main() {
           }
 
           // Build welcome message
-          let gifUrl = null;
-          try {
-            const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
-            const raw = require('fs').readFileSync(gifsPath, 'utf8');
-            const urls = raw
-              .split(/\r?\n/)
-              .map(l => l.trim())
-              .filter(l => l && !l.startsWith('#'));
-            if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
-          } catch {}
+          // (GIF welcome system removed: keep the welcome message clean and consistent)
 
           const avatarUrl = member.user.displayAvatarURL?.({ size: 1024 });
 
@@ -2723,16 +2714,6 @@ async function main() {
             embed.setThumbnail('attachment://welcome-thumb.png');
           } catch {}
 
-          if (gifUrl) {
-            try {
-              const resp = await fetch(gifUrl);
-              if (resp.ok) {
-                const buf = Buffer.from(await resp.arrayBuffer());
-                files.push({ attachment: buf, name: 'welcome.gif' });
-                embed.setImage('attachment://welcome.gif');
-              }
-            } catch {}
-          }
 
           const content = rc.welcomePingEveryone ? '@everyone' : '';
           await ch.send({
@@ -3182,6 +3163,10 @@ async function main() {
                 .setPlaceholder('Ex:\nTonyMerguez\nTonyMerguez-2\nMageTony');
 
               modal.addComponents(new ActionRowBuilder().addComponents(input));
+
+              // Hide buttons immediately after click to avoid re-use spam
+              try { await interaction.message.edit({ components: [] }); } catch {}
+
               return interaction.showModal(modal);
             }
             return interaction.reply({ content: 'Rôle non configuré.', ephemeral: true });
