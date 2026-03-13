@@ -2663,10 +2663,21 @@ async function main() {
             if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
           } catch {}
 
+          const avatarUrl = member.user.displayAvatarURL?.({ size: 1024 });
+
+          // Embed 1: big avatar (Discord thumbnail is small, so we use a full image)
+          const avatarEmbed = new EmbedBuilder()
+            .setColor(0x2c3e50)
+            .setTitle(`🆕 ${member.user.tag || member.user.username}`)
+            .setDescription(`Profil de ${member} (${member.id})`)
+            .setImage(avatarUrl);
+
+          // Embed 2: welcome text + optional GIF banner
           const embed = new EmbedBuilder()
             .setColor(0x3498db)
-            .setAuthor({ name: `Nouvel arrivant`, iconURL: member.user.displayAvatarURL?.({ size: 128 }) })
+            .setAuthor({ name: `Nouvel arrivant`, iconURL: member.user.displayAvatarURL?.({ size: 256 }) })
             .setTitle('👋 Bienvenue parmi nous !')
+            .setThumbnail(avatarUrl)
             .setDescription(
               `✨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
               `Ici c’est **fraternité**, **entraide** et **bonne ambiance**.\n` +
@@ -2719,7 +2730,7 @@ async function main() {
           const content = rc.welcomePingEveryone ? '@everyone' : '';
           await ch.send({
             content,
-            embeds: [embed],
+            embeds: [avatarEmbed, embed],
             components,
             files,
             allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
