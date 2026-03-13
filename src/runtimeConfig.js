@@ -64,6 +64,11 @@ function getConfigForGuild(guildId) {
     eventProofsChannelId: pick(gc.event_proofs_channel_id, null),
     eventValidationChannelId: pick(gc.event_validation_channel_id, null),
     eventScoreboardChannelId: pick(gc.event_scoreboard_channel_id, null),
+    eventScreensChannelId: pick(gc.event_screens_channel_id, null),
+    eventAdminChannelId: pick(gc.event_admin_channel_id, null),
+    eventAdminMessageId: pick(gc.event_admin_message_id, null),
+    eventSubmitPanelChannelId: pick(gc.event_submit_panel_channel_id, null),
+    eventSubmitPanelMessageId: pick(gc.event_submit_panel_message_id, null),
   };
 }
 

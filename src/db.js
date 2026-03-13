@@ -77,7 +77,12 @@ CREATE TABLE IF NOT EXISTS guild_config (
   activitylog_channel_id TEXT,
   event_proofs_channel_id TEXT,
   event_validation_channel_id TEXT,
-  event_scoreboard_channel_id TEXT
+  event_scoreboard_channel_id TEXT,
+  event_screens_channel_id TEXT,
+  event_admin_channel_id TEXT,
+  event_admin_message_id TEXT,
+  event_submit_panel_channel_id TEXT,
+  event_submit_panel_message_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS event_submissions (
@@ -90,6 +95,8 @@ CREATE TABLE IF NOT EXISTS event_submissions (
   proofs_message_id TEXT NOT NULL,
   pending_reply_message_id TEXT,
   staff_message_id TEXT,
+  staff_control_message_id TEXT,
+  screen_message_id TEXT,
   defenders_present INTEGER,
   points INTEGER,
   status TEXT NOT NULL DEFAULT 'pending',
@@ -105,6 +112,16 @@ CREATE TABLE IF NOT EXISTS event_scores (
   points INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER,
   PRIMARY KEY (guild_id, user_id)
+);
+
+-- Per-submission applied award (so we can rollback/recompute)
+CREATE TABLE IF NOT EXISTS event_awards (
+  guild_id TEXT NOT NULL,
+  submission_id INTEGER NOT NULL,
+  user_id TEXT NOT NULL,
+  points INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, submission_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS event_scoreboard_state (
@@ -212,6 +229,21 @@ if (!cfgCols.includes('event_validation_channel_id')) {
 if (!cfgCols.includes('event_scoreboard_channel_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN event_scoreboard_channel_id TEXT'); } catch {}
 }
+if (!cfgCols.includes('event_screens_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_screens_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('event_admin_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_admin_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('event_admin_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_admin_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('event_submit_panel_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_submit_panel_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('event_submit_panel_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN event_submit_panel_message_id TEXT'); } catch {}
+}
 
 // Migration for event_submissions
 const evCols = db.prepare(`PRAGMA table_info(event_submissions)`).all().map(r => r.name);
@@ -223,6 +255,28 @@ if (!evCols.includes('pending_reply_message_id')) {
 }
 if (!evCols.includes('deny_reason')) {
   try { db.exec('ALTER TABLE event_submissions ADD COLUMN deny_reason TEXT'); } catch {}
+}
+if (!evCols.includes('staff_control_message_id')) {
+  try { db.exec('ALTER TABLE event_submissions ADD COLUMN staff_control_message_id TEXT'); } catch {}
+}
+if (!evCols.includes('screen_message_id')) {
+  try { db.exec('ALTER TABLE event_submissions ADD COLUMN screen_message_id TEXT'); } catch {}
+}
+
+// Migration for event_awards
+try {
+  db.prepare('SELECT 1 FROM event_awards LIMIT 1').get();
+} catch {
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS event_awards (
+      guild_id TEXT NOT NULL,
+      submission_id INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
+      points INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (guild_id, submission_id, user_id)
+    );`);
+  } catch {}
 }
 
 // Migration for event_drafts
