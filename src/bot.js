@@ -2677,7 +2677,6 @@ async function main() {
             .setColor(0x3498db)
             .setAuthor({ name: `Nouvel arrivant`, iconURL: member.user.displayAvatarURL?.({ size: 256 }) })
             .setTitle('👋 Bienvenue parmi nous !')
-            .setThumbnail(avatarUrl)
             .setDescription(
               `✨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
               `Ici c’est **fraternité**, **entraide** et **bonne ambiance**.\n` +
@@ -2716,6 +2715,14 @@ async function main() {
           }
 
           const files = [];
+
+          // Custom thumbnail (replaces the small member avatar now that we show it big)
+          try {
+            const thumbPath = path.join(__dirname, '..', 'assets', 'welcome-thumb.png');
+            files.push({ attachment: thumbPath, name: 'welcome-thumb.png' });
+            embed.setThumbnail('attachment://welcome-thumb.png');
+          } catch {}
+
           if (gifUrl) {
             try {
               const resp = await fetch(gifUrl);
