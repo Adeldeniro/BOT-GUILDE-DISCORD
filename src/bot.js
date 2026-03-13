@@ -2139,18 +2139,32 @@ async function main() {
                 .setTitle('📸 Événements Perco — Soumission')
                 .setDescription(
                   [
-                    '1) Clique sur **Soumettre un combat**',
-                    '2) Indique les **participants** (mentions @personnes)',
-                    '3) Envoie ensuite **1 ou 2 screenshots** dans le thread créé',
+                    '**Comment soumettre un combat :**',
+                    '1) Clique sur **📤 Soumettre un combat**',
+                    '2) Dans le thread créé, **mentionne tous les participants**',
+                    '   ➜ **N’oublie pas de t’identifier toi-même si tu as participé au combat**',
+                    '3) Envoie ensuite **1 ou 2 screenshots** (date/heure visibles)',
                     '',
                     '📌 Le staff valide ensuite. En cas de refus, tu seras ping avec la raison.',
                   ].join('\n')
                 )
-                .addFields({
-                  name: 'Règles',
-                  value: '• Date + heure visibles\n• Tous les attaquants + défenseurs (perco inclus) visibles\n• Max 2 images',
-                  inline: false,
-                });
+                .addFields(
+                  {
+                    name: '✅ Règles (obligatoires)',
+                    value: [
+                      '• Date + heure visibles',
+                      '• Tous les attaquants + défenseurs (**perco inclus**) visibles',
+                      '• Max **2** images',
+                    ].join('\n'),
+                    inline: false,
+                  },
+                  {
+                    name: '💡 Astuce',
+                    value: 'Si vous avez oublié quelqu’un dans les mentions, prévenez le staff avant validation.',
+                    inline: false,
+                  },
+                )
+                .setImage('attachment://event-perco-banner.png');
 
               const panelRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId(`evopen:${guild.id}`).setLabel('📤 Soumettre un combat').setStyle(ButtonStyle.Primary),
@@ -2159,9 +2173,13 @@ async function main() {
               // pin one panel (best effort)
               const recent = await targetPanelCh.messages.fetch({ limit: 20 }).catch(() => null);
               const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📸 Événements Perco — Soumission');
+              const bannerPath = path.join(__dirname, '..', 'assets', 'event-perco-banner.png');
+              const files = [];
+              try { files.push({ attachment: bannerPath, name: 'event-perco-banner.png' }); } catch {}
+
               const panelMsg = existing
-                ? await existing.edit({ embeds: [panelEmbed], components: [panelRow] }).then(() => existing)
-                : await targetPanelCh.send({ embeds: [panelEmbed], components: [panelRow] });
+                ? await existing.edit({ embeds: [panelEmbed], components: [panelRow], files }).then(() => existing)
+                : await targetPanelCh.send({ embeds: [panelEmbed], components: [panelRow], files });
               try { await panelMsg.pin(); } catch {}
               try { updateGuildConfig(guild.id, { event_submit_panel_channel_id: targetPanelCh.id, event_submit_panel_message_id: panelMsg.id }); } catch {}
             } catch (e) {
