@@ -2392,7 +2392,9 @@ async function main() {
 
         if (interaction.commandName === 'guilde_ajouter') {
           const rc = getConfigForGuild(interaction.guild.id);
-          const channelId = rc.panelChannelId;
+          // Robust fallback: if panel not configured yet, use the channel where the command is executed.
+          // This prevents SQLITE NOT NULL errors on channel_id.
+          const channelId = rc.panelChannelId || config.defaultChannelId || interaction.channelId;
           const name = interaction.options.getString('nom', true).toUpperCase();
           const role = interaction.options.getRole('role', true);
           const label = (interaction.options.getString('label') || name).slice(0, 80);
@@ -2461,7 +2463,7 @@ async function main() {
 
         if (interaction.commandName === 'guilde_supprimer') {
           const rc = getConfigForGuild(interaction.guild.id);
-          const channelId = rc.panelChannelId;
+          const channelId = rc.panelChannelId || config.defaultChannelId || interaction.channelId;
           const name = interaction.options.getString('nom', true).toUpperCase();
           panel.removeGuildButton(interaction.guild.id, channelId, name);
           const panelChannel = await interaction.client.channels.fetch(channelId);
