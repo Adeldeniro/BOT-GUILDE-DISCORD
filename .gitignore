@@ -1,10 +1,28 @@
-node_modules/
+# secrets
 .env
+.env.*
+!*.example
+
+# dependencies
+node_modules/
+
+# runtime
 bot.lock
+*.log
+pm2*.log
+
+# local-only helpers / junk
 START_BOT.cmd
-/data.sqlite*
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
+assets/welcome-default.gif
+assets/welcome-test.gif
 custom/
 scripts/
+
+# sqlite
+data.sqlite
+data.sqlite-wal
+data.sqlite-shm
+
+# OS
+.DS_Store
+Thumbs.db
