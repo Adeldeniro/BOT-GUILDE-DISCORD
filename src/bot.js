@@ -185,9 +185,13 @@ async function updateProfileBox(guild, rc, targetUserId, { statusText }) {
     .map(s => s.trim())
     .filter(Boolean);
 
+  const member = await guild.members.fetch(targetUserId).catch(() => null);
+  const avatarUrl = member?.user?.displayAvatarURL?.({ size: 256 }) || null;
+
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle('🎮 Profil joueur')
+    .setThumbnail(avatarUrl)
     .addFields(
       { name: 'Discord', value: `<@${targetUserId}> (\`${targetUserId}\`)`, inline: false },
       { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024) || '—', inline: false },
@@ -427,7 +431,7 @@ function buildHelpEmbedFromCommands(commands) {
   embed.addFields({
     name: 'â„¹ï¸ Notes',
     value:
-      '• Le bouton **âœï¸ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
+      '• Le bouton **✍️ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
       '• Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.',
     inline: false,
   });
@@ -2036,7 +2040,7 @@ async function main() {
 
           // refresh box
           await updateProfileBox(interaction.guild, rc, targetUserId, {
-            statusText: 'âœï¸ Mis à jour par le staff',
+            statusText: '✍️ Mis à jour par le staff',
           }).catch(() => {});
 
           // keep edit button
@@ -2046,7 +2050,7 @@ async function main() {
               const m = await ch.messages.fetch(msgId).catch(() => null);
               if (m) {
                 const row = new ActionRowBuilder().addComponents(
-                  new ButtonBuilder().setCustomId(`profedit:${guildId}:${targetUserId}`).setLabel('âœï¸ Modifier').setStyle(ButtonStyle.Secondary)
+                  new ButtonBuilder().setCustomId(`profedit:${guildId}:${targetUserId}`).setLabel('✍️ Modifier').setStyle(ButtonStyle.Secondary)
                 );
                 await m.edit({ components: [row] }).catch(() => {});
               }
@@ -2099,7 +2103,7 @@ async function main() {
               const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                   .setCustomId(`profedit:${guildId}:${userId}`)
-                  .setLabel('âœï¸ Modifier')
+                  .setLabel('✍️ Modifier')
                   .setStyle(ButtonStyle.Secondary)
               );
 
@@ -2844,7 +2848,7 @@ async function main() {
           const user = interaction.options.getUser('membre', true);
           const pseudos = interaction.options.getString('pseudos', true);
           profiles.upsertProfile(interaction.guild.id, user.id, pseudos);
-          await updateProfileBox(interaction.guild, rc, user.id, { statusText: 'âœï¸ Mis à jour par le staff' }).catch(() => {});
+          await updateProfileBox(interaction.guild, rc, user.id, { statusText: '✍️ Mis à jour par le staff' }).catch(() => {});
           return interaction.editReply({ content: `✅ Profil mis à jour pour ${user}.` }).catch(() => {});
         }
 
