@@ -683,12 +683,7 @@ async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
   let off = offering;
   if (!off) {
     const lang = 'fr';
-    let data;
-    try {
-      data = await almanaxFetch(`/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`);
-    } catch {
-      data = await almanaxFetch(`/${lang}/ahead/${daysAhead}`);
-    }
+    const data = await almanaxFetch(`/${lang}/ahead/${daysAhead}`);
     off = pickOffering(data);
   }
 
@@ -710,13 +705,7 @@ async function buildAlmanaxSummaryEmbed() {
   const lang = 'fr';
   const tz = 'Europe/Paris';
 
-  // Try with timezone first, then without (some deployments are picky)
-  let data;
-  try {
-    data = await almanaxFetch(`/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`);
-  } catch {
-    data = await almanaxFetch(`/${lang}/ahead/0`);
-  }
+  const data = await almanaxFetch(`/${lang}/ahead/0`);
   const off = pickOffering(data);
   const { date, bonus, itemName, itemQty } = parseOffering(off);
 
@@ -2194,12 +2183,7 @@ async function main() {
 
             if (prochains) {
               const count = Math.max(1, Math.min(10, prochains));
-              let data;
-              try {
-                data = await almanaxFetch(`/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`);
-              } catch {
-                data = await almanaxFetch(`/${lang}/ahead/${count}`);
-              }
+              const data = await almanaxFetch(`/${lang}/ahead/${count}`);
               const list = Array.isArray(data) ? data : (data?.offerings || data?.days || data?.results || []);
               if (!Array.isArray(list) || list.length === 0) {
                 return interaction.editReply({ content: "âŒ Almanax indisponible pour l'instant (API)." }).catch(() => {});
