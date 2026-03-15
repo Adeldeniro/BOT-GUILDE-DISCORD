@@ -669,6 +669,9 @@ async function fetchJson(url) {
   const data = await resp.json().catch(() => null);
   if (!resp.ok || !data || data.error) {
     const msg = data?.error?.text || `HTTP ${resp.status}`;
+    if (String(msg).toLowerCase().includes('date not available')) {
+      throw new Error("Données Almanax indisponibles pour cette date (API). Réessaie dans quelques minutes.");
+    }
     throw new Error(msg);
   }
   return data;
@@ -680,8 +683,12 @@ async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
   let off = offering;
   if (!off) {
     const lang = 'fr';
-    const url = `https://alm.dofusdu.de/dofus/v1/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`;
-    const data = await fetchJson(url);
+    let data;
+    try {
+      data = await almanaxFetchJson(`/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`);
+    } catch {
+      data = await almanaxFetchJson(`/${lang}/ahead/${daysAhead}`);
+    }
     off = pickOffering(data);
   }
 
@@ -702,8 +709,14 @@ async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
 async function buildAlmanaxSummaryEmbed() {
   const lang = 'fr';
   const tz = 'Europe/Paris';
-  const url = `https://alm.dofusdu.de/dofus/v1/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`;
-  const data = await fetchJson(url);
+
+  // Try with timezone first, then without (some deployments are picky)
+  let data;
+  try {
+    data = await almanaxFetchJson(`/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`);
+  } catch {
+    data = await almanaxFetchJson(`/${lang}/ahead/0`);
+  }
   const off = pickOffering(data);
   const { date, bonus, itemName, itemQty } = parseOffering(off);
 
@@ -2142,8 +2155,11 @@ async function main() {
             const tz = 'Europe/Paris';
 
             if (bonusDisponibles) {
-              const url = `https://alm.dofusdu.de/dofus/bonuses/${lang}`;
-              const data = await fetchJson(url);
+              // Bonuses endpoint is not under /v1; try common locations.
+              let data;
+              try { data = await fetchJson(`https://alm.dofusdu.de/dofus/bonuses/${lang}`); }
+              catch { data = await fetchJson(`https://alm.dofusdu.de/touch/bonuses/${lang}`); }
+
               const list = Array.isArray(data) ? data : (data?.bonuses || []);
 
               const lines = list
@@ -2164,8 +2180,12 @@ async function main() {
             }
 
             if (prochainBonus) {
-              const url = `https://alm.dofusdu.de/dofus/v1/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`;
-              const data = await fetchJson(url);
+              let data;
+              try {
+                data = await almanaxFetchJson(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`);
+              } catch {
+                data = await almanaxFetchJson(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next`);
+              }
               const off = pickOffering(data);
               const embed = await buildAlmanaxEmbed({ daysAhead: 0, offering: off });
               embed.setTitle(`🔎 Prochain bonus — ${prochainBonus}`);
@@ -2174,9 +2194,16 @@ async function main() {
 
             if (prochains) {
               const count = Math.max(1, Math.min(10, prochains));
-              const url = `https://alm.dofusdu.de/dofus/v1/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`;
-              const data = await fetchJson(url);
-              const list = Array.isArray(data) ? data : (data?.offerings || data?.days || []);
+              let data;
+              try {
+                data = await almanaxFetchJson(`/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`);
+              } catch {
+                data = await almanaxFetchJson(`/${lang}/ahead/${count}`);
+              }
+              const list = Array.isArray(data) ? data : (data?.offerings || data?.days || data?.results || []);
+              if (!Array.isArray(list) || list.length === 0) {
+                return interaction.editReply({ content: "❌ Almanax indisponible pour l'instant (API)." }).catch(() => {});
+              }
 
               const lines = list
                 .slice(0, count)
