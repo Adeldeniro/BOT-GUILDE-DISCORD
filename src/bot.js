@@ -1110,7 +1110,8 @@ async function main() {
 
                 // Almanax daily post @ 00:00 Europe/Paris
                 try {
-                  await maybeDailyAlmanax(guild, rc);
+                  const rcA = getConfigForGuild(guild.id);
+                  await maybeDailyAlmanax(guild, rcA);
                 } catch (e2) {
                   console.warn('[bot] almanax daily failed:', e2?.message || e2);
                 }
