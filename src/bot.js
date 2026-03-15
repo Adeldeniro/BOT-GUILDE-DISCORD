@@ -2508,13 +2508,38 @@ async function main() {
 
           const embed = await scoreboard.buildScoreboardEmbed(guild, { topN: Math.min(10, rc2.scoreboardTopN || 10), skipMemberFetch: true });
           embed.setTitle('🏆 Classement hebdo — Guildeux (pings)');
+
+          // Make it more celebratory
+          const lines = String(embed.data?.description || '').split('\n');
+          const top1 = lines.find(l => l.includes('**01.**')) || lines[0] || '';
+          const top3 = lines.slice(0, 3).join('\n');
+
           embed.setDescription(
-            (embed.data?.description || '') +
-            `\n\n🏅 **GG au vainqueur !** Parlez au **meneur** pour récupérer votre gain : **30% de la banque du meneur**.`
+            [
+              '📣 **Merci à tous pour votre réactivité !**',
+              '',
+              `🥇 **Vainqueur :** ${top1.replace('**01.** ', '') || '—'}`,
+              '',
+              '🏅 **Top 3 :**',
+              top3 || '—',
+              '',
+              '🎁 **Récompense :** contactez le **meneur** pour récupérer **30% de la banque du meneur** 👀',
+            ].join('\n').slice(0, 3900)
           );
+
+          // Add banner image
+          const files = [];
+          try {
+            const bannerPath = path.join(__dirname, '..', 'assets', 'event-official-banner.jpg');
+            if (require('fs').existsSync(bannerPath)) {
+              files.push({ attachment: bannerPath, name: 'event-official-banner.jpg' });
+              embed.setImage('attachment://event-official-banner.jpg');
+            }
+          } catch {}
+
           embed.setFooter({ text: 'Annonce manuelle + reset.' });
 
-          await sbChannel.send({ embeds: [embed] });
+          await sbChannel.send({ embeds: [embed], files });
 
           const doReset = reset !== false;
           if (doReset) {
