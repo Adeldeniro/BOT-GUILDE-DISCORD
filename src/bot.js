@@ -1006,6 +1006,15 @@ async function main() {
         const vch = await message.client.channels.fetch(rc.eventValidationChannelId).catch(() => null);
         if (vch && vch.isTextBased()) {
           // 1) Staff proof message (embeds + files only). Some Discord clients hide components on heavy messages.
+          const ignLines = participantIds
+            .map(uid => {
+              const p = profiles.getProfile(message.guild.id, uid);
+              const ign = String(p?.ign || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+              if (!ign.length) return null;
+              return `<@${uid}> : ${ign.map(x => `**${x}**`).join(', ')}`;
+            })
+            .filter(Boolean);
+
           const staffEmbed = new EmbedBuilder()
             .setColor(0xf1c40f)
             .setTitle('🧾 Validation événement perco')
@@ -1013,9 +1022,12 @@ async function main() {
             .addFields(
               { name: 'Auteur', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
               { name: 'Participants (déclarés)', value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun', inline: false },
+              ignLines.length
+                ? { name: '🎮 Pseudos en jeu (profil)', value: ignLines.join('\n').slice(0, 1024), inline: false }
+                : { name: '🎮 Pseudos en jeu (profil)', value: '_Aucun pseudo enregistré pour ces joueurs._', inline: false },
               { name: 'Règle points', value: 'Points / joueur = nombre de défenseurs présents (perco inclus).', inline: false },
             )
-            .setFooter({ text: `SID ${sid} • preuve + contrôle séparé` })
+            .setFooter({ text: `SID ${sid}` })
             .setTimestamp();
 
           // Controls directly on the proof message (single message, less noise)
