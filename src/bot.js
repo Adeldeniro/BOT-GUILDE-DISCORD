@@ -648,80 +648,154 @@ function parisParts(date = new Date()) {
   };
 }
 
-function pickOffering(data) {
-  // API might return array or object depending on endpoint
-  if (!data) return null;
-  if (Array.isArray(data)) return data[0] || null;
-  return data.offering || data;
-}
-
-function parseOffering(offering) {
-  const date = offering?.date || offering?.day || 'â€”';
-  const bonus = offering?.bonus?.text || offering?.bonus || offering?.bonus_text || 'â€”';
-  const bonusType = offering?.bonus_type || offering?.bonusType || offering?.bonus?.type || 'â€”';
-  const itemName = offering?.item?.name || offering?.offering?.item?.name || offering?.offering_item?.name || offering?.item_name || 'â€”';
-  const itemQty = offering?.item?.quantity || offering?.offering?.item?.quantity || offering?.quantity || offering?.item_quantity || null;
-  return { date, bonus, bonusType, itemName, itemQty };
-}
-
 async function fetchJson(url) {
   const resp = await fetch(url, { headers: { accept: 'application/json' } });
   const data = await resp.json().catch(() => null);
   if (!resp.ok || !data || data.error) {
     const msg = data?.error?.text || `HTTP ${resp.status}`;
     if (String(msg).toLowerCase().includes('date not available')) {
-      throw new Error("DonnÃ©es Almanax indisponibles pour cette date (API). RÃ©essaie dans quelques minutes.");
+      throw new Error("Données indisponibles pour cette date (API). Réessaie dans quelques minutes.");
     }
     throw new Error(msg);
   }
   return data;
 }
 
-async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
-  const tz = 'Europe/Paris';
+async function fetchText(url) {
+  const resp = await fetch(url, {
+    headers: {
+      accept: 'text/html,*/*;q=0.8',
+      // évite quelques blocages basiques
+      'user-agent': 'Mozilla/5.0 (compatible; DiscordBot/1.0; +https://discord.com)'
+    },
+  });
+  const text = await resp.text().catch(() => null);
+  if (!resp.ok || !text) throw new Error(`HTTP ${resp.status}`);
+  return text;
+}
 
-  let off = offering;
-  if (!off) {
-    const lang = 'fr';
-    const data = await almanaxFetch(`/${lang}/ahead/${daysAhead}`);
-    off = pickOffering(data);
+function decodeHtmlEntities(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => {
+      const code = Number(n);
+      if (!Number.isFinite(code)) return _;
+      try { return String.fromCharCode(code); } catch { return _; }
+    });
+}
+
+function stripTags(html) {
+  return decodeHtmlEntities(String(html || '').replace(/<[^>]+>/g, ' '))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseKrosmozAlmanax(html, { gameLabel = 'DOFUS Touch' } = {}) {
+  // On isole le bloc "Bonus et Quêtes DOFUS Touch"
+  const h4 = new RegExp(`<h4>\\s*Bonus[^<]*${gameLabel.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\s*<\\/h4>`, 'i');
+  const start = html.search(h4);
+  if (start < 0) return null;
+
+  const slice = html.slice(start, start + 20000); // suffisant pour le bloc
+
+  const bonusType = (() => {
+    const m = slice.match(/Bonus\s*:\s*([^<\n\r]+)/i);
+    return stripTags(m?.[1] || '').trim() || '—';
+  })();
+
+  const bonusDesc = (() => {
+    // Le texte descriptif est juste après <div class="more"> ...
+    const m = slice.match(/<div class="more">([\s\S]*?)<div class="more-infos">/i);
+    return stripTags(m?.[1] || '').trim() || '—';
+  })();
+
+  const quest = (() => {
+    const m = slice.match(/<p>\s*Qu[^<]*te\s*:\s*([^<]+)<\/p>/i);
+    return stripTags(m?.[1] || '').trim() || '—';
+  })();
+
+  const offeringText = (() => {
+    const m = slice.match(/<p class="fleft">([\s\S]*?)<\/p>/i);
+    return stripTags(m?.[1] || '').trim() || '—';
+  })();
+
+  let itemQty = null;
+  let itemName = '—';
+  const mOff = offeringText.match(/R[ée]cup[ée]rer\s+(\d+)\s+(.+?)\s+et\s+rapporter/i);
+  if (mOff) {
+    itemQty = Number(mOff[1]);
+    itemName = mOff[2].trim();
   }
 
-  const { date, bonus, bonusType, itemName, itemQty } = parseOffering(off);
+  return {
+    bonusType,
+    bonusDesc,
+    quest,
+    offeringText,
+    itemQty: Number.isFinite(itemQty) ? itemQty : null,
+    itemName: itemName || '—',
+  };
+}
+
+function parisYmdForDaysAhead(daysAhead = 0) {
+  const base = new Date();
+  base.setDate(base.getDate() + Number(daysAhead || 0));
+  return parisParts(base).ymd;
+}
+
+async function getKrosmozAlmanaxTouch({ ymd, lang = 'fr' } = {}) {
+  const url = `https://www.krosmoz.com/${lang}/almanax/${ymd}`;
+  const html = await fetchText(url);
+  const parsed = parseKrosmozAlmanax(html, { gameLabel: 'DOFUS Touch' });
+  if (!parsed) throw new Error("Impossible d'extraire l'Almanax DOFUS Touch depuis Krosmoz (HTML changé ?)");
+  return { url, ...parsed };
+}
+
+async function buildAlmanaxEmbed({ daysAhead = 0 } = {}) {
+  const tz = 'Europe/Paris';
+  const lang = 'fr';
+  const ymd = parisYmdForDaysAhead(daysAhead);
+
+  const a = await getKrosmozAlmanaxTouch({ ymd, lang });
 
   return new EmbedBuilder()
     .setColor(0x9b59b6)
-    .setTitle(`ðŸ“œ Almanax â€” J+${daysAhead}`)
-    .setDescription(`**Date :** ${date}`)
+    .setTitle(`📜 Almanax (Touch) — J+${daysAhead}`)
+    .setDescription(`**Date :** ${ymd}`)
     .addFields(
-      { name: 'âœ¨ Bonus', value: String(bonus).slice(0, 1024) || 'â€”', inline: false },
-      { name: 'ðŸ·ï¸ Type', value: String(bonusType).slice(0, 1024) || 'â€”', inline: true },
-      { name: 'ðŸŽ Offrande', value: itemQty ? `**${itemQty}Ã—** ${itemName}` : String(itemName), inline: true },
+      { name: '✨ Bonus', value: `**${a.bonusType}** — ${String(a.bonusDesc).slice(0, 900)}`.slice(0, 1024) || '—', inline: false },
+      { name: '🧭 Quête', value: String(a.quest).slice(0, 1024) || '—', inline: false },
+      { name: '🎁 Offrande', value: a.itemQty ? `**${a.itemQty}×** ${a.itemName}` : String(a.offeringText).slice(0, 1024), inline: false },
     )
-    .setFooter({ text: `Source: alm.dofusdu.de â€¢ TZ ${tz}` });
+    .setFooter({ text: `Source: krosmoz.com • TZ ${tz}` });
 }
 
 async function buildAlmanaxSummaryEmbed() {
-  const lang = 'fr';
   const tz = 'Europe/Paris';
+  const lang = 'fr';
+  const ymd = parisYmdForDaysAhead(0);
 
-  const data = await almanaxFetch(`/${lang}/ahead/0`);
-  const off = pickOffering(data);
-  const { date, bonus, itemName, itemQty } = parseOffering(off);
+  const a = await getKrosmozAlmanaxTouch({ ymd, lang });
 
   return new EmbedBuilder()
     .setColor(0x9b59b6)
-    .setTitle('ðŸ“œ Almanax â€” RÃ©sumÃ© du jour')
+    .setTitle('📜 Almanax (Touch) — Résumé du jour')
     .setDescription(
       [
-        `**Date :** ${date}`,
-        `**Bonus :** ${String(bonus).slice(0, 250)}`,
-        `**Offrande :** ${itemQty ? `${itemQty}Ã— ` : ''}${itemName}`,
+        `**Date :** ${ymd}`,
+        `**Bonus :** ${a.bonusType} — ${String(a.bonusDesc).slice(0, 250)}`,
+        `**Offrande :** ${a.itemQty ? `${a.itemQty}× ` : ''}${a.itemName || a.offeringText}`,
         '',
-        'âž¡ï¸ Pour les dÃ©tails : **/almanax**',
+        '➡️ Pour les détails : **/almanax**',
       ].join('\n')
     )
-    .setFooter({ text: `Auto â€¢ 00:00 â€¢ TZ ${tz}` });
+    .setFooter({ text: `Auto • 00:00 • TZ ${tz}` });
 }
 
 async function maybeDailyAlmanax(guild, rc) {
