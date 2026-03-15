@@ -80,14 +80,30 @@ const fs = require('fs');
 const lockPath = path.join(__dirname, '..', 'bot.lock');
 try {
   if (fs.existsSync(lockPath)) {
-    const oldPid = Number(fs.readFileSync(lockPath, 'utf8').trim());
+    const raw = String(fs.readFileSync(lockPath, 'utf8') || '').trim();
+    const oldPid = Number(raw);
     if (oldPid && oldPid !== process.pid) {
-      // If old PID still alive, exit
-      try { process.kill(oldPid, 0); console.error('[bot] Another instance is running, exiting.'); process.exit(1); } catch {}
+      // Stale-safe lock: if old PID is not alive, remove lock and continue.
+      try {
+        process.kill(oldPid, 0);
+        console.error('[bot] Another instance is running, exiting.');
+        process.exit(1);
+      } catch {
+        try { fs.unlinkSync(lockPath); } catch {}
+      }
+    } else {
+      // Corrupt/empty lock: remove it
+      if (!oldPid) {
+        try { fs.unlinkSync(lockPath); } catch {}
+      }
     }
   }
+
   fs.writeFileSync(lockPath, String(process.pid));
-  process.on('exit', () => { try { fs.unlinkSync(lockPath); } catch {} });
+  const cleanup = () => { try { fs.unlinkSync(lockPath); } catch {} };
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => { cleanup(); process.exit(0); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(0); });
 } catch {}
 
 function nowMs() { return Date.now(); }
