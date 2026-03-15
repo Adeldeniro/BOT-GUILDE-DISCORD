@@ -190,10 +190,28 @@ async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
 
   const staffMentions = (rc.validationStaffRoleIds || []).map(id => `<@&${id}>`).join(' ');
 
+  const member = await guild.members.fetch(targetUserId).catch(() => null);
+  const avatarUrl = member?.user?.displayAvatarURL?.({ size: 1024 }) || null;
+
+  const prof = profiles.getProfile(guild.id, targetUserId);
+  const ignList = String(prof?.ign || '')
+    .split(/\r?\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
   const embed = new EmbedBuilder()
     .setColor(0xf1c40f)
     .setTitle('🛡️ Validation staff — nouveau membre')
-    .setDescription(`Nouveau membre : <@${targetUserId}>\nChoix : **${choiceLabel}**\n\nAttribuer les rôles **GTO** + **DEF** si la personne est bien un membre.`)
+    .setDescription(
+      `Nouveau membre : <@${targetUserId}>\n` +
+      `Choix : **${choiceLabel}**\n\n` +
+      `Attribuer les rôles **GTO** + **DEF** si la personne est bien un membre.`
+    )
+    .addFields(
+      { name: '🎮 Pseudos en jeu (profil)', value: ignList.length ? ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024) : '_Aucun pseudo renseigné._', inline: false },
+      { name: '📌 Infos', value: member ? `• ID: \`${targetUserId}\`\n• Compte: <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>\n• Arrivé: <t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : `• ID: \`${targetUserId}\``, inline: false },
+    )
+    .setThumbnail(avatarUrl)
     .setFooter({ text: 'Clique sur Valider ou Refuser.' });
 
   const components = [
@@ -1089,19 +1107,24 @@ async function main() {
           }
         }
 
+        const avatar = member.user.displayAvatarURL?.({ size: 256 });
+
         const embed = new EmbedBuilder()
           .setColor(0x2ecc71)
           .setTitle('✅ Arrivée sur le serveur')
+          .setThumbnail(avatar)
           .addFields(
             { name: 'Membre', value: `${member} (\`${member.id}\`)`, inline: false },
             { name: 'Compte', value: member.user.tag || member.user.username, inline: true },
             { name: 'Créé le', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+            { name: 'Arrivé', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
             {
               name: 'Invité par',
               value: used?.inviter ? `${used.inviter} (code: \`${used.code}\`, uses: **${used.uses}**)` : 'Inconnu (permissions/intent invites manquants)',
               inline: false,
             },
           )
+          .setFooter({ text: 'Surveillance (join/invite) — no ping' })
           .setTimestamp();
 
         await sendSurveillance(member.guild, rc, embed);
