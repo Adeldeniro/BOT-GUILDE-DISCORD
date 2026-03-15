@@ -521,6 +521,15 @@ async function postOfficialEventResult(guild, rc, sub, { status, defenders, part
   const original = thread && thread.isTextBased() ? await thread.messages.fetch(sub.proofs_message_id).catch(() => null) : null;
 
   const files = [];
+
+  // Add official banner image
+  try {
+    const bannerPath = path.join(__dirname, '..', 'assets', 'event-official-banner.jpg');
+    if (require('fs').existsSync(bannerPath)) {
+      files.push({ attachment: bannerPath, name: 'event-official-banner.jpg' });
+    }
+  } catch {}
+
   if (original) {
     const atts = [...original.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
     for (let i = 0; i < Math.min(2, atts.length); i++) {
@@ -537,20 +546,21 @@ async function postOfficialEventResult(guild, rc, sub, { status, defenders, part
   const isApproved = status === 'approved';
   const embed = new EmbedBuilder()
     .setColor(isApproved ? 0x2ecc71 : 0xe74c3c)
-    .setTitle(isApproved ? '✅ Combat validé (OFFICIEL)' : '❌ Combat refusé (OFFICIEL)')
+    .setTitle(isApproved ? '✅ Combat validé — OFFICIEL' : '❌ Combat refusé — OFFICIEL')
     .setDescription(
       [
-        `Preuve: ${original ? `[lien](${original.url})` : '—'}`,
-        `Thread: ${thread ? `<#${thread.id}>` : '—'}`,
-        `Validé par: <@${validatedBy}>`,
+        `**Preuve :** ${original ? `[lien](${original.url})` : '—'}`,
+        `**Thread :** ${thread ? `<#${thread.id}>` : '—'}`,
+        `**Staff :** <@${validatedBy}>`,
       ].join('\n')
     )
     .addFields(
-      { name: 'Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : '—', inline: false },
+      { name: '👥 Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : '—', inline: false },
       isApproved
-        ? { name: 'Points', value: `**+${defenders} pts** / joueur`, inline: false }
-        : { name: 'Raison', value: String(reason || '—').slice(0, 1024), inline: false },
+        ? { name: '🏆 Points', value: `**+${defenders}** pts / joueur`, inline: false }
+        : { name: '📝 Raison', value: String(reason || '—').slice(0, 1024), inline: false },
     )
+    .setImage('attachment://event-official-banner.jpg')
     .setTimestamp();
 
   return parent.send({ embeds: [embed], files, allowedMentions: { parse: [] } });
