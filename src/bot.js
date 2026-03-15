@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
+﻿const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -17,17 +17,17 @@ function buildDashboardEmbed(rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('⚙️ Dashboard de configuration')
+    .setTitle('âš™ï¸ Dashboard de configuration')
     .setDescription('Utilise les boutons ci-dessous pour configurer le bot rapidement (mobile friendly).')
     .addFields(
       {
-        name: 'État',
-        value: `🛡️ Ping/Alertes: ${okPing ? '✅' : '❌'}\n📊 Scoreboard: ${okScore ? '✅' : '❌'}\n👋 Bienvenue: ${okWelcome ? '✅' : '❌'}\n📜 Règlement: ${rc.rulesChannelId && rc.rulesAccessRoleId ? '✅' : '❌'}\n👤 Admin role: ${rc.adminRoleId ? `<@&${rc.adminRoleId}>` : '—'}`,
+        name: 'Ã‰tat',
+        value: `ðŸ›¡ï¸ Ping/Alertes: ${okPing ? 'âœ…' : 'âŒ'}\nðŸ“Š Scoreboard: ${okScore ? 'âœ…' : 'âŒ'}\nðŸ‘‹ Bienvenue: ${okWelcome ? 'âœ…' : 'âŒ'}\nðŸ“œ RÃ¨glement: ${rc.rulesChannelId && rc.rulesAccessRoleId ? 'âœ…' : 'âŒ'}\nðŸ‘¤ Admin role: ${rc.adminRoleId ? `<@&${rc.adminRoleId}>` : 'â€”'}`,
         inline: false,
       },
       {
         name: 'Raccourci',
-        value: `Panneau: ${rc.panelChannelId ? `<#${rc.panelChannelId}>` : '—'}\nAlertes: ${rc.alertChannelId ? `<#${rc.alertChannelId}>` : '—'}\nDEF: ${rc.defRoleId ? `<@&${rc.defRoleId}>` : '—'}\nScoreboard: ${rc.scoreboardChannelId ? `<#${rc.scoreboardChannelId}>` : '—'}\nGuildeux: ${rc.guildeuxRoleId ? `<@&${rc.guildeuxRoleId}>` : '—'}\nBienvenue: ${rc.welcomeChannelId ? `<#${rc.welcomeChannelId}>` : '—'}`,
+        value: `Panneau: ${rc.panelChannelId ? `<#${rc.panelChannelId}>` : 'â€”'}\nAlertes: ${rc.alertChannelId ? `<#${rc.alertChannelId}>` : 'â€”'}\nDEF: ${rc.defRoleId ? `<@&${rc.defRoleId}>` : 'â€”'}\nScoreboard: ${rc.scoreboardChannelId ? `<#${rc.scoreboardChannelId}>` : 'â€”'}\nGuildeux: ${rc.guildeuxRoleId ? `<@&${rc.guildeuxRoleId}>` : 'â€”'}\nBienvenue: ${rc.welcomeChannelId ? `<#${rc.welcomeChannelId}>` : 'â€”'}`,
         inline: false,
       },
     )
@@ -38,12 +38,12 @@ function buildDashboardEmbed(rc) {
 
 function buildDashboardComponents(guildId) {
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`dash:${guildId}:ping`).setLabel('🛡️ Config Ping').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`dash:${guildId}:score`).setLabel('📊 Config Scoreboard').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`dash:${guildId}:welcome`).setLabel('👋 Config Bienvenue').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`dash:${guildId}:rules`).setLabel('📜 Config Règlement').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId(`dash:${guildId}:admin`).setLabel('👤 Admin').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`dash:${guildId}:status`).setLabel('📌 Status').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:ping`).setLabel('ðŸ›¡ï¸ Config Ping').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:score`).setLabel('ðŸ“Š Config Scoreboard').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:welcome`).setLabel('ðŸ‘‹ Config Bienvenue').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:rules`).setLabel('ðŸ“œ Config RÃ¨glement').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:admin`).setLabel('ðŸ‘¤ Admin').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`dash:${guildId}:status`).setLabel('ðŸ“Œ Status').setStyle(ButtonStyle.Secondary),
   );
   return [row];
 }
@@ -128,32 +128,32 @@ function canPingRole(guild, me, roleId) {
 function buildRulesEmbed(rc) {
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('📜 CHARTE DE LA GUILDE GTO — RP • ENTRAIDE • PVP • PVM')
+    .setTitle('ðŸ“œ CHARTE DE LA GUILDE GTO â€” RP â€¢ ENTRAIDE â€¢ PVP â€¢ PVM')
     .setDescription(
       [
-        '**⚔️ 1) Esprit GTO**',
-        'Fraternité, respect, loyauté. On se chambre, pas de manque de respect.',
+        '**âš”ï¸ 1) Esprit GTO**',
+        'FraternitÃ©, respect, loyautÃ©. On se chambre, pas de manque de respect.',
         '',
-        '**🤝 2) Entraide**',
-        'PVM, conseils, organisation : on s’aide et on progresse ensemble.',
+        '**ðŸ¤ 2) Entraide**',
+        'PVM, conseils, organisation : on sâ€™aide et on progresse ensemble.',
         '',
-        '**🛡️ 3) PVP**',
+        '**ðŸ›¡ï¸ 3) PVP**',
         'Fair-play et discipline. On suit les calls en combat.',
         '',
-        '**🏰 4) Défense**',
-        'Quand l’alerte tombe, on se mobilise si possible. Pas de faux pings.',
+        '**ðŸ° 4) DÃ©fense**',
+        'Quand lâ€™alerte tombe, on se mobilise si possible. Pas de faux pings.',
         '',
-        '**🗣️ 5) Communication**',
+        '**ðŸ—£ï¸ 5) Communication**',
         'Pas de spam, bons salons, respect en vocal.',
         '',
-        '**👑 6) Staff**',
+        '**ðŸ‘‘ 6) Staff**',
         'Si souci : MP staff, pas de drama public.',
         '',
-        '✅ **Pour accéder au serveur, valide le règlement via le bouton qui apparaît à ton arrivée.**',
+        'âœ… **Pour accÃ©der au serveur, valide le rÃ¨glement via le bouton qui apparaÃ®t Ã  ton arrivÃ©e.**',
       ].join('\n')
     )
     .setImage('attachment://rules-banner.png')
-    .setFooter({ text: 'GTO — Charte & esprit de guilde.' });
+    .setFooter({ text: 'GTO â€” Charte & esprit de guilde.' });
 
   return embed;
 }
@@ -163,7 +163,7 @@ function buildRulesAcceptComponents(guildId, userId) {
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`rulesok:${guildId}:${userId}`)
-        .setLabel('✅ J’accepte le règlement')
+        .setLabel('âœ… Jâ€™accepte le rÃ¨glement')
         .setStyle(ButtonStyle.Success)
     ),
   ];
@@ -187,13 +187,13 @@ async function updateProfileBox(guild, rc, targetUserId, { statusText }) {
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('🎮 Profil joueur')
+    .setTitle('ðŸŽ® Profil joueur')
     .addFields(
       { name: 'Discord', value: `<@${targetUserId}> (\`${targetUserId}\`)`, inline: false },
-      { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024) || '—', inline: false },
+      { name: 'Pseudos en jeu', value: ignList.map(x => `â€¢ **${x}**`).join('\n').slice(0, 1024) || 'â€”', inline: false },
       { name: 'Statut', value: statusText, inline: false },
     )
-    .setFooter({ text: 'Mise à jour automatique par validation staff.' });
+    .setFooter({ text: 'Mise Ã  jour automatique par validation staff.' });
 
   await msg.edit({ embeds: [embed] });
 }
@@ -217,34 +217,34 @@ async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
 
   const embed = new EmbedBuilder()
     .setColor(0xf1c40f)
-    .setTitle('🛡️ Validation staff — nouveau membre')
+    .setTitle('ðŸ›¡ï¸ Validation staff â€” nouveau membre')
     .setDescription(
       `Nouveau membre : <@${targetUserId}>\n` +
       `Choix : **${choiceLabel}**\n\n` +
-      `Attribuer les rôles **GTO** + **DEF** si la personne est bien un membre.`
+      `Attribuer les rÃ´les **GTO** + **DEF** si la personne est bien un membre.`
     )
     .addFields(
-      { name: '🎮 Pseudos en jeu (profil)', value: ignList.length ? ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024) : '_Aucun pseudo renseigné._', inline: false },
-      { name: '📌 Infos', value: member ? `• ID: \`${targetUserId}\`\n• Compte: <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>\n• Arrivé: <t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : `• ID: \`${targetUserId}\``, inline: false },
+      { name: 'ðŸŽ® Pseudos en jeu (profil)', value: ignList.length ? ignList.map(x => `â€¢ **${x}**`).join('\n').slice(0, 1024) : '_Aucun pseudo renseignÃ©._', inline: false },
+      { name: 'ðŸ“Œ Infos', value: member ? `â€¢ ID: \`${targetUserId}\`\nâ€¢ Compte: <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>\nâ€¢ ArrivÃ©: <t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : `â€¢ ID: \`${targetUserId}\``, inline: false },
     )
     .setThumbnail(avatarUrl)
     .setFooter({ text: 'Clique sur Valider ou Refuser.' });
 
-  const mode = String(choiceLabel || '').toLowerCase().includes('invité') || String(choiceLabel || '').toLowerCase().includes('invite')
+  const mode = String(choiceLabel || '').toLowerCase().includes('invitÃ©') || String(choiceLabel || '').toLowerCase().includes('invite')
     ? 'invite'
     : 'guildeux';
 
   const components = [
     new ActionRowBuilder().addComponents(
       mode === 'invite'
-        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:approve`).setLabel('✅ Valider Invité').setStyle(ButtonStyle.Success)
-        : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:approve`).setLabel('✅ Valider (GTO+DEF)').setStyle(ButtonStyle.Success),
+        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:approve`).setLabel('âœ… Valider InvitÃ©').setStyle(ButtonStyle.Success)
+        : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:approve`).setLabel('âœ… Valider (GTO+DEF)').setStyle(ButtonStyle.Success),
       mode === 'invite'
-        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:deny`).setLabel('⛔ Refuser / Kick').setStyle(ButtonStyle.Danger)
-        : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:deny`).setLabel('❌ Refuser (Invité)').setStyle(ButtonStyle.Danger),
+        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:deny`).setLabel('â›” Refuser / Kick').setStyle(ButtonStyle.Danger)
+        : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:deny`).setLabel('âŒ Refuser (InvitÃ©)').setStyle(ButtonStyle.Danger),
       // Extra kick option for guildeux requests
       ...(mode === 'guildeux'
-        ? [new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:kick`).setLabel('⛔ Kick').setStyle(ButtonStyle.Danger)]
+        ? [new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:kick`).setLabel('â›” Kick').setStyle(ButtonStyle.Danger)]
         : []),
     ),
   ];
@@ -305,31 +305,31 @@ async function ensurePanelMessage(channel, rc) {
 
   const title = p?.title || rc.panelTitle;
 
-  // Embed = best “official announcement” look on Discord
+  // Embed = best â€œofficial announcementâ€ look on Discord
   const embed = new EmbedBuilder()
     .setColor(0xe74c3c) // alert red
-    .setAuthor({ name: 'GTO — Centre de commandement', iconURL: channel.guild?.iconURL?.({ size: 128 }) || undefined })
-    .setTitle(`⚔️ ALERTE DEF — ${title}`)
-    .setDescription('**EN CAS D’ATTAQUE : sélectionne la guilde et déclenche l’alerte.**')
+    .setAuthor({ name: 'GTO â€” Centre de commandement', iconURL: channel.guild?.iconURL?.({ size: 128 }) || undefined })
+    .setTitle(`âš”ï¸ ALERTE DEF â€” ${title}`)
+    .setDescription('**EN CAS Dâ€™ATTAQUE : sÃ©lectionne la guilde et dÃ©clenche lâ€™alerte.**')
     .addFields(
       {
-        name: '📣 Procédure',
-        value: '1) Identifie la guilde concernée\n2) Clique sur le bouton correspondant\n3) Renforts en route',
+        name: 'ðŸ“£ ProcÃ©dure',
+        value: '1) Identifie la guilde concernÃ©e\n2) Clique sur le bouton correspondant\n3) Renforts en route',
         inline: false,
       },
       {
-        name: '🎯 Effet',
-        value: 'Ping **DEF** + ping rôle de guilde dans le salon d’alerte.',
+        name: 'ðŸŽ¯ Effet',
+        value: 'Ping **DEF** + ping rÃ´le de guilde dans le salon dâ€™alerte.',
         inline: false,
       },
       {
-        name: '🛡️ Discipline',
-        value: '• Pas de spam\n• Une erreur = on assume, on corrige, et on se regroupe',
+        name: 'ðŸ›¡ï¸ Discipline',
+        value: 'â€¢ Pas de spam\nâ€¢ Une erreur = on assume, on corrige, et on se regroupe',
         inline: false,
       },
     )
     .setImage('attachment://pingdef-banner.png')
-    .setFooter({ text: "⬇️ Clique sur un bouton ⬇️" });
+    .setFooter({ text: "â¬‡ï¸ Clique sur un bouton â¬‡ï¸" });
 
   const content = '';
 
@@ -359,11 +359,11 @@ async function ensurePanelMessage(channel, rc) {
 }
 
 function groupCommandName(name) {
-  if (name.startsWith('setup_')) return '🧩 Installation / Setup (Owner only)';
-  if (name.startsWith('panneau_') || name.startsWith('guilde_')) return '📌 Panneau & Guilde (Admin)';
-  if (name.startsWith('profile_')) return '🎮 Profils (Staff)';
-  if (['clean', 'lock_write', 'role_id'].includes(name)) return '🛠️ Outils (Admin)';
-  return '📎 Autres';
+  if (name.startsWith('setup_')) return 'ðŸ§© Installation / Setup (Owner only)';
+  if (name.startsWith('panneau_') || name.startsWith('guilde_')) return 'ðŸ“Œ Panneau & Guilde (Admin)';
+  if (name.startsWith('profile_')) return 'ðŸŽ® Profils (Staff)';
+  if (['clean', 'lock_write', 'role_id'].includes(name)) return 'ðŸ› ï¸ Outils (Admin)';
+  return 'ðŸ“Ž Autres';
 }
 
 function chunkLines(lines, maxLen = 1024) {
@@ -395,22 +395,22 @@ function buildHelpEmbedFromCommands(commands) {
 
     const usage = opts ? `/${c.name} ${opts}` : `/${c.name}`;
     const desc = c.description || '';
-    byGroup.get(group).push(`• \`${usage}\` — ${desc}`);
+    byGroup.get(group).push(`â€¢ \`${usage}\` â€” ${desc}`);
   }
 
   // Stable group order
   const groupOrder = [
-    '🧩 Installation / Setup (Owner only)',
-    '📌 Panneau & Guilde (Admin)',
-    '🛠️ Outils (Admin)',
-    '🎮 Profils (Staff)',
-    '📎 Autres',
+    'ðŸ§© Installation / Setup (Owner only)',
+    'ðŸ“Œ Panneau & Guilde (Admin)',
+    'ðŸ› ï¸ Outils (Admin)',
+    'ðŸŽ® Profils (Staff)',
+    'ðŸ“Ž Autres',
   ];
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('📘 Commandes du bot GTO — Guide staff')
-    .setDescription('Liste auto-générée depuis les slash commands enregistrées sur le serveur.')
+    .setTitle('ðŸ“˜ Commandes du bot GTO â€” Guide staff')
+    .setDescription('Liste auto-gÃ©nÃ©rÃ©e depuis les slash commands enregistrÃ©es sur le serveur.')
     .setTimestamp();
 
   for (const group of groupOrder) {
@@ -425,10 +425,10 @@ function buildHelpEmbedFromCommands(commands) {
 
   // Extra notes for features that are not slash commands
   embed.addFields({
-    name: 'ℹ️ Notes',
+    name: 'â„¹ï¸ Notes',
     value:
-      '• Le bouton **✏️ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
-      '• Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.',
+      'â€¢ Le bouton **âœï¸ Modifier** sur une box profil est rÃ©servÃ© au staff (Meneur/BD).\n' +
+      'â€¢ Les boutons onboarding (rÃ¨glement / guildeux / invitÃ© / validation staff) sont gÃ©rÃ©s via interactions.',
     inline: false,
   });
 
@@ -442,13 +442,13 @@ async function ensureEventScoreboard(guild, rc) {
   if (!ch || !ch.isTextBased()) return;
 
   const top = ev.listScores(guild.id, 25);
-  const lines = top.map((r, i) => `**${String(i + 1).padStart(2, '0')}.** <@${r.user_id}> — **${r.points}** pts`).join('\n') || 'Aucun score pour le moment.';
+  const lines = top.map((r, i) => `**${String(i + 1).padStart(2, '0')}.** <@${r.user_id}> â€” **${r.points}** pts`).join('\n') || 'Aucun score pour le moment.';
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('🏆 Classement événements — All‑time')
+    .setTitle('ðŸ† Classement Ã©vÃ©nements â€” Allâ€‘time')
     .setDescription(lines)
-    .setFooter({ text: 'Validé par le staff à partir des preuves (screens).' });
+    .setFooter({ text: 'ValidÃ© par le staff Ã  partir des preuves (screens).' });
 
   const state = ev.getScoreboardState(guild.id);
   if (state?.message_id && state?.channel_id === ch.id) {
@@ -475,26 +475,26 @@ async function ensureEventAdminPanel(guild, rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0x2c3e50)
-    .setTitle('🛠️ Events Perco — Panneau staff (admin)')
+    .setTitle('ðŸ› ï¸ Events Perco â€” Panneau staff (admin)')
     .setDescription(
       [
-        'Ce panneau reste actif **même après la fin** : corrections, kick, resync…',
+        'Ce panneau reste actif **mÃªme aprÃ¨s la fin** : corrections, kick, resyncâ€¦',
         '',
         'Actions principales :',
-        '• 🔄 Resync = reconstruit le classement à partir de la DB',
-        '• ➕ Add points = ajoute/enlève des points à un joueur',
-        '• ✏️ Set points = fixe les points exacts d\'un joueur',
-        '• 🧹 Remove player = supprime un joueur du classement (ex: kick event)',
+        'â€¢ ðŸ”„ Resync = reconstruit le classement Ã  partir de la DB',
+        'â€¢ âž• Add points = ajoute/enlÃ¨ve des points Ã  un joueur',
+        'â€¢ âœï¸ Set points = fixe les points exacts d\'un joueur',
+        'â€¢ ðŸ§¹ Remove player = supprime un joueur du classement (ex: kick event)',
       ].join('\n')
     )
-    .setFooter({ text: 'Réservé staff (rôles validation). Toutes les actions mettent à jour le scoreboard.' });
+    .setFooter({ text: 'RÃ©servÃ© staff (rÃ´les validation). Toutes les actions mettent Ã  jour le scoreboard.' });
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('evadm:resync').setLabel('🔄 Resync classement').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('evadm:add').setLabel('➕ Add points').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('evadm:set').setLabel('✏️ Set points').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('evadm:remove').setLabel('🧹 Remove player').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('evadm:reset').setLabel('🧨 Reset saison').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('evadm:resync').setLabel('ðŸ”„ Resync classement').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('evadm:add').setLabel('âž• Add points').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('evadm:set').setLabel('âœï¸ Set points').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('evadm:remove').setLabel('ðŸ§¹ Remove player').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('evadm:reset').setLabel('ðŸ§¨ Reset saison').setStyle(ButtonStyle.Danger),
   );
 
   // Try edit existing
@@ -550,19 +550,19 @@ async function postOfficialEventResult(guild, rc, sub, { status, defenders, part
   const isApproved = status === 'approved';
   const embed = new EmbedBuilder()
     .setColor(isApproved ? 0x2ecc71 : 0xe74c3c)
-    .setTitle(isApproved ? '✅ Combat validé — OFFICIEL' : '❌ Combat refusé — OFFICIEL')
+    .setTitle(isApproved ? 'âœ… Combat validÃ© â€” OFFICIEL' : 'âŒ Combat refusÃ© â€” OFFICIEL')
     .setDescription(
       [
-        `**Preuve :** ${original ? `[lien](${original.url})` : '—'}`,
-        `**Thread :** ${thread ? `<#${thread.id}>` : '—'}`,
+        `**Preuve :** ${original ? `[lien](${original.url})` : 'â€”'}`,
+        `**Thread :** ${thread ? `<#${thread.id}>` : 'â€”'}`,
         `**Staff :** <@${validatedBy}>`,
       ].join('\n')
     )
     .addFields(
-      { name: '👥 Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : '—', inline: false },
+      { name: 'ðŸ‘¥ Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : 'â€”', inline: false },
       isApproved
-        ? { name: '🏆 Points', value: `**+${defenders}** pts / joueur`, inline: false }
-        : { name: '📝 Raison', value: String(reason || '—').slice(0, 1024), inline: false },
+        ? { name: 'ðŸ† Points', value: `**+${defenders}** pts / joueur`, inline: false }
+        : { name: 'ðŸ“ Raison', value: String(reason || 'â€”').slice(0, 1024), inline: false },
     )
     .setImage('attachment://event-official-banner.jpg')
     .setTimestamp();
@@ -596,13 +596,13 @@ async function postEventScreen(guild, rc, sub, { status, defenders, participantI
   const isApproved = status === 'approved';
   const embed = new EmbedBuilder()
     .setColor(isApproved ? 0x2ecc71 : 0xe74c3c)
-    .setTitle(isApproved ? '✅ Screen validé' : '❌ Screen refusé')
-    .setDescription(`SID **${sub.id}** • par <@${validatedBy}>\nThread: ${thread ? `<#${thread.id}>` : '—'}\nPreuve: ${original ? `[lien](${original.url})` : '—'}`)
+    .setTitle(isApproved ? 'âœ… Screen validÃ©' : 'âŒ Screen refusÃ©')
+    .setDescription(`SID **${sub.id}** â€¢ par <@${validatedBy}>\nThread: ${thread ? `<#${thread.id}>` : 'â€”'}\nPreuve: ${original ? `[lien](${original.url})` : 'â€”'}`)
     .addFields(
-      { name: 'Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : '—', inline: false },
+      { name: 'Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : 'â€”', inline: false },
       isApproved
         ? { name: 'Points', value: `**+${defenders} pts** / joueur`, inline: false }
-        : { name: 'Raison', value: String(reason || '—').slice(0, 1024), inline: false },
+        : { name: 'Raison', value: String(reason || 'â€”').slice(0, 1024), inline: false },
     )
     .setTimestamp();
 
@@ -623,8 +623,8 @@ async function postEventScreen(guild, rc, sub, { status, defenders, participantI
 async function closeEventThread(guild, sub) {
   const thread = sub?.proofs_channel_id ? await guild.client.channels.fetch(sub.proofs_channel_id).catch(() => null) : null;
   if (!thread || !thread.isThread?.()) return;
-  try { await thread.setLocked(true, 'Event perco traité (staff)'); } catch {}
-  try { await thread.setArchived(true, 'Event perco traité (staff)'); } catch {}
+  try { await thread.setLocked(true, 'Event perco traitÃ© (staff)'); } catch {}
+  try { await thread.setArchived(true, 'Event perco traitÃ© (staff)'); } catch {}
 }
 
 function parisParts(date = new Date()) {
@@ -656,10 +656,10 @@ function pickOffering(data) {
 }
 
 function parseOffering(offering) {
-  const date = offering?.date || offering?.day || '—';
-  const bonus = offering?.bonus?.text || offering?.bonus || offering?.bonus_text || '—';
-  const bonusType = offering?.bonus_type || offering?.bonusType || offering?.bonus?.type || '—';
-  const itemName = offering?.item?.name || offering?.offering?.item?.name || offering?.offering_item?.name || offering?.item_name || '—';
+  const date = offering?.date || offering?.day || 'â€”';
+  const bonus = offering?.bonus?.text || offering?.bonus || offering?.bonus_text || 'â€”';
+  const bonusType = offering?.bonus_type || offering?.bonusType || offering?.bonus?.type || 'â€”';
+  const itemName = offering?.item?.name || offering?.offering?.item?.name || offering?.offering_item?.name || offering?.item_name || 'â€”';
   const itemQty = offering?.item?.quantity || offering?.offering?.item?.quantity || offering?.quantity || offering?.item_quantity || null;
   return { date, bonus, bonusType, itemName, itemQty };
 }
@@ -670,7 +670,7 @@ async function fetchJson(url) {
   if (!resp.ok || !data || data.error) {
     const msg = data?.error?.text || `HTTP ${resp.status}`;
     if (String(msg).toLowerCase().includes('date not available')) {
-      throw new Error("Données Almanax indisponibles pour cette date (API). Réessaie dans quelques minutes.");
+      throw new Error("DonnÃ©es Almanax indisponibles pour cette date (API). RÃ©essaie dans quelques minutes.");
     }
     throw new Error(msg);
   }
@@ -685,9 +685,9 @@ async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
     const lang = 'fr';
     let data;
     try {
-      data = await almanaxFetchJson(`/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`);
+      data = await almanaxFetch\(`/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`);
     } catch {
-      data = await almanaxFetchJson(`/${lang}/ahead/${daysAhead}`);
+      data = await almanaxFetch\(`/${lang}/ahead/${daysAhead}`);
     }
     off = pickOffering(data);
   }
@@ -696,14 +696,14 @@ async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
 
   return new EmbedBuilder()
     .setColor(0x9b59b6)
-    .setTitle(`📜 Almanax — J+${daysAhead}`)
+    .setTitle(`ðŸ“œ Almanax â€” J+${daysAhead}`)
     .setDescription(`**Date :** ${date}`)
     .addFields(
-      { name: '✨ Bonus', value: String(bonus).slice(0, 1024) || '—', inline: false },
-      { name: '🏷️ Type', value: String(bonusType).slice(0, 1024) || '—', inline: true },
-      { name: '🎁 Offrande', value: itemQty ? `**${itemQty}×** ${itemName}` : String(itemName), inline: true },
+      { name: 'âœ¨ Bonus', value: String(bonus).slice(0, 1024) || 'â€”', inline: false },
+      { name: 'ðŸ·ï¸ Type', value: String(bonusType).slice(0, 1024) || 'â€”', inline: true },
+      { name: 'ðŸŽ Offrande', value: itemQty ? `**${itemQty}Ã—** ${itemName}` : String(itemName), inline: true },
     )
-    .setFooter({ text: `Source: alm.dofusdu.de • TZ ${tz}` });
+    .setFooter({ text: `Source: alm.dofusdu.de â€¢ TZ ${tz}` });
 }
 
 async function buildAlmanaxSummaryEmbed() {
@@ -713,26 +713,26 @@ async function buildAlmanaxSummaryEmbed() {
   // Try with timezone first, then without (some deployments are picky)
   let data;
   try {
-    data = await almanaxFetchJson(`/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`);
+    data = await almanaxFetch\(`/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`);
   } catch {
-    data = await almanaxFetchJson(`/${lang}/ahead/0`);
+    data = await almanaxFetch\(`/${lang}/ahead/0`);
   }
   const off = pickOffering(data);
   const { date, bonus, itemName, itemQty } = parseOffering(off);
 
   return new EmbedBuilder()
     .setColor(0x9b59b6)
-    .setTitle('📜 Almanax — Résumé du jour')
+    .setTitle('ðŸ“œ Almanax â€” RÃ©sumÃ© du jour')
     .setDescription(
       [
         `**Date :** ${date}`,
         `**Bonus :** ${String(bonus).slice(0, 250)}`,
-        `**Offrande :** ${itemQty ? `${itemQty}× ` : ''}${itemName}`,
+        `**Offrande :** ${itemQty ? `${itemQty}Ã— ` : ''}${itemName}`,
         '',
-        '➡️ Pour les détails : **/almanax**',
+        'âž¡ï¸ Pour les dÃ©tails : **/almanax**',
       ].join('\n')
     )
-    .setFooter({ text: `Auto • 00:00 • TZ ${tz}` });
+    .setFooter({ text: `Auto â€¢ 00:00 â€¢ TZ ${tz}` });
 }
 
 async function maybeDailyAlmanax(guild, rc) {
@@ -831,16 +831,16 @@ async function ensureActivityLogHeader(guild, rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0x2c3e50)
-    .setTitle('👁️ Activity Logs — Serveur')
-    .setDescription('Ce salon enregistre automatiquement : commandes, messages modifiés/supprimés, etc. (aucune mention)')
+    .setTitle('ðŸ‘ï¸ Activity Logs â€” Serveur')
+    .setDescription('Ce salon enregistre automatiquement : commandes, messages modifiÃ©s/supprimÃ©s, etc. (aucune mention)')
     .addFields(
-      { name: 'Notes', value: '• Certains contenus peuvent être indisponibles si Discord ne fournit pas le message (cache/partials).\n• Les suppressions via /clean sont loggées en bloc.', inline: false },
+      { name: 'Notes', value: 'â€¢ Certains contenus peuvent Ãªtre indisponibles si Discord ne fournit pas le message (cache/partials).\nâ€¢ Les suppressions via /clean sont loggÃ©es en bloc.', inline: false },
     )
     .setFooter({ text: 'Logs silencieux (no ping).' });
 
   // Pin a single header (best effort)
   const recent = await ch.messages.fetch({ limit: 10 }).catch(() => null);
-  const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '👁️ Activity Logs — Serveur');
+  const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === 'ðŸ‘ï¸ Activity Logs â€” Serveur');
   if (existing) return;
 
   const msg = await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
@@ -851,11 +851,11 @@ async function registerCommands(client) {
   const commands = [
     new SlashCommandBuilder()
       .setName('panneau_creer')
-      .setDescription('Créer ou mettre à jour le panneau de boutons')
+      .setDescription('CrÃ©er ou mettre Ã  jour le panneau de boutons')
       .addChannelOption(o => o.setName('canal').setDescription('Canal du panneau (boutons)').setRequired(true))
       .addChannelOption(o => o.setName('canal_alerte').setDescription('Canal des alertes (pings)').setRequired(true))
       .addStringOption(o => o.setName('titre').setDescription('Titre du panneau').setRequired(false))
-      .addBooleanOption(o => o.setName('epingle').setDescription('Épingler le message du panneau').setRequired(false)),
+      .addBooleanOption(o => o.setName('epingle').setDescription('Ã‰pingler le message du panneau').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('panneau_actualiser')
@@ -866,34 +866,34 @@ async function registerCommands(client) {
       .setName('guilde_ajouter')
       .setDescription('Ajouter / modifier un bouton de guilde')
       .addStringOption(o => o.setName('nom').setDescription('Nom interne (ex: GTO)').setRequired(true))
-      .addRoleOption(o => o.setName('role').setDescription('Rôle à ping pour cette guilde').setRequired(true))
+      .addRoleOption(o => o.setName('role').setDescription('RÃ´le Ã  ping pour cette guilde').setRequired(true))
       .addStringOption(o => o.setName('label').setDescription('Texte du bouton').setRequired(false))
       .addStringOption(o => o.setName('emoji').setDescription('Emoji (optionnel)').setRequired(false))
-      .addAttachmentOption(o => o.setName('image').setDescription('Blason (image upload) → sera converti en emoji').setRequired(false))
+      .addAttachmentOption(o => o.setName('image').setDescription('Blason (image upload) â†’ sera converti en emoji').setRequired(false))
       .addIntegerOption(o => o.setName('ordre').setDescription('Ordre (optionnel)').setRequired(false))
-      .addStringOption(o => o.setName('prefixe').setDescription('Préfixe Unicode (ex: 🚨⚠️) pour les notifications').setRequired(false)),
+      .addStringOption(o => o.setName('prefixe').setDescription('PrÃ©fixe Unicode (ex: ðŸš¨âš ï¸) pour les notifications').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('guilde_supprimer')
       .setDescription('Supprimer un bouton de guilde')
-      .addStringOption(o => o.setName('nom').setDescription('Nom interne à supprimer').setRequired(true)),
+      .addStringOption(o => o.setName('nom').setDescription('Nom interne Ã  supprimer').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('role_id')
-      .setDescription("Afficher l'ID d'un rôle (debug)")
-      .addRoleOption(o => o.setName('role').setDescription('Rôle').setRequired(true)),
+      .setDescription("Afficher l'ID d'un rÃ´le (debug)")
+      .addRoleOption(o => o.setName('role').setDescription('RÃ´le').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_admin')
-      .setDescription('Configurer le rôle admin autorisé (owner only)')
-      .addRoleOption(o => o.setName('role').setDescription('Rôle admin (ex: Dev mode)').setRequired(true)),
+      .setDescription('Configurer le rÃ´le admin autorisÃ© (owner only)')
+      .addRoleOption(o => o.setName('role').setDescription('RÃ´le admin (ex: Dev mode)').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_ping')
       .setDescription('Configurer le panneau de ping (owner only)')
       .addChannelOption(o => o.setName('panneau').setDescription('Salon du panneau (boutons)').setRequired(true))
       .addChannelOption(o => o.setName('alertes').setDescription('Salon des alertes (pings)').setRequired(true))
-      .addRoleOption(o => o.setName('def_role').setDescription('Rôle DEF à ping').setRequired(true))
+      .addRoleOption(o => o.setName('def_role').setDescription('RÃ´le DEF Ã  ping').setRequired(true))
       .addStringOption(o => o.setName('titre').setDescription('Titre du panneau').setRequired(false))
       .addIntegerOption(o => o.setName('cooldown').setDescription('Cooldown en secondes').setRequired(false)),
 
@@ -901,13 +901,13 @@ async function registerCommands(client) {
       .setName('setup_scoreboard')
       .setDescription('Configurer le scoreboard guildeux (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription('Salon du classement').setRequired(true))
-      .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle @guildeux').setRequired(true))
+      .addRoleOption(o => o.setName('role_guildeux').setDescription('RÃ´le @guildeux').setRequired(true))
       .addIntegerOption(o => o.setName('top').setDescription('Top N (ex: 25)').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('scoreboard_weekly_run')
       .setDescription('Annonce hebdo + reset du scoreboard pings (admin)')
-      .addBooleanOption(o => o.setName('reset').setDescription('Reset les scores après annonce (défaut: true)').setRequired(false)),
+      .addBooleanOption(o => o.setName('reset').setDescription('Reset les scores aprÃ¨s annonce (dÃ©faut: true)').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('almanax')
@@ -934,7 +934,7 @@ async function registerCommands(client) {
         .setRequired(false))
       .addBooleanOption(o => o
         .setName('aide')
-        .setDescription('Afficher l’aide de la commande')
+        .setDescription('Afficher lâ€™aide de la commande')
         .setRequired(false)),
 
     new SlashCommandBuilder()
@@ -943,16 +943,16 @@ async function registerCommands(client) {
 
     new SlashCommandBuilder()
       .setName('setup_dashboard')
-      .setDescription('Créer/mettre à jour le dashboard de configuration (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster le dashboard').setRequired(true)),
+      .setDescription('CrÃ©er/mettre Ã  jour le dashboard de configuration (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon oÃ¹ poster le dashboard').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_welcome')
       .setDescription('Configurer le message de bienvenue (owner only)')
-      // Important: restrict to text channels to avoid “identifiant de salon invalide” on mobile
+      // Important: restrict to text channels to avoid â€œidentifiant de salon invalideâ€ on mobile
       .addChannelOption(o => o
         .setName('salon')
-        .setDescription("Salon d'arrivée / bienvenue")
+        .setDescription("Salon d'arrivÃ©e / bienvenue")
         .addChannelTypes(0, 5) // 0=GuildText, 5=GuildAnnouncement
         .setRequired(true))
       .addChannelOption(o => o
@@ -961,57 +961,57 @@ async function registerCommands(client) {
         .addChannelTypes(0, 5)
         .setRequired(false))
       .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false))
-      .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false))
-      .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle donné aux membres de la guilde').setRequired(false))
-      .addRoleOption(o => o.setName('role_invite').setDescription('Rôle donné aux invités').setRequired(false)),
+      .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivÃ©e').setRequired(false))
+      .addRoleOption(o => o.setName('role_guildeux').setDescription('RÃ´le donnÃ© aux membres de la guilde').setRequired(false))
+      .addRoleOption(o => o.setName('role_invite').setDescription('RÃ´le donnÃ© aux invitÃ©s').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('setup_almanax')
-      .setDescription("Configurer Almanax (salon dédié + post quotidien) (owner only)")
+      .setDescription("Configurer Almanax (salon dÃ©diÃ© + post quotidien) (owner only)")
       .addChannelOption(o => o
         .setName('salon')
-        .setDescription('Salon où poster Almanax (quotidien + commandes)')
+        .setDescription('Salon oÃ¹ poster Almanax (quotidien + commandes)')
         .addChannelTypes(0, 5)
         .setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_reglement')
-      .setDescription('Configurer le salon règlement + validation (owner only)')
+      .setDescription('Configurer le salon rÃ¨glement + validation (owner only)')
       .addChannelOption(o => o
         .setName('salon')
         .setDescription('Salon #reglement')
         .addChannelTypes(0, 5)
         .setRequired(true))
-      .addRoleOption(o => o.setName('role_acces').setDescription("Rôle donné après validation du règlement").setRequired(true)),
+      .addRoleOption(o => o.setName('role_acces').setDescription("RÃ´le donnÃ© aprÃ¨s validation du rÃ¨glement").setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_validation_staff')
       .setDescription('Configurer la validation staff (owner only)')
       // Required options must be declared before optional ones (Discord API constraint)
       .addChannelOption(o => o.setName('salon').setDescription('Salon lead / validation').addChannelTypes(0,5).setRequired(true))
-      .addRoleOption(o => o.setName('staff1').setDescription('Rôle staff autorisé #1').setRequired(true))
-      .addRoleOption(o => o.setName('role_gto').setDescription('Rôle GTO à attribuer').setRequired(true))
-      .addRoleOption(o => o.setName('role_def').setDescription('Rôle DEF à attribuer').setRequired(true))
-      .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false)),
+      .addRoleOption(o => o.setName('staff1').setDescription('RÃ´le staff autorisÃ© #1').setRequired(true))
+      .addRoleOption(o => o.setName('role_gto').setDescription('RÃ´le GTO Ã  attribuer').setRequired(true))
+      .addRoleOption(o => o.setName('role_def').setDescription('RÃ´le DEF Ã  attribuer').setRequired(true))
+      .addRoleOption(o => o.setName('staff2').setDescription('RÃ´le staff autorisÃ© #2').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('setup_profiles')
       .setDescription('Configurer le salon des profils (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster les profils (IGN)').addChannelTypes(0,5).setRequired(true)),
+      .addChannelOption(o => o.setName('salon').setDescription('Salon oÃ¹ poster les profils (IGN)').addChannelTypes(0,5).setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('clean')
       .setDescription('Nettoyer les messages dans ce salon (admin)')
-      .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages à supprimer (1-100)').setRequired(false)),
+      .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages Ã  supprimer (1-100)').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('lock_write')
-      .setDescription("Bloquer l'écriture dans ce salon (owner only)")
-      .addChannelOption(o => o.setName('salon').setDescription('Salon à verrouiller').addChannelTypes(0,5).setRequired(true))
-      .addRoleOption(o => o.setName('role_autorise1').setDescription('Rôle autorisé à écrire #1').setRequired(true))
-      .addRoleOption(o => o.setName('role_autorise2').setDescription('Rôle autorisé à écrire #2').setRequired(false))
-      .addRoleOption(o => o.setName('role_autorise3').setDescription('Rôle autorisé à écrire #3').setRequired(false))
-      .addBooleanOption(o => o.setName('unlock').setDescription('Déverrouiller').setRequired(false)),
+      .setDescription("Bloquer l'Ã©criture dans ce salon (owner only)")
+      .addChannelOption(o => o.setName('salon').setDescription('Salon Ã  verrouiller').addChannelTypes(0,5).setRequired(true))
+      .addRoleOption(o => o.setName('role_autorise1').setDescription('RÃ´le autorisÃ© Ã  Ã©crire #1').setRequired(true))
+      .addRoleOption(o => o.setName('role_autorise2').setDescription('RÃ´le autorisÃ© Ã  Ã©crire #2').setRequired(false))
+      .addRoleOption(o => o.setName('role_autorise3').setDescription('RÃ´le autorisÃ© Ã  Ã©crire #3').setRequired(false))
+      .addBooleanOption(o => o.setName('unlock').setDescription('DÃ©verrouiller').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('profile_reset')
@@ -1026,7 +1026,7 @@ async function registerCommands(client) {
 
     new SlashCommandBuilder()
       .setName('setup_help')
-      .setDescription('Poster/mettre à jour la box des commandes (owner only)')
+      .setDescription('Poster/mettre Ã  jour la box des commandes (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription('Salon du guide staff').addChannelTypes(0,5).setRequired(true)),
 
     new SlashCommandBuilder()
@@ -1036,23 +1036,23 @@ async function registerCommands(client) {
 
     new SlashCommandBuilder()
       .setName('setup_activity_logs')
-      .setDescription('Configurer le salon des logs activité (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon logs activité (edit/delete/commands)').addChannelTypes(0,5).setRequired(true)),
+      .setDescription('Configurer le salon des logs activitÃ© (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon logs activitÃ© (edit/delete/commands)').addChannelTypes(0,5).setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_events')
-      .setDescription('Configurer le système d\'événements perco (owner only)')
-      .addChannelOption(o => o.setName('preuves').setDescription('Salon où les joueurs postent les screens').addChannelTypes(0,5).setRequired(true))
+      .setDescription('Configurer le systÃ¨me d\'Ã©vÃ©nements perco (owner only)')
+      .addChannelOption(o => o.setName('preuves').setDescription('Salon oÃ¹ les joueurs postent les screens').addChannelTypes(0,5).setRequired(true))
       .addChannelOption(o => o.setName('validation').setDescription('Salon staff de validation').addChannelTypes(0,5).setRequired(true))
       .addChannelOption(o => o.setName('classement').setDescription('Salon du classement all-time').addChannelTypes(0,5).setRequired(true))
-      .addChannelOption(o => o.setName('screens').setDescription('Salon où poster les screens OFFICIELS (optionnel)').addChannelTypes(0,5).setRequired(false))
-      .addChannelOption(o => o.setName('panneau').setDescription('Salon où placer la box de soumission (optionnel)').addChannelTypes(0,5).setRequired(false)),  
+      .addChannelOption(o => o.setName('screens').setDescription('Salon oÃ¹ poster les screens OFFICIELS (optionnel)').addChannelTypes(0,5).setRequired(false))
+      .addChannelOption(o => o.setName('panneau').setDescription('Salon oÃ¹ placer la box de soumission (optionnel)').addChannelTypes(0,5).setRequired(false)),  
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
 
   // Important: if old global commands exist (previous versions), Discord clients may show
-  // “commande obsolète” for a while.
+  // â€œcommande obsolÃ¨teâ€ for a while.
   // NOTE: do NOT clear global commands on every startup (can cause missing commands / long propagation).
   // If you need a reset, do it manually once.
 
@@ -1181,13 +1181,13 @@ async function main() {
       if (draft.stage === 'need_participants') {
         const ids = [...message.mentions.users.keys()];
         if (!ids.length) {
-          await message.reply({ content: '⚠️ Mentionne au moins 1 participant (@personne).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          await message.reply({ content: 'âš ï¸ Mentionne au moins 1 participant (@personne).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
           return;
         }
         const participantsText = ids.join(',');
         drafts.setParticipants(message.guild.id, message.author.id, participantsText);
         drafts.setStage(message.guild.id, message.author.id, 'need_images');
-        await message.reply({ content: '✅ Participants enregistrés. **Étape 2/2 :** envoie maintenant **1 ou 2 screenshots** (date/heure visibles).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        await message.reply({ content: 'âœ… Participants enregistrÃ©s. **Ã‰tape 2/2 :** envoie maintenant **1 ou 2 screenshots** (date/heure visibles).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
         return;
       }
 
@@ -1195,7 +1195,7 @@ async function main() {
       const atts = [...message.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
       if (atts.length < 1) return;
       if (atts.length > 2) {
-        await message.reply({ content: '⚠️ Maximum **2 images** par combat.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        await message.reply({ content: 'âš ï¸ Maximum **2 images** par combat.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
         return;
       }
 
@@ -1205,11 +1205,11 @@ async function main() {
       // Acknowledge in the thread (pending)
       const pendingEmbed = new EmbedBuilder()
         .setColor(0xf1c40f)
-        .setTitle('🟡 En attente de confirmation')
-        .setDescription('Ton combat a été envoyé au staff pour validation.\nEn cas de refus, tu seras ping avec la raison.')
+        .setTitle('ðŸŸ¡ En attente de confirmation')
+        .setDescription('Ton combat a Ã©tÃ© envoyÃ© au staff pour validation.\nEn cas de refus, tu seras ping avec la raison.')
         .addFields({
           name: 'Participants',
-          value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun participant',
+          value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : 'âš ï¸ Aucun participant',
           inline: false,
         })
         .setTimestamp();
@@ -1253,15 +1253,15 @@ async function main() {
 
           const staffEmbed = new EmbedBuilder()
             .setColor(0xf1c40f)
-            .setTitle('🧾 Validation événement perco')
+            .setTitle('ðŸ§¾ Validation Ã©vÃ©nement perco')
             .setDescription(`[Voir la preuve](${message.url})`)
             .addFields(
               { name: 'Auteur', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
-              { name: 'Participants (déclarés)', value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun', inline: false },
+              { name: 'Participants (dÃ©clarÃ©s)', value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : 'âš ï¸ Aucun', inline: false },
               ignLines.length
-                ? { name: '🎮 Pseudos en jeu (profil)', value: ignLines.join('\n').slice(0, 1024), inline: false }
-                : { name: '🎮 Pseudos en jeu (profil)', value: '_Aucun pseudo enregistré pour ces joueurs._', inline: false },
-              { name: 'Règle points', value: 'Points / joueur = nombre de défenseurs présents (perco inclus).', inline: false },
+                ? { name: 'ðŸŽ® Pseudos en jeu (profil)', value: ignLines.join('\n').slice(0, 1024), inline: false }
+                : { name: 'ðŸŽ® Pseudos en jeu (profil)', value: '_Aucun pseudo enregistrÃ© pour ces joueurs._', inline: false },
+              { name: 'RÃ¨gle points', value: 'Points / joueur = nombre de dÃ©fenseurs prÃ©sents (perco inclus).', inline: false },
             )
             .setFooter({ text: `SID ${sid}` })
             .setTimestamp();
@@ -1269,7 +1269,7 @@ async function main() {
           // Controls directly on the proof message (single message, less noise)
           const select = new StringSelectMenuBuilder()
             .setCustomId(`evdef:${sid}`)
-            .setPlaceholder('Défenseurs présents (perco inclus)')
+            .setPlaceholder('DÃ©fenseurs prÃ©sents (perco inclus)')
             .addOptions(
               { label: '1', value: '1' },
               { label: '2', value: '2' },
@@ -1280,16 +1280,16 @@ async function main() {
 
           const row1 = new ActionRowBuilder().addComponents(select);
           const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`evval:${sid}:approve`).setLabel('✅ Valider').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`evval:${sid}:deny`).setLabel('❌ Refuser').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`evval:${sid}:editparts`).setLabel('✏️ Participants').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`evval:${sid}:approve`).setLabel('âœ… Valider').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`evval:${sid}:deny`).setLabel('âŒ Refuser').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`evval:${sid}:editparts`).setLabel('âœï¸ Participants').setStyle(ButtonStyle.Secondary),
           );
 
           const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`evpub:${sid}:add`).setLabel('➕ Points').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`evpub:${sid}:set`).setLabel('✏️ Fixer points').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId(`evpub:${sid}:remove`).setLabel('🧹 Kick').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`evpub:${sid}:resync`).setLabel('🔄 Refresh').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:add`).setLabel('âž• Points').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:set`).setLabel('âœï¸ Fixer points').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:remove`).setLabel('ðŸ§¹ Kick').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:resync`).setLabel('ðŸ”„ Refresh').setStyle(ButtonStyle.Secondary),
           );
 
           const staffMsg = await vch.send({ embeds: [staffEmbed], components: [row1, row2, row3], files, allowedMentions: { parse: [] } });
@@ -1329,20 +1329,20 @@ async function main() {
 
         const embed = new EmbedBuilder()
           .setColor(0x2ecc71)
-          .setTitle('✅ Arrivée sur le serveur')
+          .setTitle('âœ… ArrivÃ©e sur le serveur')
           .setThumbnail(avatar)
           .addFields(
             { name: 'Membre', value: `${member} (\`${member.id}\`)`, inline: false },
             { name: 'Compte', value: member.user.tag || member.user.username, inline: true },
-            { name: 'Créé le', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
-            { name: 'Arrivé', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+            { name: 'CrÃ©Ã© le', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+            { name: 'ArrivÃ©', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
             {
-              name: 'Invité par',
+              name: 'InvitÃ© par',
               value: used?.inviter ? `${used.inviter} (code: \`${used.code}\`, uses: **${used.uses}**)` : 'Inconnu (permissions/intent invites manquants)',
               inline: false,
             },
           )
-          .setFooter({ text: 'Surveillance (join/invite) — no ping' })
+          .setFooter({ text: 'Surveillance (join/invite) â€” no ping' })
           .setTimestamp();
 
         await sendSurveillance(member.guild, rc, embed);
@@ -1352,7 +1352,7 @@ async function main() {
       if (rc.rulesChannelId) {
         const ch = await member.client.channels.fetch(rc.rulesChannelId).catch(() => null);
         if (ch && ch.isTextBased()) {
-          const content = `${member} bienvenue ! Lis le règlement ci-dessus, puis valide en cliquant sur le bouton ci-dessous.`;
+          const content = `${member} bienvenue ! Lis le rÃ¨glement ci-dessus, puis valide en cliquant sur le bouton ci-dessous.`;
           const components = buildRulesAcceptComponents(member.guild.id, member.user.id);
           const prompt = await ch.send({ content, components, allowedMentions: { users: [member.id] } });
           setTimeout(() => prompt.delete().catch(() => {}), 120_000);
@@ -1373,11 +1373,11 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0xe67e22)
-        .setTitle('🗑️ Message supprimé')
+        .setTitle('ðŸ—‘ï¸ Message supprimÃ©')
         .addFields(
           { name: 'Auteur', value: author, inline: false },
-          { name: 'Supprimé par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu / auteur', inline: false },
-          { name: 'Salon', value: message.channelId ? `<#${message.channelId}>` : '—', inline: true },
+          { name: 'SupprimÃ© par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu / auteur', inline: false },
+          { name: 'Salon', value: message.channelId ? `<#${message.channelId}>` : 'â€”', inline: true },
           { name: 'Message ID', value: `\`${message.id}\``, inline: true },
         )
         .setTimestamp();
@@ -1397,10 +1397,10 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0xd35400)
-        .setTitle('🧹 Suppression en masse')
+        .setTitle('ðŸ§¹ Suppression en masse')
         .addFields(
           { name: 'Nombre', value: String(messages.size), inline: true },
-          { name: 'Salon', value: first.channelId ? `<#${first.channelId}>` : '—', inline: true },
+          { name: 'Salon', value: first.channelId ? `<#${first.channelId}>` : 'â€”', inline: true },
           { name: 'Par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu', inline: false },
         )
         .setTimestamp();
@@ -1423,13 +1423,13 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
-        .setTitle('✏️ Message modifié')
+        .setTitle('âœï¸ Message modifiÃ©')
         .addFields(
           { name: 'Auteur', value: author, inline: false },
-          { name: 'Salon', value: newMessage.channelId ? `<#${newMessage.channelId}>` : '—', inline: true },
+          { name: 'Salon', value: newMessage.channelId ? `<#${newMessage.channelId}>` : 'â€”', inline: true },
           { name: 'Message ID', value: `\`${newMessage.id}\``, inline: true },
           { name: 'Avant', value: before ? `\`${before}\`` : '(contenu non dispo)', inline: false },
-          { name: 'Après', value: after ? `\`${after}\`` : '(contenu non dispo)', inline: false },
+          { name: 'AprÃ¨s', value: after ? `\`${after}\`` : '(contenu non dispo)', inline: false },
         )
         .setTimestamp();
 
@@ -1445,9 +1445,9 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0x9b59b6)
-        .setTitle('🧩 Rôle modifié')
+        .setTitle('ðŸ§© RÃ´le modifiÃ©')
         .addFields(
-          { name: 'Rôle', value: `${newRole} (\`${newRole.id}\`)`, inline: false },
+          { name: 'RÃ´le', value: `${newRole} (\`${newRole.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
         )
         .setTimestamp();
@@ -1462,7 +1462,7 @@ async function main() {
       const actor = await getAuditActor(channel.guild, { type: 10, targetId: channel.id, windowMs: 20_000 }); // CHANNEL_CREATE
       const embed = new EmbedBuilder()
         .setColor(0x2ecc71)
-        .setTitle('📁 Salon créé')
+        .setTitle('ðŸ“ Salon crÃ©Ã©')
         .addFields(
           { name: 'Salon', value: `<#${channel.id}> (\`${channel.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1479,7 +1479,7 @@ async function main() {
       const actor = await getAuditActor(channel.guild, { type: 12, targetId: channel.id, windowMs: 20_000 }); // CHANNEL_DELETE
       const embed = new EmbedBuilder()
         .setColor(0xe74c3c)
-        .setTitle('🗑️ Salon supprimé')
+        .setTitle('ðŸ—‘ï¸ Salon supprimÃ©')
         .addFields(
           { name: 'Salon', value: `#${channel.name} (\`${channel.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1497,10 +1497,10 @@ async function main() {
       const actor = await getAuditActor(newCh.guild, { type: 11, targetId: newCh.id, windowMs: 20_000 }); // CHANNEL_UPDATE
       const embed = new EmbedBuilder()
         .setColor(0xf1c40f)
-        .setTitle('✏️ Salon renommé')
+        .setTitle('âœï¸ Salon renommÃ©')
         .addFields(
           { name: 'Avant', value: String(oldCh.name), inline: true },
-          { name: 'Après', value: String(newCh.name), inline: true },
+          { name: 'AprÃ¨s', value: String(newCh.name), inline: true },
           { name: 'Salon', value: `<#${newCh.id}> (\`${newCh.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
         )
@@ -1516,7 +1516,7 @@ async function main() {
       const actor = await getAuditActor(guild, { type: 22, targetId: ban.user.id, windowMs: 30_000 }); // MEMBER_BAN_ADD
       const embed = new EmbedBuilder()
         .setColor(0xc0392b)
-        .setTitle('⛔ Ban')
+        .setTitle('â›” Ban')
         .addFields(
           { name: 'Membre', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1533,7 +1533,7 @@ async function main() {
       const actor = await getAuditActor(guild, { type: 23, targetId: ban.user.id, windowMs: 30_000 }); // MEMBER_BAN_REMOVE
       const embed = new EmbedBuilder()
         .setColor(0x27ae60)
-        .setTitle('✅ Unban')
+        .setTitle('âœ… Unban')
         .addFields(
           { name: 'Membre', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1562,10 +1562,10 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(kickedBy ? 0xe74c3c : 0x95a5a6)
-        .setTitle(kickedBy ? '⛔ Membre expulsé' : '🚪 Membre parti')
+        .setTitle(kickedBy ? 'â›” Membre expulsÃ©' : 'ðŸšª Membre parti')
         .addFields(
           { name: 'Membre', value: `<@${userId}> (\`${userId}\`)`, inline: false },
-          { name: 'Action', value: kickedBy ? `Kick par ${kickedBy}` : 'Départ volontaire', inline: false },
+          { name: 'Action', value: kickedBy ? `Kick par ${kickedBy}` : 'DÃ©part volontaire', inline: false },
         )
         .setTimestamp();
       await sendSurveillance(member.guild, rc, embed);
@@ -1616,10 +1616,10 @@ async function main() {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           ev.setDefendersPresent(id, defenders);
-          return interaction.reply({ content: `OK. Défenseurs présents = ${defenders} (points par joueur).`, ephemeral: true });
+          return interaction.reply({ content: `OK. DÃ©fenseurs prÃ©sents = ${defenders} (points par joueur).`, ephemeral: true });
         }
       }
 
@@ -1633,11 +1633,11 @@ async function main() {
             : '';
           const embed = new EmbedBuilder()
             .setColor(0x8e44ad)
-            .setTitle('⌨️ Commande exécutée')
+            .setTitle('âŒ¨ï¸ Commande exÃ©cutÃ©e')
             .addFields(
               { name: 'Commande', value: `/${interaction.commandName} ${opts}`.trim().slice(0, 1024), inline: false },
               { name: 'Par', value: `${interaction.user.tag || interaction.user.username} (\`${interaction.user.id}\`)`, inline: true },
-              { name: 'Salon', value: interaction.channelId ? `<#${interaction.channelId}>` : '—', inline: true },
+              { name: 'Salon', value: interaction.channelId ? `<#${interaction.channelId}>` : 'â€”', inline: true },
             )
             .setTimestamp();
           await sendActivityLog(interaction.guild, rc, embed);
@@ -1651,7 +1651,7 @@ async function main() {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const raw = (interaction.fields.getTextInputValue('participants') || '').trim();
           const ids = raw
@@ -1660,7 +1660,7 @@ async function main() {
             .filter(Boolean) || [];
           const uniq = [...new Set(ids)];
           ev.setParticipantsOverride(id, uniq.join(','));
-          return interaction.reply({ content: `✅ Participants mis à jour (${uniq.length}).`, ephemeral: true });
+          return interaction.reply({ content: `âœ… Participants mis Ã  jour (${uniq.length}).`, ephemeral: true });
         }
 
         if (interaction.customId.startsWith('evdeny:')) {
@@ -1668,14 +1668,14 @@ async function main() {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const reason = (interaction.fields.getTextInputValue('reason') || '').trim();
           const sub = ev.getSubmission(id);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
 
           if (sub.status !== 'pending') {
-            return interaction.reply({ content: 'Déjà traité.', ephemeral: true });
+            return interaction.reply({ content: 'DÃ©jÃ  traitÃ©.', ephemeral: true });
           }
 
           ev.markDenied(id, { validatedBy: interaction.user.id, reason });
@@ -1711,8 +1711,8 @@ async function main() {
               if (msg) {
                 const embed = new EmbedBuilder()
                   .setColor(0xe74c3c)
-                  .setTitle('❌ Refusé')
-                  .setDescription(`Refusé par <@${interaction.user.id}>`)
+                  .setTitle('âŒ RefusÃ©')
+                  .setDescription(`RefusÃ© par <@${interaction.user.id}>`)
                   .addFields({ name: 'Raison', value: reason.slice(0, 1024), inline: false })
                   .setTimestamp();
                 await msg.edit({ embeds: [embed] }).catch(() => {});
@@ -1724,7 +1724,7 @@ async function main() {
               const original = await proofsCh.messages.fetch(sub.proofs_message_id).catch(() => null);
               if (original) {
                 await original.reply({
-                  content: `<@${sub.author_id}> ❌ Preuve refusée.\n**Raison :** ${reason}`,
+                  content: `<@${sub.author_id}> âŒ Preuve refusÃ©e.\n**Raison :** ${reason}`,
                   allowedMentions: { users: [sub.author_id] },
                 }).catch(() => {});
               }
@@ -1734,16 +1734,16 @@ async function main() {
           // Remove staff components
           try { await interaction.message.edit({ components: [] }); } catch {}
 
-          return interaction.reply({ content: '❌ Refus enregistré et envoyé au joueur.', ephemeral: true });
+          return interaction.reply({ content: 'âŒ Refus enregistrÃ© et envoyÃ© au joueur.', ephemeral: true });
         }
 
-        // Events Perco — per-publication modals
+        // Events Perco â€” per-publication modals
         if (interaction.customId.startsWith('evpub_add_submit:')) {
           const sid = Number(interaction.customId.split(':')[1]);
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
@@ -1757,7 +1757,7 @@ async function main() {
 
           for (const uid of participantIds) ev.addPoints(interaction.guildId, uid, delta);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `✅ OK. ${delta >= 0 ? '+' : ''}${delta} pts appliqués à ${participantIds.length} joueur(s).`, ephemeral: true });
+          return interaction.reply({ content: `âœ… OK. ${delta >= 0 ? '+' : ''}${delta} pts appliquÃ©s Ã  ${participantIds.length} joueur(s).`, ephemeral: true });
         }
 
         if (interaction.customId.startsWith('evpub_set_submit:')) {
@@ -1765,7 +1765,7 @@ async function main() {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
@@ -1779,7 +1779,7 @@ async function main() {
 
           for (const uid of participantIds) ev.setPoints(interaction.guildId, uid, Math.floor(points));
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `✅ OK. Points fixés à ${Math.floor(points)} pour ${participantIds.length} joueur(s) (ce combat).`, ephemeral: true });
+          return interaction.reply({ content: `âœ… OK. Points fixÃ©s Ã  ${Math.floor(points)} pour ${participantIds.length} joueur(s) (ce combat).`, ephemeral: true });
         }
 
         if (interaction.customId.startsWith('evpub_remove_submit:')) {
@@ -1787,7 +1787,7 @@ async function main() {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
@@ -1798,23 +1798,23 @@ async function main() {
 
           ev.removeUser(interaction.guildId, userId);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `🧹 OK. <@${userId}> retiré du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
+          return interaction.reply({ content: `ðŸ§¹ OK. <@${userId}> retirÃ© du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
         }
 
-        // Events Perco — correction modal submit (preview only)
+        // Events Perco â€” correction modal submit (preview only)
         if (interaction.customId.startsWith('evfix_submit:')) {
           const sid = Number(interaction.customId.split(':')[1]);
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
-          if (sub.status !== 'approved') return interaction.reply({ content: 'Correction possible uniquement après validation.', ephemeral: true });
+          if (sub.status !== 'approved') return interaction.reply({ content: 'Correction possible uniquement aprÃ¨s validation.', ephemeral: true });
 
           const defenders = Number((interaction.fields.getTextInputValue('defenders') || '').trim());
-          if (!defenders || defenders < 1 || defenders > 5) return interaction.reply({ content: 'Défenseurs invalides (1-5).', ephemeral: true });
+          if (!defenders || defenders < 1 || defenders > 5) return interaction.reply({ content: 'DÃ©fenseurs invalides (1-5).', ephemeral: true });
 
           const raw = (interaction.fields.getTextInputValue('participants') || '').trim();
           const ids = raw.match(/\d{17,20}/g)?.map(s => s.trim()).filter(Boolean) || [];
@@ -1834,36 +1834,36 @@ async function main() {
             const before = oldMap.get(uid) || 0;
             const after = newMap.get(uid) || 0;
             const delta = after - before;
-            if (delta !== 0) lines.push(`<@${uid}> : ${before} → ${after} (**${delta > 0 ? '+' : ''}${delta}**)`);
+            if (delta !== 0) lines.push(`<@${uid}> : ${before} â†’ ${after} (**${delta > 0 ? '+' : ''}${delta}**)`);
           }
 
           pendingEventFix.set(`${interaction.user.id}:${sid}`, { participantIds, defenders });
 
           const embed = new EmbedBuilder()
             .setColor(0xf1c40f)
-            .setTitle('🧮 Prévisualisation — Correction')
+            .setTitle('ðŸ§® PrÃ©visualisation â€” Correction')
             .setDescription(
               `SID **${sid}**\n` +
               `Nouveau points/joueur: **${defenders}**\n` +
               `Participants: ${participantIds.map(u => `<@${u}>`).join(' ')}`
             )
             .addFields({ name: 'Impact', value: lines.join('\n').slice(0, 1024) || 'Aucun changement.', inline: false })
-            .setFooter({ text: 'Clique sur ✅ Appliquer correction pour confirmer.' });
+            .setFooter({ text: 'Clique sur âœ… Appliquer correction pour confirmer.' });
 
           const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`evfixapply:${sid}:apply`).setLabel('✅ Appliquer correction').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId(`evfixapply:${sid}:cancel`).setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`evfixapply:${sid}:apply`).setLabel('âœ… Appliquer correction').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`evfixapply:${sid}:cancel`).setLabel('âŒ Annuler').setStyle(ButtonStyle.Secondary),
           );
 
           return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
         }
 
-        // Events Perco — staff admin modals
+        // Events Perco â€” staff admin modals
         if (interaction.customId === 'evadm_add_submit') {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const rawUser = (interaction.fields.getTextInputValue('user') || '').trim();
           const rawDelta = (interaction.fields.getTextInputValue('delta') || '').trim();
@@ -1873,14 +1873,14 @@ async function main() {
 
           ev.addPoints(interaction.guildId, userId, delta);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `✅ OK. <@${userId}> ${delta >= 0 ? '+' : ''}${delta} pts.`, ephemeral: true, allowedMentions: { parse: [] } });
+          return interaction.reply({ content: `âœ… OK. <@${userId}> ${delta >= 0 ? '+' : ''}${delta} pts.`, ephemeral: true, allowedMentions: { parse: [] } });
         }
 
         if (interaction.customId === 'evadm_set_submit') {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const rawUser = (interaction.fields.getTextInputValue('user') || '').trim();
           const rawPoints = (interaction.fields.getTextInputValue('points') || '').trim();
@@ -1890,14 +1890,14 @@ async function main() {
 
           ev.setPoints(interaction.guildId, userId, Math.floor(points));
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `✅ OK. <@${userId}> = ${Math.floor(points)} pts.`, ephemeral: true, allowedMentions: { parse: [] } });
+          return interaction.reply({ content: `âœ… OK. <@${userId}> = ${Math.floor(points)} pts.`, ephemeral: true, allowedMentions: { parse: [] } });
         }
 
         if (interaction.customId === 'evadm_remove_submit') {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const rawUser = (interaction.fields.getTextInputValue('user') || '').trim();
           const userId = (rawUser.match(/\d{17,20}/) || [null])[0];
@@ -1905,18 +1905,18 @@ async function main() {
 
           ev.removeUser(interaction.guildId, userId);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `🧹 OK. <@${userId}> supprimé du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
+          return interaction.reply({ content: `ðŸ§¹ OK. <@${userId}> supprimÃ© du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
         }
 
         if (interaction.customId === 'evadm_reset_submit') {
           const rc = getConfigForGuild(interaction.guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const confirm = (interaction.fields.getTextInputValue('confirm') || '').trim().toUpperCase();
           if (confirm !== 'RESET') {
-            return interaction.reply({ content: 'Reset annulé (tu dois taper RESET).', ephemeral: true });
+            return interaction.reply({ content: 'Reset annulÃ© (tu dois taper RESET).', ephemeral: true });
           }
 
           // Collect messages to delete
@@ -1948,7 +1948,7 @@ async function main() {
           ev.resetGuild(interaction.guildId);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
 
-          return interaction.reply({ content: '🧨 Reset saison effectué : scores + submissions + screens supprimés (box staff conservée).', ephemeral: true });
+          return interaction.reply({ content: 'ðŸ§¨ Reset saison effectuÃ© : scores + submissions + screens supprimÃ©s (box staff conservÃ©e).', ephemeral: true });
         }
 
         if (interaction.customId.startsWith('profset:')) {
@@ -1964,7 +1964,7 @@ async function main() {
           const rc = getConfigForGuild(guildId);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé Meneur / Bras droit.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© Meneur / Bras droit.', ephemeral: true });
 
           const pseudos = (interaction.fields.getTextInputValue('pseudos') || '').trim();
           if (!pseudos) return interaction.reply({ content: 'Liste vide.', ephemeral: true });
@@ -1973,7 +1973,7 @@ async function main() {
 
           // refresh box
           await updateProfileBox(interaction.guild, rc, targetUserId, {
-            statusText: '✏️ Mis à jour par le staff',
+            statusText: 'âœï¸ Mis Ã  jour par le staff',
           }).catch(() => {});
 
           // keep edit button
@@ -1983,14 +1983,14 @@ async function main() {
               const m = await ch.messages.fetch(msgId).catch(() => null);
               if (m) {
                 const row = new ActionRowBuilder().addComponents(
-                  new ButtonBuilder().setCustomId(`profedit:${guildId}:${targetUserId}`).setLabel('✏️ Modifier').setStyle(ButtonStyle.Secondary)
+                  new ButtonBuilder().setCustomId(`profedit:${guildId}:${targetUserId}`).setLabel('âœï¸ Modifier').setStyle(ButtonStyle.Secondary)
                 );
                 await m.edit({ components: [row] }).catch(() => {});
               }
             }
           } catch {}
 
-          return interaction.reply({ content: '✅ Profil mis à jour.', ephemeral: true });
+          return interaction.reply({ content: 'âœ… Profil mis Ã  jour.', ephemeral: true });
         }
 
         if (interaction.customId.startsWith('ign:')) { 
@@ -2025,18 +2025,18 @@ async function main() {
             if (pch && pch.isTextBased()) {
               const embed = new EmbedBuilder()
                 .setColor(0x3498db)
-                .setTitle('🎮 Profil joueur')
+                .setTitle('ðŸŽ® Profil joueur')
                 .addFields(
                   { name: 'Discord', value: `<@${userId}> (\`${userId}\`)`, inline: false },
-                  { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024), inline: false },
-                  { name: 'Statut', value: choice === 'guildeux' ? '🛡️ Guildeux (en attente validation staff)' : '🎟️ Invité (en attente validation staff)', inline: false },
+                  { name: 'Pseudos en jeu', value: ignList.map(x => `â€¢ **${x}**`).join('\n').slice(0, 1024), inline: false },
+                  { name: 'Statut', value: choice === 'guildeux' ? 'ðŸ›¡ï¸ Guildeux (en attente validation staff)' : 'ðŸŽŸï¸ InvitÃ© (en attente validation staff)', inline: false },
                 )
-                .setFooter({ text: 'Ajout automatique à l’arrivée.' });
+                .setFooter({ text: 'Ajout automatique Ã  lâ€™arrivÃ©e.' });
 
               const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                   .setCustomId(`profedit:${guildId}:${userId}`)
-                  .setLabel('✏️ Modifier')
+                  .setLabel('âœï¸ Modifier')
                   .setStyle(ButtonStyle.Secondary)
               );
 
@@ -2051,11 +2051,11 @@ async function main() {
             const roleG = rc.welcomeRoleGuildeuxId ? interaction.guild.roles.cache.get(rc.welcomeRoleGuildeuxId) : null;
             const roleI = rc.welcomeRoleInviteId ? interaction.guild.roles.cache.get(rc.welcomeRoleInviteId) : null;
             if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+              return interaction.reply({ content: "Je n'ai pas la permission **GÃ©rer les rÃ´les**.", ephemeral: true });
             }
             if (choice === 'guildeux') {
               // SECURITY: do NOT grant guild access before staff validation.
-              // Put the member as "Invité" while waiting.
+              // Put the member as "InvitÃ©" while waiting.
               if (roleI) await member.roles.add(roleI).catch(() => {});
               if (roleG) await member.roles.remove(roleG).catch(() => {});
               // Also ensure no guild roles are given here.
@@ -2069,7 +2069,7 @@ async function main() {
             if (choice === 'invite') {
               if (roleI) await member.roles.add(roleI).catch(() => {});
               if (roleG) await member.roles.remove(roleG).catch(() => {});
-              await postStaffValidationAlert(interaction.guild, rc, userId, 'Invité');
+              await postStaffValidationAlert(interaction.guild, rc, userId, 'InvitÃ©');
             }
           }
 
@@ -2087,7 +2087,7 @@ async function main() {
                       new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                           .setCustomId(`welgif:${guildId}:${userId}:${member.joinedTimestamp}`)
-                          .setLabel('🎉 Souhaiter la bienvenue (GIF)')
+                          .setLabel('ðŸŽ‰ Souhaiter la bienvenue (GIF)')
                           .setStyle(ButtonStyle.Success)
                       )
                     );
@@ -2098,7 +2098,7 @@ async function main() {
             } catch {}
           }
 
-          return interaction.reply({ content: '✅ Pseudo enregistré, merci !', ephemeral: true });
+          return interaction.reply({ content: 'âœ… Pseudo enregistrÃ©, merci !', ephemeral: true });
         }
       }
 
@@ -2110,7 +2110,7 @@ async function main() {
         if (interaction.commandName === 'almanax') {
           // Restrict usage to the configured channel (soft redirect; do not run elsewhere)
           if (rc.almanaxChannelId && interaction.channelId !== rc.almanaxChannelId) {
-            return interaction.reply({ content: `📜 Utilise cette commande dans <#${rc.almanaxChannelId}>.`, ephemeral: true }).catch(() => {});
+            return interaction.reply({ content: `ðŸ“œ Utilise cette commande dans <#${rc.almanaxChannelId}>.`, ephemeral: true }).catch(() => {});
           }
 
           await interaction.deferReply({ ephemeral: false }).catch(() => {});
@@ -2129,21 +2129,21 @@ async function main() {
             !!aide,
           ].filter(Boolean).length;
           if (chosen > 1) {
-            return interaction.editReply({ content: '❌ Choisis **une seule** option (jours / prochains / prochain_bonus / bonus_disponibles / aide).' }).catch(() => {});
+            return interaction.editReply({ content: 'âŒ Choisis **une seule** option (jours / prochains / prochain_bonus / bonus_disponibles / aide).' }).catch(() => {});
           }
 
           // Help
           if (aide) {
             const help = new EmbedBuilder()
               .setColor(0x9b59b6)
-              .setTitle('📜 Almanax — Aide')
+              .setTitle('ðŸ“œ Almanax â€” Aide')
               .setDescription(
                 [
-                  '• **/almanax** → Almanax du jour',
-                  '• **/almanax jours:7** → Almanax dans 7 jours (J+7)',
-                  '• **/almanax prochains:10** → liste des 10 prochains jours',
-                  '• **/almanax bonus_disponibles:true** → liste des bonus (slugs)',
-                  '• **/almanax prochain_bonus:full-of-life** → prochain jour avec ce bonus',
+                  'â€¢ **/almanax** â†’ Almanax du jour',
+                  'â€¢ **/almanax jours:7** â†’ Almanax dans 7 jours (J+7)',
+                  'â€¢ **/almanax prochains:10** â†’ liste des 10 prochains jours',
+                  'â€¢ **/almanax bonus_disponibles:true** â†’ liste des bonus (slugs)',
+                  'â€¢ **/almanax prochain_bonus:full-of-life** â†’ prochain jour avec ce bonus',
                 ].join('\n')
               )
               .setFooter({ text: 'Source: alm.dofusdu.de (almanax-api)' });
@@ -2167,14 +2167,14 @@ async function main() {
                   const slug = b?.type || b?.bonus_type || b?.id || b?.slug;
                   const name = b?.name || b?.text || b?.label;
                   if (!slug) return null;
-                  return `• \`${slug}\`${name ? ` — ${name}` : ''}`;
+                  return `â€¢ \`${slug}\`${name ? ` â€” ${name}` : ''}`;
                 })
                 .filter(Boolean);
 
               const embed = new EmbedBuilder()
                 .setColor(0x9b59b6)
-                .setTitle('🏷️ Bonus Almanax disponibles')
-                .setDescription(lines.join('\n').slice(0, 3900) || '—');
+                .setTitle('ðŸ·ï¸ Bonus Almanax disponibles')
+                .setDescription(lines.join('\n').slice(0, 3900) || 'â€”');
 
               return interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
@@ -2182,13 +2182,13 @@ async function main() {
             if (prochainBonus) {
               let data;
               try {
-                data = await almanaxFetchJson(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`);
+                data = await almanaxFetch\(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`);
               } catch {
-                data = await almanaxFetchJson(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next`);
+                data = await almanaxFetch\(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next`);
               }
               const off = pickOffering(data);
               const embed = await buildAlmanaxEmbed({ daysAhead: 0, offering: off });
-              embed.setTitle(`🔎 Prochain bonus — ${prochainBonus}`);
+              embed.setTitle(`ðŸ”Ž Prochain bonus â€” ${prochainBonus}`);
               return interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
 
@@ -2196,13 +2196,13 @@ async function main() {
               const count = Math.max(1, Math.min(10, prochains));
               let data;
               try {
-                data = await almanaxFetchJson(`/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`);
+                data = await almanaxFetch\(`/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`);
               } catch {
-                data = await almanaxFetchJson(`/${lang}/ahead/${count}`);
+                data = await almanaxFetch\(`/${lang}/ahead/${count}`);
               }
               const list = Array.isArray(data) ? data : (data?.offerings || data?.days || data?.results || []);
               if (!Array.isArray(list) || list.length === 0) {
-                return interaction.editReply({ content: "❌ Almanax indisponible pour l'instant (API)." }).catch(() => {});
+                return interaction.editReply({ content: "âŒ Almanax indisponible pour l'instant (API)." }).catch(() => {});
               }
 
               const lines = list
@@ -2210,15 +2210,15 @@ async function main() {
                 .map((o, idx) => {
                   const { date, bonus, itemName, itemQty } = parseOffering(o);
                   const bonusShort = String(bonus).replace(/\s+/g, ' ').slice(0, 80);
-                  const off = `${itemQty ? `${itemQty}× ` : ''}${itemName}`;
-                  return `**J+${idx}** — **${date}**\n• Bonus: ${bonusShort}\n• Offrande: ${off}`;
+                  const off = `${itemQty ? `${itemQty}Ã— ` : ''}${itemName}`;
+                  return `**J+${idx}** â€” **${date}**\nâ€¢ Bonus: ${bonusShort}\nâ€¢ Offrande: ${off}`;
                 });
 
               const embed = new EmbedBuilder()
                 .setColor(0x9b59b6)
-                .setTitle(`📆 Prochains Almanax (x${count})`)
+                .setTitle(`ðŸ“† Prochains Almanax (x${count})`)
                 .setDescription(lines.join('\n\n').slice(0, 3900))
-                .setFooter({ text: `TZ ${tz} • Source: alm.dofusdu.de` });
+                .setFooter({ text: `TZ ${tz} â€¢ Source: alm.dofusdu.de` });
 
               return interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
@@ -2227,7 +2227,7 @@ async function main() {
             const embed = await buildAlmanaxEmbed({ daysAhead: d });
             return interaction.editReply({ embeds: [embed] }).catch(() => {});
           } catch (e) {
-            return interaction.editReply({ content: `❌ Erreur Almanax: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
+            return interaction.editReply({ content: `âŒ Erreur Almanax: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
           }
         }
 
@@ -2241,15 +2241,15 @@ async function main() {
 
         // Owner-only setup commands
         if (interaction.commandName.startsWith('setup_')) {
-          if (!isOwner) return interaction.reply({ content: 'Commande réservée au propriétaire du serveur.', ephemeral: true });
+          if (!isOwner) return interaction.reply({ content: 'Commande rÃ©servÃ©e au propriÃ©taire du serveur.', ephemeral: true });
         } else if (!isAdmin) {
-          return interaction.reply({ content: "Permissions insuffisantes (réservé à l'Owner ou rôle admin configuré).", ephemeral: true });
+          return interaction.reply({ content: "Permissions insuffisantes (rÃ©servÃ© Ã  l'Owner ou rÃ´le admin configurÃ©).", ephemeral: true });
         }
 
         // Allow /role_id anywhere (useful on mobile)
         if (interaction.commandName === 'role_id') {
           const role = interaction.options.getRole('role', true);
-          return interaction.reply({ content: `ID du rôle ${role} : \`${role.id}\``, ephemeral: true });
+          return interaction.reply({ content: `ID du rÃ´le ${role} : \`${role.id}\``, ephemeral: true });
         }
 
         // Setup commands: allowed anywhere
@@ -2270,30 +2270,30 @@ async function main() {
             try {
               const embed = new EmbedBuilder()
                 .setColor(0x9b59b6)
-                .setTitle('📜 Almanax — Dofus (mode d’emploi)')
+                .setTitle('ðŸ“œ Almanax â€” Dofus (mode dâ€™emploi)')
                 .setDescription(
                   [
                     'Commandes disponibles **dans ce salon uniquement** :',
                     '',
-                    '• **/almanax** → Almanax du jour',
-                    '• **/almanax jours:7** → Almanax dans 7 jours (J+7)',
-                    '• **/almanax prochains:10** → liste des 10 prochains jours',
-                    '• **/almanax bonus_disponibles:true** → liste des bonus (slugs)',
-                    '• **/almanax prochain_bonus:full-of-life** → prochain jour avec ce bonus',
-                    '• **/almanax aide:true** → rappel des commandes',
+                    'â€¢ **/almanax** â†’ Almanax du jour',
+                    'â€¢ **/almanax jours:7** â†’ Almanax dans 7 jours (J+7)',
+                    'â€¢ **/almanax prochains:10** â†’ liste des 10 prochains jours',
+                    'â€¢ **/almanax bonus_disponibles:true** â†’ liste des bonus (slugs)',
+                    'â€¢ **/almanax prochain_bonus:full-of-life** â†’ prochain jour avec ce bonus',
+                    'â€¢ **/almanax aide:true** â†’ rappel des commandes',
                     '',
-                    '⏰ Publication automatique : **tous les jours à 00:00 (Europe/Paris)** (résumé).',
+                    'â° Publication automatique : **tous les jours Ã  00:00 (Europe/Paris)** (rÃ©sumÃ©).',
                   ].join('\n')
                 )
                 .setFooter({ text: 'Source: alm.dofusdu.de (almanax-api)' });
 
               const recent = await salon.messages.fetch({ limit: 15 }).catch(() => null);
-              const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📜 Almanax — Dofus');
+              const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === 'ðŸ“œ Almanax â€” Dofus');
               const msg = existing ? await existing.edit({ embeds: [embed] }).then(() => existing) : await salon.send({ embeds: [embed] });
               try { await msg.pin(); } catch {}
             } catch {}
 
-            return interaction.reply({ content: `✅ Almanax configuré dans <#${salon.id}>.`, ephemeral: true });
+            return interaction.reply({ content: `âœ… Almanax configurÃ© dans <#${salon.id}>.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_admin') {
@@ -2308,7 +2308,7 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Rôle admin configuré : ${role} (\`${role.id}\`).`, ephemeral: true });
+            return interaction.reply({ content: `OK. RÃ´le admin configurÃ© : ${role} (\`${role.id}\`).`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_ping') {
@@ -2338,7 +2338,7 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Panneau configuré dans <#${panneau.id}> (alertes: <#${alertes.id}>) (message ${msg.id}).`, ephemeral: true });
+            return interaction.reply({ content: `OK. Panneau configurÃ© dans <#${panneau.id}> (alertes: <#${alertes.id}>) (message ${msg.id}).`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_scoreboard') {
@@ -2365,26 +2365,26 @@ async function main() {
                 }
               }
 
-              return interaction.reply({ content: `OK. Scoreboard configuré dans <#${sbChannel.id}> (message ${msg.id}).`, ephemeral: true });
+              return interaction.reply({ content: `OK. Scoreboard configurÃ© dans <#${sbChannel.id}> (message ${msg.id}).`, ephemeral: true });
             }
-            return interaction.reply({ content: `Scoreboard configuré, mais salon inaccessible: <#${salon.id}>.`, ephemeral: true });
+            return interaction.reply({ content: `Scoreboard configurÃ©, mais salon inaccessible: <#${salon.id}>.`, ephemeral: true });
           }
 
 
           if (interaction.commandName === 'setup_status') {
             const rc2 = getConfigForGuild(guild.id);
             const lines = [
-              `panel_channel_id: ${rc2.panelChannelId ? `<#${rc2.panelChannelId}>` : '❌'}`,
-              `alert_channel_id: ${rc2.alertChannelId ? `<#${rc2.alertChannelId}>` : '❌'}`,
-              `def_role_id: ${rc2.defRoleId ? `<@&${rc2.defRoleId}>` : '❌'}`,
-              `panel_title: ${rc2.panelTitle || '—'}`,
+              `panel_channel_id: ${rc2.panelChannelId ? `<#${rc2.panelChannelId}>` : 'âŒ'}`,
+              `alert_channel_id: ${rc2.alertChannelId ? `<#${rc2.alertChannelId}>` : 'âŒ'}`,
+              `def_role_id: ${rc2.defRoleId ? `<@&${rc2.defRoleId}>` : 'âŒ'}`,
+              `panel_title: ${rc2.panelTitle || 'â€”'}`,
               `cooldown_seconds: ${rc2.cooldownSeconds}`,
-              `scoreboard_channel_id: ${rc2.scoreboardChannelId ? `<#${rc2.scoreboardChannelId}>` : '❌'}`,
-              `guildeux_role_id: ${rc2.guildeuxRoleId ? `<@&${rc2.guildeuxRoleId}>` : '❌'}`,
+              `scoreboard_channel_id: ${rc2.scoreboardChannelId ? `<#${rc2.scoreboardChannelId}>` : 'âŒ'}`,
+              `guildeux_role_id: ${rc2.guildeuxRoleId ? `<@&${rc2.guildeuxRoleId}>` : 'âŒ'}`,
               `scoreboard_top_n: ${rc2.scoreboardTopN}`,
-              `admin_role_id: ${rc2.adminRoleId ? `<@&${rc2.adminRoleId}>` : '—'}`,
-              `dashboard: ${rc2.dashboardChannelId ? `<#${rc2.dashboardChannelId}>` : '—'} / ${rc2.dashboardMessageId || '—'}`,
-              `welcome: ${rc2.welcomeChannelId ? `<#${rc2.welcomeChannelId}>` : '—'} (guilde: ${rc2.welcomeGuildName || 'GTO'}) (everyone: ${rc2.welcomePingEveryone ? 'ON' : 'OFF'}) (roles: ${rc2.welcomeRoleGuildeuxId ? `<@&${rc2.welcomeRoleGuildeuxId}>` : '—'} / ${rc2.welcomeRoleInviteId ? `<@&${rc2.welcomeRoleInviteId}>` : '—'})`, 
+              `admin_role_id: ${rc2.adminRoleId ? `<@&${rc2.adminRoleId}>` : 'â€”'}`,
+              `dashboard: ${rc2.dashboardChannelId ? `<#${rc2.dashboardChannelId}>` : 'â€”'} / ${rc2.dashboardMessageId || 'â€”'}`,
+              `welcome: ${rc2.welcomeChannelId ? `<#${rc2.welcomeChannelId}>` : 'â€”'} (guilde: ${rc2.welcomeGuildName || 'GTO'}) (everyone: ${rc2.welcomePingEveryone ? 'ON' : 'OFF'}) (roles: ${rc2.welcomeRoleGuildeuxId ? `<@&${rc2.welcomeRoleGuildeuxId}>` : 'â€”'} / ${rc2.welcomeRoleInviteId ? `<@&${rc2.welcomeRoleInviteId}>` : 'â€”'})`, 
             ];
             return interaction.reply({ content: '```\n' + lines.join('\n') + '\n```', ephemeral: true });
           }
@@ -2393,17 +2393,17 @@ async function main() {
             const salon = interaction.options.getChannel('salon', true);
             const rc2 = getConfigForGuild(guild.id);
             const msg = await ensureDashboardMessage(guild, salon, rc2);
-            return interaction.reply({ content: `OK. Dashboard posté dans <#${salon.id}> (message ${msg.id}) et épinglé.`, ephemeral: true });
+            return interaction.reply({ content: `OK. Dashboard postÃ© dans <#${salon.id}> (message ${msg.id}) et Ã©pinglÃ©.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_welcome') {
             const salon = interaction.options.getChannel('salon', true);
             const chatArrive = interaction.options.getChannel('chat_arrive', false);
             if (!salon.isTextBased?.()) {
-              return interaction.reply({ content: 'Choisis un **salon texte** (pas une catégorie / vocal / thread).', ephemeral: true });
+              return interaction.reply({ content: 'Choisis un **salon texte** (pas une catÃ©gorie / vocal / thread).', ephemeral: true });
             }
             if (chatArrive && !chatArrive.isTextBased?.()) {
-              return interaction.reply({ content: 'Le salon chat_arrive doit être un **salon texte**.', ephemeral: true });
+              return interaction.reply({ content: 'Le salon chat_arrive doit Ãªtre un **salon texte**.', ephemeral: true });
             }
 
             const guildeName = interaction.options.getString('guilde') || 'GTO';
@@ -2428,14 +2428,14 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Salon arrivée configuré : <#${salon.id}> (guilde: ${guildeName}) (ping everyone: ${pingEveryone ? 'ON' : 'OFF'}) (roles: ${roleGuildeux ? roleGuildeux.toString() : '—'} / ${roleInvite ? roleInvite.toString() : '—'}).`, ephemeral: true });
+            return interaction.reply({ content: `OK. Salon arrivÃ©e configurÃ© : <#${salon.id}> (guilde: ${guildeName}) (ping everyone: ${pingEveryone ? 'ON' : 'OFF'}) (roles: ${roleGuildeux ? roleGuildeux.toString() : 'â€”'} / ${roleInvite ? roleInvite.toString() : 'â€”'}).`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_reglement') {
             const salon = interaction.options.getChannel('salon', true);
             const roleAcces = interaction.options.getRole('role_acces', true);
             if (!salon.isTextBased?.()) {
-              return interaction.reply({ content: 'Choisis un **salon texte** pour le règlement.', ephemeral: true });
+              return interaction.reply({ content: 'Choisis un **salon texte** pour le rÃ¨glement.', ephemeral: true });
             }
 
             updateGuildConfig(guild.id, {
@@ -2453,7 +2453,7 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Règlement configuré dans <#${salon.id}>. Rôle après validation : ${roleAcces}`, ephemeral: true });
+            return interaction.reply({ content: `OK. RÃ¨glement configurÃ© dans <#${salon.id}>. RÃ´le aprÃ¨s validation : ${roleAcces}`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_validation_staff') {
@@ -2482,7 +2482,7 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Validation staff configurée dans <#${salon.id}>.`, ephemeral: true });
+            return interaction.reply({ content: `OK. Validation staff configurÃ©e dans <#${salon.id}>.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_profiles') {
@@ -2500,7 +2500,7 @@ async function main() {
               }
             }
 
-            return interaction.reply({ content: `OK. Salon profils configuré : <#${salon.id}>`, ephemeral: true });
+            return interaction.reply({ content: `OK. Salon profils configurÃ© : <#${salon.id}>`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_help') {
@@ -2511,7 +2511,7 @@ async function main() {
             updateGuildConfig(guild.id, { help_channel_id: salon.id });
             const rc2 = getConfigForGuild(guild.id);
             await ensureHelpMessage(guild, rc2);
-            return interaction.reply({ content: `OK. Guide staff posté dans <#${salon.id}> (épinglé).`, ephemeral: true });
+            return interaction.reply({ content: `OK. Guide staff postÃ© dans <#${salon.id}> (Ã©pinglÃ©).`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_surveillance') {
@@ -2520,7 +2520,7 @@ async function main() {
               return interaction.reply({ content: 'Choisis un **salon texte** pour la surveillance.', ephemeral: true });
             }
             updateGuildConfig(guild.id, { surveillance_channel_id: salon.id });
-            return interaction.reply({ content: `OK. Surveillance configurée dans <#${salon.id}>.`, ephemeral: true });
+            return interaction.reply({ content: `OK. Surveillance configurÃ©e dans <#${salon.id}>.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_activity_logs') {
@@ -2531,7 +2531,7 @@ async function main() {
             updateGuildConfig(guild.id, { activitylog_channel_id: salon.id });
             const rc2 = getConfigForGuild(guild.id);
             await ensureActivityLogHeader(guild, rc2);
-            return interaction.reply({ content: `OK. Activity logs configurés dans <#${salon.id}>.`, ephemeral: true });
+            return interaction.reply({ content: `OK. Activity logs configurÃ©s dans <#${salon.id}>.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_events') {
@@ -2552,11 +2552,11 @@ async function main() {
             const panelCh = panneau ? await interaction.guild.channels.fetch(panneau.id).catch(() => null) : null;
 
             if (!preuvesCh || !validationCh || !classementCh) {
-              return interaction.editReply({ content: '❌ Un des salons sélectionnés est introuvable (ID invalide / pas dans ce serveur).' }).catch(() => {});
+              return interaction.editReply({ content: 'âŒ Un des salons sÃ©lectionnÃ©s est introuvable (ID invalide / pas dans ce serveur).' }).catch(() => {});
             }
 
             if (!preuvesCh.isTextBased?.() || !validationCh.isTextBased?.() || !classementCh.isTextBased?.() || (screensCh && !screensCh.isTextBased?.()) || (panelCh && !panelCh.isTextBased?.())) {
-              return interaction.editReply({ content: '❌ Choisis uniquement des **salons texte** (pas catégorie/voice/forum).' }).catch(() => {});
+              return interaction.editReply({ content: 'âŒ Choisis uniquement des **salons texte** (pas catÃ©gorie/voice/forum).' }).catch(() => {});
             }
 
             updateGuildConfig(guild.id, {
@@ -2587,43 +2587,43 @@ async function main() {
 
               const panelEmbed = new EmbedBuilder()
                 .setColor(0x3498db)
-                .setTitle('📸 Événements Perco — Soumission')
+                .setTitle('ðŸ“¸ Ã‰vÃ©nements Perco â€” Soumission')
                 .setDescription(
                   [
                     '**Comment soumettre un combat :**',
-                    '1) Clique sur **📤 Soumettre un combat**',
-                    '2) Dans le thread créé, **mentionne tous les participants**',
-                    '   ➜ **N’oublie pas de t’identifier toi-même si tu as participé au combat**',
+                    '1) Clique sur **ðŸ“¤ Soumettre un combat**',
+                    '2) Dans le thread crÃ©Ã©, **mentionne tous les participants**',
+                    '   âžœ **Nâ€™oublie pas de tâ€™identifier toi-mÃªme si tu as participÃ© au combat**',
                     '3) Envoie ensuite **1 ou 2 screenshots** (date/heure visibles)',
                     '',
-                    '📌 Le staff valide ensuite. En cas de refus, tu seras ping avec la raison.',
+                    'ðŸ“Œ Le staff valide ensuite. En cas de refus, tu seras ping avec la raison.',
                   ].join('\n')
                 )
                 .addFields(
                   {
-                    name: '✅ Règles (obligatoires)',
+                    name: 'âœ… RÃ¨gles (obligatoires)',
                     value: [
-                      '• Date + heure visibles',
-                      '• Tous les attaquants + défenseurs (**perco inclus**) visibles',
-                      '• Max **2** images',
+                      'â€¢ Date + heure visibles',
+                      'â€¢ Tous les attaquants + dÃ©fenseurs (**perco inclus**) visibles',
+                      'â€¢ Max **2** images',
                     ].join('\n'),
                     inline: false,
                   },
                   {
-                    name: '💡 Astuce',
-                    value: 'Si vous avez oublié quelqu’un dans les mentions, prévenez le staff avant validation.',
+                    name: 'ðŸ’¡ Astuce',
+                    value: 'Si vous avez oubliÃ© quelquâ€™un dans les mentions, prÃ©venez le staff avant validation.',
                     inline: false,
                   },
                 )
                 .setImage('attachment://event-perco-banner.png');
 
               const panelRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`evopen:${guild.id}`).setLabel('📤 Soumettre un combat').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(`evopen:${guild.id}`).setLabel('ðŸ“¤ Soumettre un combat').setStyle(ButtonStyle.Primary),
               );
 
               // pin one panel (best effort)
               const recent = await targetPanelCh.messages.fetch({ limit: 20 }).catch(() => null);
-              const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📸 Événements Perco — Soumission');
+              const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === 'ðŸ“¸ Ã‰vÃ©nements Perco â€” Soumission');
               const bannerPath = path.join(__dirname, '..', 'assets', 'event-perco-banner.png');
               const files = [];
               try { files.push({ attachment: bannerPath, name: 'event-perco-banner.png' }); } catch {}
@@ -2637,15 +2637,15 @@ async function main() {
               warnings.push(`Soumission panel: ${e?.message || e}`);
             }
 
-            const warnText = warnings.length ? `\n\n⚠️ Warnings:\n• ${warnings.join('\n• ').slice(0, 1500)}` : '';
+            const warnText = warnings.length ? `\n\nâš ï¸ Warnings:\nâ€¢ ${warnings.join('\nâ€¢ ').slice(0, 1500)}` : '';
             return interaction.editReply({
               content:
-                `✅ OK. Events configurés.\n` +
+                `âœ… OK. Events configurÃ©s.\n` +
                 `Preuves (threads + posts): <#${preuvesCh.id}>\n` +
                 `Box soumission: <#${(panelCh || preuvesCh).id}>\n` +
                 `Validation: <#${validationCh.id}>\n` +
                 `Classement: <#${classementCh.id}>\n` +
-                `Screens: ${screensCh ? `<#${screensCh.id}>` : '— (non configuré)'}` +
+                `Screens: ${screensCh ? `<#${screensCh.id}>` : 'â€” (non configurÃ©)'}` +
                 warnText,
             }).catch(() => {});
           }
@@ -2660,13 +2660,13 @@ async function main() {
               return interaction.editReply({ content: 'Salon invalide.' }).catch(() => {});
             }
             if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-              return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les messages**." }).catch(() => {});
+              return interaction.editReply({ content: "Je n'ai pas la permission **GÃ©rer les messages**." }).catch(() => {});
             }
 
-            await interaction.editReply({ content: `🧹 Nettoyage en cours (${n} messages)…` }).catch(() => {});
+            await interaction.editReply({ content: `ðŸ§¹ Nettoyage en cours (${n} messages)â€¦` }).catch(() => {});
             try {
               const deleted = await interaction.channel.bulkDelete(n, true);
-              return interaction.editReply({ content: `✅ ${deleted.size} messages supprimés.` }).catch(() => {});
+              return interaction.editReply({ content: `âœ… ${deleted.size} messages supprimÃ©s.` }).catch(() => {});
             } catch (e) {
               return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
             }
@@ -2689,11 +2689,11 @@ async function main() {
 
             // owner only
             if (interaction.guild.ownerId !== interaction.user.id) {
-              return interaction.editReply({ content: 'Commande réservée au propriétaire du serveur.' }).catch(() => {});
+              return interaction.editReply({ content: 'Commande rÃ©servÃ©e au propriÃ©taire du serveur.' }).catch(() => {});
             }
 
             if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-              return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les salons**." }).catch(() => {});
+              return interaction.editReply({ content: "Je n'ai pas la permission **GÃ©rer les salons**." }).catch(() => {});
             }
 
             const everyoneId = interaction.guild.roles.everyone.id;
@@ -2702,13 +2702,13 @@ async function main() {
               if (unlock) {
                 // Remove overwrite for @everyone to restore inherited perms
                 await salon.permissionOverwrites.delete(everyoneId).catch(() => {});
-                await interaction.editReply({ content: `🔓 Déverrouillé : <#${salon.id}>` });
+                await interaction.editReply({ content: `ðŸ”“ DÃ©verrouillÃ© : <#${salon.id}>` });
               } else {
                 await salon.permissionOverwrites.edit(everyoneId, { SendMessages: false });
                 for (const r of roles) {
                   await salon.permissionOverwrites.edit(r.id, { SendMessages: true });
                 }
-                await interaction.editReply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` });
+                await interaction.editReply({ content: `ðŸ”’ VerrouillÃ© : <#${salon.id}> (Ã©criture autorisÃ©e: ${roles.map(r => r.toString()).join(' ')})` });
               }
             } catch (e) {
               return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
@@ -2724,7 +2724,7 @@ async function main() {
           if (!anywhere.has(interaction.commandName)) {
             // Command restriction: only allow admin commands in the panel channel
             if (rc.panelChannelId && interaction.channelId !== rc.panelChannelId) {
-              return interaction.reply({ content: `Commande autorisée uniquement dans <#${rc.panelChannelId}>.`, ephemeral: true });
+              return interaction.reply({ content: `Commande autorisÃ©e uniquement dans <#${rc.panelChannelId}>.`, ephemeral: true });
             }
           }
         }
@@ -2735,7 +2735,7 @@ async function main() {
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = interaction.guild.ownerId === interaction.user.id || !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.editReply({ content: 'Réservé Meneur / Bras droit / Owner.' }).catch(() => {});
+          if (!allowed) return interaction.editReply({ content: 'RÃ©servÃ© Meneur / Bras droit / Owner.' }).catch(() => {});
 
           const user = interaction.options.getUser('membre', true);
           const existing = profiles.deleteProfile(interaction.guild.id, user.id);
@@ -2745,7 +2745,7 @@ async function main() {
               await ch.messages.delete(existing.profile_message_id).catch(() => {});
             }
           }
-          return interaction.editReply({ content: `✅ Profil supprimé pour ${user}.` }).catch(() => {});
+          return interaction.editReply({ content: `âœ… Profil supprimÃ© pour ${user}.` }).catch(() => {});
         }
 
         if (interaction.commandName === 'profile_set') {
@@ -2753,13 +2753,13 @@ async function main() {
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = interaction.guild.ownerId === interaction.user.id || !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.editReply({ content: 'Réservé Meneur / Bras droit / Owner.' }).catch(() => {});
+          if (!allowed) return interaction.editReply({ content: 'RÃ©servÃ© Meneur / Bras droit / Owner.' }).catch(() => {});
 
           const user = interaction.options.getUser('membre', true);
           const pseudos = interaction.options.getString('pseudos', true);
           profiles.upsertProfile(interaction.guild.id, user.id, pseudos);
-          await updateProfileBox(interaction.guild, rc, user.id, { statusText: '✏️ Mis à jour par le staff' }).catch(() => {});
-          return interaction.editReply({ content: `✅ Profil mis à jour pour ${user}.` }).catch(() => {});
+          await updateProfileBox(interaction.guild, rc, user.id, { statusText: 'âœï¸ Mis Ã  jour par le staff' }).catch(() => {});
+          return interaction.editReply({ content: `âœ… Profil mis Ã  jour pour ${user}.` }).catch(() => {});
         }
 
         if (interaction.commandName === 'clean') {
@@ -2770,13 +2770,13 @@ async function main() {
             return interaction.editReply({ content: 'Salon invalide.' }).catch(() => {});
           }
           if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
-            return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les messages**." }).catch(() => {});
+            return interaction.editReply({ content: "Je n'ai pas la permission **GÃ©rer les messages**." }).catch(() => {});
           }
 
-          await interaction.editReply({ content: `🧹 Nettoyage en cours (${n} messages)…` }).catch(() => {});
+          await interaction.editReply({ content: `ðŸ§¹ Nettoyage en cours (${n} messages)â€¦` }).catch(() => {});
           try {
             const deleted = await interaction.channel.bulkDelete(n, true);
-            return interaction.editReply({ content: `✅ ${deleted.size} messages supprimés.` }).catch(() => {});
+            return interaction.editReply({ content: `âœ… ${deleted.size} messages supprimÃ©s.` }).catch(() => {});
           } catch (e) {
             return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
           }
@@ -2796,24 +2796,24 @@ async function main() {
             return interaction.editReply({ content: 'Choisis un salon texte.' }).catch(() => {});
           }
           if (interaction.guild.ownerId !== interaction.user.id) {
-            return interaction.editReply({ content: 'Commande réservée au propriétaire du serveur.' }).catch(() => {});
+            return interaction.editReply({ content: 'Commande rÃ©servÃ©e au propriÃ©taire du serveur.' }).catch(() => {});
           }
           if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageChannels)) {
-            return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les salons**." }).catch(() => {});
+            return interaction.editReply({ content: "Je n'ai pas la permission **GÃ©rer les salons**." }).catch(() => {});
           }
 
           const everyoneId = interaction.guild.roles.everyone.id;
           try {
             if (unlock) {
               await salon.permissionOverwrites.delete(everyoneId).catch(() => {});
-              return interaction.editReply({ content: `🔓 Déverrouillé : <#${salon.id}>` }).catch(() => {});
+              return interaction.editReply({ content: `ðŸ”“ DÃ©verrouillÃ© : <#${salon.id}>` }).catch(() => {});
             }
 
             await salon.permissionOverwrites.edit(everyoneId, { SendMessages: false });
             for (const r of roles) {
               await salon.permissionOverwrites.edit(r.id, { SendMessages: true });
             }
-            return interaction.editReply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` }).catch(() => {});
+            return interaction.editReply({ content: `ðŸ”’ VerrouillÃ© : <#${salon.id}> (Ã©criture autorisÃ©e: ${roles.map(r => r.toString()).join(' ')})` }).catch(() => {});
           } catch (e) {
             return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
           }
@@ -2831,14 +2831,14 @@ async function main() {
           if (pin) {
             try { await msg.pin(); } catch {}
           }
-          return interaction.reply({ content: `Panneau prêt dans <#${channel.id}> (alertes dans <#${alertChannel.id}>) (message ${msg.id}).`, ephemeral: true });
+          return interaction.reply({ content: `Panneau prÃªt dans <#${channel.id}> (alertes dans <#${alertChannel.id}>) (message ${msg.id}).`, ephemeral: true });
         }
 
         if (interaction.commandName === 'panneau_actualiser') {
           const channel = interaction.options.getChannel('canal', true);
           const rc = getConfigForGuild(interaction.guild.id);
           const msg = await ensurePanelMessage(channel, rc);
-          return interaction.reply({ content: `Panneau actualisé dans <#${channel.id}> (message ${msg.id}).`, ephemeral: true });
+          return interaction.reply({ content: `Panneau actualisÃ© dans <#${channel.id}> (message ${msg.id}).`, ephemeral: true });
         }
 
         if (interaction.commandName === 'scoreboard_weekly_run') {
@@ -2848,7 +2848,7 @@ async function main() {
           const reset = interaction.options.getBoolean('reset');
 
           if (!rc2.scoreboardChannelId) {
-            return interaction.editReply({ content: 'Scoreboard non configuré (setup_scoreboard).' }).catch(() => {});
+            return interaction.editReply({ content: 'Scoreboard non configurÃ© (setup_scoreboard).' }).catch(() => {});
           }
 
           const sbChannel = await interaction.client.channels.fetch(rc2.scoreboardChannelId).catch(() => null);
@@ -2857,7 +2857,7 @@ async function main() {
           }
 
           const embed = await scoreboard.buildScoreboardEmbed(guild, { topN: Math.min(10, rc2.scoreboardTopN || 10), skipMemberFetch: true });
-          embed.setTitle('🏆 Classement hebdo — Guildeux (pings)');
+          embed.setTitle('ðŸ† Classement hebdo â€” Guildeux (pings)');
 
           // Make it more celebratory
           const lines = String(embed.data?.description || '').split('\n');
@@ -2866,14 +2866,14 @@ async function main() {
 
           embed.setDescription(
             [
-              '📣 **Merci à tous pour votre réactivité !**',
+              'ðŸ“£ **Merci Ã  tous pour votre rÃ©activitÃ© !**',
               '',
-              `🥇 **Vainqueur :** ${top1.replace('**01.** ', '') || '—'}`,
+              `ðŸ¥‡ **Vainqueur :** ${top1.replace('**01.** ', '') || 'â€”'}`,
               '',
-              '🏅 **Top 3 :**',
-              top3 || '—',
+              'ðŸ… **Top 3 :**',
+              top3 || 'â€”',
               '',
-              '🎁 **Récompense :** contactez le **meneur** pour récupérer **30% de la banque du meneur** 👀',
+              'ðŸŽ **RÃ©compense :** contactez le **meneur** pour rÃ©cupÃ©rer **30% de la banque du meneur** ðŸ‘€',
             ].join('\n').slice(0, 3900)
           );
 
@@ -2897,7 +2897,7 @@ async function main() {
             await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
           }
 
-          return interaction.editReply({ content: `✅ Annonce envoyée${doReset ? ' + reset effectué' : ''}.` }).catch(() => {});
+          return interaction.editReply({ content: `âœ… Annonce envoyÃ©e${doReset ? ' + reset effectuÃ©' : ''}.` }).catch(() => {});
         }
 
         if (interaction.commandName === 'guilde_ajouter') {
@@ -2911,7 +2911,7 @@ async function main() {
           let emoji = interaction.options.getString('emoji');
           const image = interaction.options.getAttachment('image');
 
-          // Allow explicit “no emoji” sentinel values (useful if a Discord client caches the option as required)
+          // Allow explicit â€œno emojiâ€ sentinel values (useful if a Discord client caches the option as required)
           if (emoji) {
             const e = String(emoji).trim().toLowerCase();
             if (e === '-' || e === 'none' || e === 'no' || e === 'aucun' || e === 'aucune') {
@@ -2932,7 +2932,7 @@ async function main() {
           if (image) {
             // Permissions: ManageEmojisAndStickers
             if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageEmojisAndStickers)) {
-              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les emojis et autocollants**.", ephemeral: true });
+              return interaction.reply({ content: "Je n'ai pas la permission **GÃ©rer les emojis et autocollants**.", ephemeral: true });
             }
 
             try {
@@ -2968,7 +2968,7 @@ async function main() {
 
           const panelChannel = await interaction.client.channels.fetch(channelId);
           await ensurePanelMessage(panelChannel, rc);
-          return interaction.reply({ content: `Guilde ${name} ajoutée/modifiée → <@&${role.id}>.`, ephemeral: true });
+          return interaction.reply({ content: `Guilde ${name} ajoutÃ©e/modifiÃ©e â†’ <@&${role.id}>.`, ephemeral: true });
         }
 
         if (interaction.commandName === 'guilde_supprimer') {
@@ -2978,13 +2978,13 @@ async function main() {
           panel.removeGuildButton(interaction.guild.id, channelId, name);
           const panelChannel = await interaction.client.channels.fetch(channelId);
           await ensurePanelMessage(panelChannel, rc);
-          return interaction.reply({ content: `Guilde ${name} supprimée du panneau.`, ephemeral: true });
+          return interaction.reply({ content: `Guilde ${name} supprimÃ©e du panneau.`, ephemeral: true });
         }
 
       }
 
       if (interaction.isButton()) {
-        // Events Perco — validation buttons
+        // Events Perco â€” validation buttons
         if (interaction.customId.startsWith('evval:')) {
           try {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
@@ -2996,7 +2996,7 @@ async function main() {
             const rc = getConfigForGuild(interaction.guild.id);
             const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
             const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-            if (!allowed) return interaction.editReply({ content: 'Réservé staff.' }).catch(() => {});
+            if (!allowed) return interaction.editReply({ content: 'RÃ©servÃ© staff.' }).catch(() => {});
 
             const sub = ev.getSubmission(id);
             if (!sub) return interaction.editReply({ content: 'Demande introuvable.' }).catch(() => {});
@@ -3005,7 +3005,7 @@ async function main() {
               const modal = new ModalBuilder().setCustomId(`evparts:${id}`).setTitle('Modifier participants');
               const input = new TextInputBuilder()
                 .setCustomId('participants')
-                .setLabel('Mentions ou IDs (séparés par espaces/retours)')
+                .setLabel('Mentions ou IDs (sÃ©parÃ©s par espaces/retours)')
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true)
                 .setMaxLength(800)
@@ -3017,11 +3017,11 @@ async function main() {
             }
 
             if (action === 'approve') {
-              if (sub.status !== 'pending') return interaction.editReply({ content: 'Déjà traité.' }).catch(() => {});
+              if (sub.status !== 'pending') return interaction.editReply({ content: 'DÃ©jÃ  traitÃ©.' }).catch(() => {});
 
               const defenders = Number(sub.defenders_present);
               if (!defenders || defenders < 1 || defenders > 5) {
-                return interaction.editReply({ content: 'Choisis d’abord le nombre de défenseurs (1-5).' }).catch(() => {});
+                return interaction.editReply({ content: 'Choisis dâ€™abord le nombre de dÃ©fenseurs (1-5).' }).catch(() => {});
               }
 
               const baseList = String(sub.participants_override || sub.participants || '');
@@ -3030,7 +3030,7 @@ async function main() {
 
               // Anti-spam: claim atomically
               const claimed = ev.claimForApply(id, interaction.user.id);
-              if (!claimed) return interaction.editReply({ content: '⏳ Déjà en cours de traitement (ou déjà validé).' }).catch(() => {});
+              if (!claimed) return interaction.editReply({ content: 'â³ DÃ©jÃ  en cours de traitement (ou dÃ©jÃ  validÃ©).' }).catch(() => {});
 
               // Apply awards (idempotent per submission)
               try { ev.clearAwards(sub.guild_id, id); } catch {}
@@ -3049,13 +3049,13 @@ async function main() {
               // Keep only essential post-validation controls: correction + resync
               try {
                 const rowAfter = new ActionRowBuilder().addComponents(
-                  new ButtonBuilder().setCustomId(`evfix:${id}:open`).setLabel('🔧 Corriger').setStyle(ButtonStyle.Secondary),
-                  new ButtonBuilder().setCustomId(`evpub:${id}:resync`).setLabel('🔄 Resync').setStyle(ButtonStyle.Secondary),
+                  new ButtonBuilder().setCustomId(`evfix:${id}:open`).setLabel('ðŸ”§ Corriger').setStyle(ButtonStyle.Secondary),
+                  new ButtonBuilder().setCustomId(`evpub:${id}:resync`).setLabel('ðŸ”„ Resync').setStyle(ButtonStyle.Secondary),
                 );
                 await interaction.message.edit({ components: [rowAfter] }).catch(() => {});
               } catch {}
 
-              return interaction.editReply({ content: `✅ Validé : +${defenders} pts à ${participantIds.length} joueur(s).` }).catch(() => {});
+              return interaction.editReply({ content: `âœ… ValidÃ© : +${defenders} pts Ã  ${participantIds.length} joueur(s).` }).catch(() => {});
             }
 
             if (action === 'deny') {
@@ -3068,18 +3068,18 @@ async function main() {
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true)
                 .setMaxLength(400)
-                .setPlaceholder('Ex: heure/date non visible, participants incomplets, screen flou…');
+                .setPlaceholder('Ex: heure/date non visible, participants incomplets, screen flouâ€¦');
               modal.addComponents(new ActionRowBuilder().addComponents(input));
               return interaction.showModal(modal);
             }
 
             return interaction.editReply({ content: 'Action inconnue.' }).catch(() => {});
           } catch (e) {
-            return interaction.editReply({ content: `❌ Erreur: ${(e?.message || e)}`.slice(0, 1800) }).catch(() => {});
+            return interaction.editReply({ content: `âŒ Erreur: ${(e?.message || e)}`.slice(0, 1800) }).catch(() => {});
           }
         }
 
-        // Events Perco — open submission (create thread)
+        // Events Perco â€” open submission (create thread)
         if (interaction.customId.startsWith('evopen:')) {
           try {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
@@ -3090,7 +3090,7 @@ async function main() {
             }
 
             const rc = getConfigForGuild(guildId);
-            if (!rc.eventProofsChannelId) return interaction.editReply({ content: 'Events non configurés.' }).catch(() => {});
+            if (!rc.eventProofsChannelId) return interaction.editReply({ content: 'Events non configurÃ©s.' }).catch(() => {});
 
             const proofsCh = await interaction.client.channels.fetch(rc.eventProofsChannelId).catch(() => null);
             if (!proofsCh || !proofsCh.isTextBased()) return interaction.editReply({ content: 'Salon preuves inaccessible.' }).catch(() => {});
@@ -3100,21 +3100,21 @@ async function main() {
               name: threadName.slice(0, 90),
               autoArchiveDuration: 1440,
               type: ChannelType.PublicThread,
-              reason: 'Soumission événement perco',
+              reason: 'Soumission Ã©vÃ©nement perco',
             });
 
             drafts.setDraft({ guildId, authorId: interaction.user.id, threadId: thread.id, participants: '', stage: 'need_participants' });
 
             await thread.send({
               content:
-                `${interaction.user} — **Étape 1/2 :** mentionne maintenant les participants (**@personnes**) dans ce thread.\n` +
+                `${interaction.user} â€” **Ã‰tape 1/2 :** mentionne maintenant les participants (**@personnes**) dans ce thread.\n` +
                 `Ex: @A @B @C @D @E`,
               allowedMentions: { users: [interaction.user.id], parse: [] },
             });
 
-            return interaction.editReply({ content: `✅ Thread créé : <#${thread.id}>` }).catch(() => {});
+            return interaction.editReply({ content: `âœ… Thread crÃ©Ã© : <#${thread.id}>` }).catch(() => {});
           } catch (e) {
-            return interaction.editReply({ content: `❌ Impossible de créer le thread. Vérifie mes permissions dans le salon preuves (Créer des threads / Envoyer messages / Voir salon).\nDétail: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
+            return interaction.editReply({ content: `âŒ Impossible de crÃ©er le thread. VÃ©rifie mes permissions dans le salon preuves (CrÃ©er des threads / Envoyer messages / Voir salon).\nDÃ©tail: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
           }
         }
 
@@ -3128,39 +3128,39 @@ async function main() {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true });
           }
           if (interaction.user.id !== targetUserId) {
-            return interaction.reply({ content: "Ce bouton est réservé au nouveau membre.", ephemeral: true });
+            return interaction.reply({ content: "Ce bouton est rÃ©servÃ© au nouveau membre.", ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
           if (!rc.rulesAccessRoleId) {
-            return interaction.reply({ content: "Règlement non configuré (role_acces manquant).", ephemeral: true });
+            return interaction.reply({ content: "RÃ¨glement non configurÃ© (role_acces manquant).", ephemeral: true });
           }
 
           // Add access role
           if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+            return interaction.reply({ content: "Je n'ai pas la permission **GÃ©rer les rÃ´les**.", ephemeral: true });
           }
 
           const accessRole = interaction.guild.roles.cache.get(rc.rulesAccessRoleId);
-          if (!accessRole) return interaction.reply({ content: "Rôle d'accès introuvable.", ephemeral: true });
+          if (!accessRole) return interaction.reply({ content: "RÃ´le d'accÃ¨s introuvable.", ephemeral: true });
 
           const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-          if (!member) return interaction.reply({ content: 'Impossible de te récupérer.', ephemeral: true });
+          if (!member) return interaction.reply({ content: 'Impossible de te rÃ©cupÃ©rer.', ephemeral: true });
 
           try {
             await member.roles.add(accessRole);
           } catch (e) {
-            return interaction.reply({ content: `Erreur rôle: ${e.message}`, ephemeral: true });
+            return interaction.reply({ content: `Erreur rÃ´le: ${e.message}`, ephemeral: true });
           }
 
           // Send welcome message now (arrival step)
           if (!rc.welcomeChannelId) {
-            return interaction.reply({ content: `✅ Règlement validé. (Salon arrivée non configuré)`, ephemeral: true });
+            return interaction.reply({ content: `âœ… RÃ¨glement validÃ©. (Salon arrivÃ©e non configurÃ©)`, ephemeral: true });
           }
 
           const ch = await interaction.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
           if (!ch || !ch.isTextBased()) {
-            return interaction.reply({ content: `✅ Règlement validé. (Salon arrivée inaccessible)`, ephemeral: true });
+            return interaction.reply({ content: `âœ… RÃ¨glement validÃ©. (Salon arrivÃ©e inaccessible)`, ephemeral: true });
           }
 
           // Build welcome message
@@ -3171,7 +3171,7 @@ async function main() {
           // Embed 1: big avatar (Discord thumbnail is small, so we use a full image)
           const avatarEmbed = new EmbedBuilder()
             .setColor(0x2c3e50)
-            .setTitle(`🆕 ${member.user.tag || member.user.username}`)
+            .setTitle(`ðŸ†• ${member.user.tag || member.user.username}`)
             .setDescription(`Profil de ${member} (${member.id})`)
             .setImage(avatarUrl);
 
@@ -3179,21 +3179,21 @@ async function main() {
           const embed = new EmbedBuilder()
             .setColor(0x3498db)
             .setAuthor({ name: `Nouvel arrivant`, iconURL: member.user.displayAvatarURL?.({ size: 256 }) })
-            .setTitle('👋 Bienvenue parmi nous !')
+            .setTitle('ðŸ‘‹ Bienvenue parmi nous !')
             .setDescription(
-              `✨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
-              `Ici c’est **fraternité**, **entraide** et **bonne ambiance**.\n` +
+              `âœ¨ ${member} rejoint la guilde **${rc.welcomeGuildName || 'GTO'}** !\n\n` +
+              `Ici câ€™est **fraternitÃ©**, **entraide** et **bonne ambiance**.\n` +
               `Passe dire bonjour et installe-toi tranquillement.`
             )
             .addFields(
-              { name: '✅ Étape suivante', value: 'Choisis ci-dessous si tu es **Guildeux** ou **Invité**.', inline: false },
+              { name: 'âœ… Ã‰tape suivante', value: 'Choisis ci-dessous si tu es **Guildeux** ou **InvitÃ©**.', inline: false },
               {
-                name: '🛡️ Vérification staff',
-                value: 'Après tes choix, un membre du staff vérifiera ton adhésion. Si tu es bien un membre de la guilde, les rôles **GTO** et **DEF** te seront attribués pour être notifié de l’activité.',
+                name: 'ðŸ›¡ï¸ VÃ©rification staff',
+                value: 'AprÃ¨s tes choix, un membre du staff vÃ©rifiera ton adhÃ©sion. Si tu es bien un membre de la guilde, les rÃ´les **GTO** et **DEF** te seront attribuÃ©s pour Ãªtre notifiÃ© de lâ€™activitÃ©.',
                 inline: false,
               },
             )
-            .setFooter({ text: 'Bienvenue à toi.' });
+            .setFooter({ text: 'Bienvenue Ã  toi.' });
 
           const components = [];
           if (rc.welcomeRoleGuildeuxId || rc.welcomeRoleInviteId) {
@@ -3202,7 +3202,7 @@ async function main() {
               row.addComponents(
                 new ButtonBuilder()
                   .setCustomId(`welrole:${member.guild.id}:${member.user.id}:guildeux`)
-                  .setLabel('🛡️ Je suis Guildeux')
+                  .setLabel('ðŸ›¡ï¸ Je suis Guildeux')
                   .setStyle(ButtonStyle.Primary)
               );
             }
@@ -3210,7 +3210,7 @@ async function main() {
               row.addComponents(
                 new ButtonBuilder()
                   .setCustomId(`welrole:${member.guild.id}:${member.user.id}:invite`)
-                  .setLabel('🎟️ Je suis Invité')
+                  .setLabel('ðŸŽŸï¸ Je suis InvitÃ©')
                   .setStyle(ButtonStyle.Secondary)
               );
             }
@@ -3242,7 +3242,7 @@ async function main() {
 
           // Ack
           try {
-            await interaction.reply({ content: `✅ Règlement validé. Accès débloqué via ${accessRole}.`, ephemeral: true });
+            await interaction.reply({ content: `âœ… RÃ¨glement validÃ©. AccÃ¨s dÃ©bloquÃ© via ${accessRole}.`, ephemeral: true });
           } catch {}
 
           return;
@@ -3260,7 +3260,7 @@ async function main() {
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé Meneur / Bras droit.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© Meneur / Bras droit.', ephemeral: true });
 
           const current = profiles.getProfile(guildId, targetUserId);
           const modal = new ModalBuilder()
@@ -3279,7 +3279,7 @@ async function main() {
           return interaction.showModal(modal);
         }
 
-        // Events Perco — correction workflow (preview only for corrections)
+        // Events Perco â€” correction workflow (preview only for corrections)
         if (interaction.customId.startsWith('evfix:')) {
           const parts = interaction.customId.split(':');
           const sid = Number(parts[1]);
@@ -3288,7 +3288,7 @@ async function main() {
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
@@ -3298,7 +3298,7 @@ async function main() {
 
             const defenders = new TextInputBuilder()
               .setCustomId('defenders')
-              .setLabel('Défenseurs présents (1-5)')
+              .setLabel('DÃ©fenseurs prÃ©sents (1-5)')
               .setStyle(TextInputStyle.Short)
               .setRequired(true)
               .setMaxLength(1)
@@ -3319,7 +3319,7 @@ async function main() {
           return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
         }
 
-        // Events Perco — per-publication staff controls (scoped to a submission)
+        // Events Perco â€” per-publication staff controls (scoped to a submission)
         if (interaction.customId.startsWith('evpub:')) {
           const parts = interaction.customId.split(':');
           const sid = Number(parts[1]);
@@ -3328,7 +3328,7 @@ async function main() {
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
@@ -3340,31 +3340,31 @@ async function main() {
           if (action === 'resync') {
             try {
               await ensureEventScoreboard(interaction.guild, rc);
-              return interaction.reply({ content: '🔄 Refresh OK (scoreboard mis à jour).', ephemeral: true });
+              return interaction.reply({ content: 'ðŸ”„ Refresh OK (scoreboard mis Ã  jour).', ephemeral: true });
             } catch (e) {
-              return interaction.reply({ content: `❌ Refresh impossible. Vérifie mes permissions dans le salon classement (Voir salon / Envoyer messages / Lire historique / Épingler si possible).\nDétail: ${(e?.message || e)}`.slice(0, 1900), ephemeral: true });
+              return interaction.reply({ content: `âŒ Refresh impossible. VÃ©rifie mes permissions dans le salon classement (Voir salon / Envoyer messages / Lire historique / Ã‰pingler si possible).\nDÃ©tail: ${(e?.message || e)}`.slice(0, 1900), ephemeral: true });
             }
           }
 
           if (action === 'add') {
-            const modal = new ModalBuilder().setCustomId(`evpub_add_submit:${sid}`).setTitle('➕ Points (ce combat)');
+            const modal = new ModalBuilder().setCustomId(`evpub_add_submit:${sid}`).setTitle('âž• Points (ce combat)');
             const d = new TextInputBuilder().setCustomId('delta').setLabel('Delta points (ex: 5 ou -3)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16);
-            const note = new TextInputBuilder().setCustomId('note').setLabel('Participants (auto) — laisse tel quel').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(200).setValue(preview || '—');
+            const note = new TextInputBuilder().setCustomId('note').setLabel('Participants (auto) â€” laisse tel quel').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(200).setValue(preview || 'â€”');
             modal.addComponents(new ActionRowBuilder().addComponents(d), new ActionRowBuilder().addComponents(note));
             return interaction.showModal(modal);
           }
 
           if (action === 'set') {
-            const modal = new ModalBuilder().setCustomId(`evpub_set_submit:${sid}`).setTitle('✏️ Fixer points (ce combat)');
-            const p = new TextInputBuilder().setCustomId('points').setLabel('Points EXACTS à définir (>=0)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16);
-            const note = new TextInputBuilder().setCustomId('note').setLabel('Participants (auto) — laisse tel quel').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(200).setValue(preview || '—');
+            const modal = new ModalBuilder().setCustomId(`evpub_set_submit:${sid}`).setTitle('âœï¸ Fixer points (ce combat)');
+            const p = new TextInputBuilder().setCustomId('points').setLabel('Points EXACTS Ã  dÃ©finir (>=0)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(16);
+            const note = new TextInputBuilder().setCustomId('note').setLabel('Participants (auto) â€” laisse tel quel').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(200).setValue(preview || 'â€”');
             modal.addComponents(new ActionRowBuilder().addComponents(p), new ActionRowBuilder().addComponents(note));
             return interaction.showModal(modal);
           }
 
           if (action === 'remove') {
-            const modal = new ModalBuilder().setCustomId(`evpub_remove_submit:${sid}`).setTitle('🧹 Kick du classement');
-            const u = new TextInputBuilder().setCustomId('user').setLabel('Joueur à retirer (mention ou ID)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64);
+            const modal = new ModalBuilder().setCustomId(`evpub_remove_submit:${sid}`).setTitle('ðŸ§¹ Kick du classement');
+            const u = new TextInputBuilder().setCustomId('user').setLabel('Joueur Ã  retirer (mention ou ID)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64);
             modal.addComponents(new ActionRowBuilder().addComponents(u));
             return interaction.showModal(modal);
           }
@@ -3372,7 +3372,7 @@ async function main() {
           return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
         }
 
-        // Events Perco — apply/cancel correction preview actions
+        // Events Perco â€” apply/cancel correction preview actions
         if (interaction.customId.startsWith('evfixapply:')) {
           const parts = interaction.customId.split(':');
           const sid = Number(parts[1]);
@@ -3380,23 +3380,23 @@ async function main() {
 
           if (action === 'cancel') {
             pendingEventFix.delete(`${interaction.user.id}:${sid}`);
-            return interaction.reply({ content: 'Annulé.', ephemeral: true });
+            return interaction.reply({ content: 'AnnulÃ©.', ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const plan = pendingEventFix.get(`${interaction.user.id}:${sid}`);
-          if (!plan) return interaction.reply({ content: 'Plan de correction introuvable (refais 🔧 Corriger).', ephemeral: true });
+          if (!plan) return interaction.reply({ content: 'Plan de correction introuvable (refais ðŸ”§ Corriger).', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
-          if (sub.status !== 'approved') return interaction.reply({ content: 'Correction possible uniquement après validation.', ephemeral: true });
+          if (sub.status !== 'approved') return interaction.reply({ content: 'Correction possible uniquement aprÃ¨s validation.', ephemeral: true });
 
           const claimed = ev.claimForFix(sid, interaction.user.id);
-          if (!claimed) return interaction.reply({ content: '⏳ Déjà en cours de correction (ou statut invalide).', ephemeral: true });
+          if (!claimed) return interaction.reply({ content: 'â³ DÃ©jÃ  en cours de correction (ou statut invalide).', ephemeral: true });
 
           // Apply correction: rollback old award, apply new award
           try { ev.clearAwards(sub.guild_id, sid); } catch {}
@@ -3422,10 +3422,10 @@ async function main() {
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
 
           pendingEventFix.delete(`${interaction.user.id}:${sid}`);
-          return interaction.reply({ content: '✅ Correction appliquée (scoreboard + screens synchronisés).', ephemeral: true });
+          return interaction.reply({ content: 'âœ… Correction appliquÃ©e (scoreboard + screens synchronisÃ©s).', ephemeral: true });
         }
 
-        // Events Perco — apply/cancel preview actions
+        // Events Perco â€” apply/cancel preview actions
         if (interaction.customId.startsWith('evapply:')) {
           const parts = interaction.customId.split(':');
           const id = Number(parts[1]);
@@ -3434,26 +3434,26 @@ async function main() {
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           if (action === 'cancel') {
-            return interaction.reply({ content: 'Annulé.', ephemeral: true });
+            return interaction.reply({ content: 'AnnulÃ©.', ephemeral: true });
           }
 
           const sub = ev.getSubmission(id);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
-          if (sub.status !== 'pending') return interaction.reply({ content: 'Déjà traité.', ephemeral: true });
+          if (sub.status !== 'pending') return interaction.reply({ content: 'DÃ©jÃ  traitÃ©.', ephemeral: true });
 
           // Claim to prevent double apply (double-click / two staff)
           const claimed = ev.claimForApply(id, interaction.user.id);
           if (!claimed) {
-            return interaction.reply({ content: '⏳ Déjà en cours de traitement (ou déjà validé).', ephemeral: true });
+            return interaction.reply({ content: 'â³ DÃ©jÃ  en cours de traitement (ou dÃ©jÃ  validÃ©).', ephemeral: true });
           }
 
           const defenders = Number(sub.defenders_present);
           const baseList = String(sub.participants_override || sub.participants || '');
           const participantIds = baseList.split(',').map(s => s.trim()).filter(Boolean);
-          if (!defenders || defenders < 1 || defenders > 5) return interaction.reply({ content: 'Défenseurs non définis.', ephemeral: true });
+          if (!defenders || defenders < 1 || defenders > 5) return interaction.reply({ content: 'DÃ©fenseurs non dÃ©finis.', ephemeral: true });
           if (!participantIds.length) return interaction.reply({ content: 'Aucun participant.', ephemeral: true });
 
           // Rollback previous awards for this submission (safety), then apply new awards
@@ -3470,8 +3470,8 @@ async function main() {
               if (msg) {
                 const embed = new EmbedBuilder()
                   .setColor(0x2ecc71)
-                  .setTitle('✅ Validé')
-                  .setDescription(`Validé par <@${interaction.user.id}> — **+${defenders} pts** / joueur`)
+                  .setTitle('âœ… ValidÃ©')
+                  .setDescription(`ValidÃ© par <@${interaction.user.id}> â€” **+${defenders} pts** / joueur`)
                   .addFields({ name: 'Participants', value: participantIds.map(u => `<@${u}>`).join(' '), inline: false })
                   .setTimestamp();
                 await msg.edit({ embeds: [embed] }).catch(() => {});
@@ -3511,23 +3511,23 @@ async function main() {
             }
           } catch {}
 
-          return interaction.reply({ content: `✅ Appliqué : +${defenders} pts à ${participantIds.length} joueur(s).`, ephemeral: true });
+          return interaction.reply({ content: `âœ… AppliquÃ© : +${defenders} pts Ã  ${participantIds.length} joueur(s).`, ephemeral: true });
         }
 
-        // Events Perco — staff admin panel
+        // Events Perco â€” staff admin panel
         if (interaction.customId.startsWith('evadm:')) {
           const rc = getConfigForGuild(interaction.guild.id);
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const allowed = !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)));
-          if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
+          if (!allowed) return interaction.reply({ content: 'RÃ©servÃ© staff.', ephemeral: true });
 
           const action = interaction.customId.split(':')[1];
           if (action === 'resync') {
             try {
               await ensureEventScoreboard(interaction.guild, rc);
-              return interaction.reply({ content: '🔄 Resync terminé (classement mis à jour).', ephemeral: true });
+              return interaction.reply({ content: 'ðŸ”„ Resync terminÃ© (classement mis Ã  jour).', ephemeral: true });
             } catch (e) {
-              return interaction.reply({ content: `❌ Resync impossible. Vérifie mes permissions dans le salon classement.\nDétail: ${(e?.message || e)}`.slice(0, 1900), ephemeral: true });
+              return interaction.reply({ content: `âŒ Resync impossible. VÃ©rifie mes permissions dans le salon classement.\nDÃ©tail: ${(e?.message || e)}`.slice(0, 1900), ephemeral: true });
             }
           }
 
@@ -3549,13 +3549,13 @@ async function main() {
 
           if (action === 'remove') {
             const modal = new ModalBuilder().setCustomId('evadm_remove_submit').setTitle('Remove player du classement');
-            const u = new TextInputBuilder().setCustomId('user').setLabel('Joueur à supprimer (mention ou ID)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64);
+            const u = new TextInputBuilder().setCustomId('user').setLabel('Joueur Ã  supprimer (mention ou ID)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64);
             modal.addComponents(new ActionRowBuilder().addComponents(u));
             return interaction.showModal(modal);
           }
 
           if (action === 'reset') {
-            const modal = new ModalBuilder().setCustomId('evadm_reset_submit').setTitle('🧨 Reset saison Events');
+            const modal = new ModalBuilder().setCustomId('evadm_reset_submit').setTitle('ðŸ§¨ Reset saison Events');
             const input = new TextInputBuilder()
               .setCustomId('confirm')
               .setLabel('Tape RESET pour confirmer')
@@ -3591,11 +3591,11 @@ async function main() {
           const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
           const isStaff = !!(clicker && rc.validationStaffRoleIds?.some(rid => clicker.roles.cache.has(rid)));
           if (!isStaff) {
-            return interaction.reply({ content: "Réservé au staff.", ephemeral: true });
+            return interaction.reply({ content: "RÃ©servÃ© au staff.", ephemeral: true });
           }
 
           if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+            return interaction.reply({ content: "Je n'ai pas la permission **GÃ©rer les rÃ´les**.", ephemeral: true });
           }
 
           const target = await interaction.guild.members.fetch(targetUserId).catch(() => null);
@@ -3616,20 +3616,20 @@ async function main() {
                 if (roleDEF) await target.roles.remove(roleDEF).catch(() => {});
 
                 await updateProfileBox(interaction.guild, rc, targetUserId, {
-                  statusText: `✅ Invité validé — ${roleInvite ? roleInvite.toString() : 'Invité'}`,
+                  statusText: `âœ… InvitÃ© validÃ© â€” ${roleInvite ? roleInvite.toString() : 'InvitÃ©'}`,
                 });
 
                 await interaction.message.edit({ components: [] }).catch(() => {});
-                return interaction.reply({ content: `✅ Invité validé pour ${target}.`, ephemeral: true });
+                return interaction.reply({ content: `âœ… InvitÃ© validÃ© pour ${target}.`, ephemeral: true });
               }
 
               if (action === 'deny') {
                 if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
                   return interaction.reply({ content: "Je n'ai pas la permission **Expulser des membres**.", ephemeral: true });
                 }
-                await target.kick('Refus staff (invité)');
+                await target.kick('Refus staff (invitÃ©)');
                 await interaction.message.edit({ components: [] }).catch(() => {});
-                return interaction.reply({ content: `⛔ ${targetUserId} expulsé du serveur.`, ephemeral: true });
+                return interaction.reply({ content: `â›” ${targetUserId} expulsÃ© du serveur.`, ephemeral: true });
               }
 
               return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
@@ -3643,11 +3643,11 @@ async function main() {
               if (roleInvite) await target.roles.remove(roleInvite).catch(() => {});
 
               await updateProfileBox(interaction.guild, rc, targetUserId, {
-                statusText: `✅ Validé — ${roleGTO ? roleGTO.toString() : '@GTO'} ${roleDEF ? roleDEF.toString() : '@DEF'}`,
+                statusText: `âœ… ValidÃ© â€” ${roleGTO ? roleGTO.toString() : '@GTO'} ${roleDEF ? roleDEF.toString() : '@DEF'}`,
               });
 
               await interaction.message.edit({ components: [] }).catch(() => {});
-              return interaction.reply({ content: `✅ Validé. Rôles attribués à ${target}.`, ephemeral: true });
+              return interaction.reply({ content: `âœ… ValidÃ©. RÃ´les attribuÃ©s Ã  ${target}.`, ephemeral: true });
             }
 
             if (action === 'deny') {
@@ -3658,11 +3658,11 @@ async function main() {
               if (roleInvite) await target.roles.add(roleInvite).catch(() => {});
 
               await updateProfileBox(interaction.guild, rc, targetUserId, {
-                statusText: `❌ Refusé — ${roleInvite ? roleInvite.toString() : 'Invité'}`,
+                statusText: `âŒ RefusÃ© â€” ${roleInvite ? roleInvite.toString() : 'InvitÃ©'}`,
               });
 
               await interaction.message.edit({ components: [] }).catch(() => {});
-              return interaction.reply({ content: `❌ Refusé. ${target} est maintenant invité.`, ephemeral: true });
+              return interaction.reply({ content: `âŒ RefusÃ©. ${target} est maintenant invitÃ©.`, ephemeral: true });
             }
 
             if (action === 'kick') {
@@ -3671,7 +3671,7 @@ async function main() {
               }
               await target.kick('Refus staff (demande guildeux)').catch(() => {});
               await interaction.message.edit({ components: [] }).catch(() => {});
-              return interaction.reply({ content: `⛔ ${targetUserId} expulsé du serveur.`, ephemeral: true });
+              return interaction.reply({ content: `â›” ${targetUserId} expulsÃ© du serveur.`, ephemeral: true });
             }
 
             return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
@@ -3693,7 +3693,7 @@ async function main() {
 
           // New joiner should NOT use this button
           if (interaction.user.id === newUserId) {
-            return interaction.reply({ content: 'Ce bouton est réservé aux membres pour te souhaiter la bienvenue 🙂', ephemeral: true });
+            return interaction.reply({ content: 'Ce bouton est rÃ©servÃ© aux membres pour te souhaiter la bienvenue ðŸ™‚', ephemeral: true });
           }
 
           // Expire after 2 hours
@@ -3701,12 +3701,12 @@ async function main() {
           if (ageMs > 2 * 60 * 60 * 1000) {
             // Best-effort: remove the button row if possible
             try { await interaction.message.edit({ components: [] }); } catch {}
-            return interaction.reply({ content: '⌛ Ce bouton a expiré (2h après l’arrivée).', ephemeral: true });
+            return interaction.reply({ content: 'âŒ› Ce bouton a expirÃ© (2h aprÃ¨s lâ€™arrivÃ©e).', ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
           if (!rc.welcomeChatChannelId) {
-            return interaction.reply({ content: 'Salon chat-arrive non configuré.', ephemeral: true });
+            return interaction.reply({ content: 'Salon chat-arrive non configurÃ©.', ephemeral: true });
           }
 
           const ch = await interaction.client.channels.fetch(rc.welcomeChatChannelId).catch(() => null);
@@ -3719,7 +3719,7 @@ async function main() {
           const now = Date.now();
           const last = cooldown.get(key) || 0;
           if (now - last < 3_000) {
-            return interaction.reply({ content: '⏳ Attends 3 secondes avant de renvoyer un GIF.', ephemeral: true });
+            return interaction.reply({ content: 'â³ Attends 3 secondes avant de renvoyer un GIF.', ephemeral: true });
           }
           cooldown.set(key, now);
 
@@ -3740,12 +3740,12 @@ async function main() {
 
           const embed = new EmbedBuilder()
             .setColor(0x3498db)
-            .setTitle('🎉 Bienvenue !')
-            .setDescription(`${interaction.user} souhaite la bienvenue à <@${newUserId}> !`)
+            .setTitle('ðŸŽ‰ Bienvenue !')
+            .setDescription(`${interaction.user} souhaite la bienvenue Ã  <@${newUserId}> !`)
             .setImage(gifUrl);
 
           await ch.send({ embeds: [embed], allowedMentions: { users: [newUserId] } }).catch(() => {});
-          return interaction.reply({ content: '✅ GIF envoyé dans le salon chat-arrive.', ephemeral: true });
+          return interaction.reply({ content: 'âœ… GIF envoyÃ© dans le salon chat-arrive.', ephemeral: true });
         }
 
         if (interaction.customId.startsWith('welrole:')) {
@@ -3758,16 +3758,16 @@ async function main() {
           }
 
           if (interaction.user.id !== targetUserId) {
-            return interaction.reply({ content: "Ces boutons sont réservés au nouveau membre.", ephemeral: true });
+            return interaction.reply({ content: "Ces boutons sont rÃ©servÃ©s au nouveau membre.", ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
           const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-          if (!member) return interaction.reply({ content: 'Impossible de te récupérer.', ephemeral: true });
+          if (!member) return interaction.reply({ content: 'Impossible de te rÃ©cupÃ©rer.', ephemeral: true });
 
           // Needs ManageRoles + correct role hierarchy
           if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+            return interaction.reply({ content: "Je n'ai pas la permission **GÃ©rer les rÃ´les**.", ephemeral: true });
           }
 
           const roleG = rc.welcomeRoleGuildeuxId ? interaction.guild.roles.cache.get(rc.welcomeRoleGuildeuxId) : null;
@@ -3775,7 +3775,7 @@ async function main() {
 
           try {
             if (kind === 'guildeux') {
-              if (!roleG) return interaction.reply({ content: 'Rôle Guildeux non configuré.', ephemeral: true });
+              if (!roleG) return interaction.reply({ content: 'RÃ´le Guildeux non configurÃ©.', ephemeral: true });
 
               // Ask for IGN via modal first; roles + staff alert will happen on modal submit.
               const modal = new ModalBuilder()
@@ -3800,12 +3800,12 @@ async function main() {
             }
 
             if (kind === 'invite') {
-              if (!roleI) return interaction.reply({ content: 'Rôle Invité non configuré.', ephemeral: true });
+              if (!roleI) return interaction.reply({ content: 'RÃ´le InvitÃ© non configurÃ©.', ephemeral: true });
 
-              // Invités: NO IGN required.
+              // InvitÃ©s: NO IGN required.
               await member.roles.add(roleI).catch(() => {});
               if (roleG) await member.roles.remove(roleG).catch(() => {});
-              await postStaffValidationAlert(interaction.guild, rc, targetUserId, 'Invité').catch(() => {});
+              await postStaffValidationAlert(interaction.guild, rc, targetUserId, 'InvitÃ©').catch(() => {});
 
               // After selection, replace the welcome message buttons with the GIF button (members-only).
               try {
@@ -3815,7 +3815,7 @@ async function main() {
                     new ActionRowBuilder().addComponents(
                       new ButtonBuilder()
                         .setCustomId(`welgif:${guildId}:${targetUserId}:${member.joinedTimestamp}`)
-                        .setLabel('🎉 Souhaiter la bienvenue (GIF)')
+                        .setLabel('ðŸŽ‰ Souhaiter la bienvenue (GIF)')
                         .setStyle(ButtonStyle.Success)
                     )
                   );
@@ -3823,12 +3823,12 @@ async function main() {
                 await interaction.message.edit({ components: rows }).catch(() => {});
               } catch {}
 
-              return interaction.reply({ content: '✅ Statut Invité enregistré.', ephemeral: true });
+              return interaction.reply({ content: 'âœ… Statut InvitÃ© enregistrÃ©.', ephemeral: true });
             }
 
             return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
           } catch (e) {
-            return interaction.reply({ content: `Erreur rôle: ${e.message}`, ephemeral: true });
+            return interaction.reply({ content: `Erreur rÃ´le: ${e.message}`, ephemeral: true });
           }
         }
 
@@ -3844,7 +3844,7 @@ async function main() {
 
           const isOwner = interaction.guild.ownerId === interaction.user.id;
           if (!isOwner) {
-            return interaction.reply({ content: 'Seul le propriétaire du serveur peut utiliser ce dashboard.', ephemeral: true });
+            return interaction.reply({ content: 'Seul le propriÃ©taire du serveur peut utiliser ce dashboard.', ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
@@ -3852,7 +3852,7 @@ async function main() {
           if (action === 'ping') {
             return interaction.reply({
               content:
-                `Utilise cette commande (avec les sélecteurs) :\n` +
+                `Utilise cette commande (avec les sÃ©lecteurs) :\n` +
                 `**/setup_ping** panneau:<#...> alertes:<#...> def_role:<@&...> titre:"${rc.panelTitle || 'Ping DEF'}" cooldown:${rc.cooldownSeconds}`,
               ephemeral: true,
             });
@@ -3897,7 +3897,7 @@ async function main() {
         if (nowMs() - last < rc.cooldownSeconds * 1000) {
           const gifPath = path.join(__dirname, '..', 'assets', 'calme-toi-zebi.gif');
           return interaction.reply({
-            content: `**LES TROUPES SONT DÉJÀ ALERTÉ !**`,
+            content: `**LES TROUPES SONT DÃ‰JÃ€ ALERTÃ‰ !**`,
             ephemeral: true,
             files: [{ attachment: gifPath, name: 'calme.gif' }],
           });
@@ -3940,12 +3940,12 @@ async function main() {
         const prefix = btn.unicode_prefix ? `${btn.unicode_prefix} ` : '';
         const emojiPart = emojiText ? `${emojiText} ` : '';
 
-        // Style 4 (RP / dramatique) — 3 lines
+        // Style 4 (RP / dramatique) â€” 3 lines
         const hiddenMentions = `||${rolesText}||`;
         const content = [
-          `${prefix}${emojiPart}⚔️ **${btn.label} EST ATTAQUÉE !**`,
-          `Rassemblement immédiat — défendez le blason !`,
-          `Alerte envoyée par ${interaction.user} → ${hiddenMentions}`,
+          `${prefix}${emojiPart}âš”ï¸ **${btn.label} EST ATTAQUÃ‰E !**`,
+          `Rassemblement immÃ©diat â€” dÃ©fendez le blason !`,
+          `Alerte envoyÃ©e par ${interaction.user} â†’ ${hiddenMentions}`,
         ].join('\n');
 
         await alertChannel.send({
@@ -3954,7 +3954,7 @@ async function main() {
         });
 
         // Scoreboard: count ALL alert button clicks (guilde, rush, everyone, etc.) as long as the alert was sent successfully.
-        // (User choice: count only on success — this code runs after alertChannel.send)
+        // (User choice: count only on success â€” this code runs after alertChannel.send)
         try {
           if (rc.scoreboardChannelId) {
             scoreboard.incrementPing(interaction.guild.id, interaction.user.id);
@@ -3987,3 +3987,4 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
