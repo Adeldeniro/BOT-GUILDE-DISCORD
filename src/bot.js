@@ -759,6 +759,11 @@ async function registerCommands(client) {
         .setDescription("Salon d'arrivée / bienvenue")
         .addChannelTypes(0, 5) // 0=GuildText, 5=GuildAnnouncement
         .setRequired(true))
+      .addChannelOption(o => o
+        .setName('chat_arrive')
+        .setDescription('Salon chat-arrive (bouton GIF poste ici)')
+        .addChannelTypes(0, 5)
+        .setRequired(false))
       .addStringOption(o => o.setName('guilde').setDescription('Nom de la guilde (ex: GTO)').setRequired(false))
       .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false))
       .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle donné aux membres de la guilde').setRequired(false))
@@ -1988,9 +1993,14 @@ async function main() {
 
           if (interaction.commandName === 'setup_welcome') {
             const salon = interaction.options.getChannel('salon', true);
+            const chatArrive = interaction.options.getChannel('chat_arrive', false);
             if (!salon.isTextBased?.()) {
               return interaction.reply({ content: 'Choisis un **salon texte** (pas une catégorie / vocal / thread).', ephemeral: true });
             }
+            if (chatArrive && !chatArrive.isTextBased?.()) {
+              return interaction.reply({ content: 'Le salon chat_arrive doit être un **salon texte**.', ephemeral: true });
+            }
+
             const guildeName = interaction.options.getString('guilde') || 'GTO';
             const pingEveryone = interaction.options.getBoolean('ping_everyone');
             const roleGuildeux = interaction.options.getRole('role_guildeux');
@@ -1998,6 +2008,7 @@ async function main() {
 
             updateGuildConfig(guild.id, {
               welcome_channel_id: salon.id,
+              welcome_chat_channel_id: chatArrive ? chatArrive.id : null,
               welcome_guild_name: guildeName,
               welcome_ping_everyone: pingEveryone ? 1 : 0,
               welcome_role_guildeux_id: roleGuildeux ? roleGuildeux.id : null,
@@ -2742,6 +2753,17 @@ async function main() {
             components.push(row);
           }
 
+          // Optional: GIF button posts in chat-arrive (configured via /setup_welcome chat_arrive:...)
+          if (rc.welcomeChatChannelId) {
+            const rowGif = new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`welgif:${member.guild.id}`)
+                .setLabel('🎲 Envoyer un GIF de bienvenue')
+                .setStyle(ButtonStyle.Secondary)
+            );
+            components.push(rowGif);
+          }
+
           const files = [];
 
           // Custom thumbnail (replaces the small member avatar now that we show it big)
@@ -3158,6 +3180,56 @@ async function main() {
         }
 
         // Welcome role buttons
+        if (interaction.customId.startsWith('welgif:')) {
+          const guildId = interaction.customId.split(':')[1];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guild.id);
+          if (!rc.welcomeChatChannelId) {
+            return interaction.reply({ content: 'Salon chat-arrive non configuré.', ephemeral: true });
+          }
+
+          const ch = await interaction.client.channels.fetch(rc.welcomeChatChannelId).catch(() => null);
+          if (!ch || !ch.isTextBased()) {
+            return interaction.reply({ content: 'Salon chat-arrive inaccessible.', ephemeral: true });
+          }
+
+          // Cooldown per user (30s)
+          const key = `welgif:${interaction.guild.id}:${interaction.user.id}`;
+          const now = Date.now();
+          const last = cooldown.get(key) || 0;
+          if (now - last < 30_000) {
+            return interaction.reply({ content: '⏳ Attends un peu avant de renvoyer un GIF.', ephemeral: true });
+          }
+          cooldown.set(key, now);
+
+          let gifUrl = null;
+          try {
+            const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
+            const raw = require('fs').readFileSync(gifsPath, 'utf8');
+            const urls = raw
+              .split(/\r?\n/)
+              .map(l => l.trim())
+              .filter(l => l && !l.startsWith('#'));
+            if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
+          } catch {}
+
+          if (!gifUrl) {
+            return interaction.reply({ content: 'Liste de GIFs manquante (welcome-gifs.txt).', ephemeral: true });
+          }
+
+          const embed = new EmbedBuilder()
+            .setColor(0x3498db)
+            .setTitle('🎉 Bienvenue !')
+            .setDescription(`${interaction.user} t’envoie un GIF de bienvenue !`)
+            .setImage(gifUrl);
+
+          await ch.send({ embeds: [embed], allowedMentions: { users: [interaction.user.id] } }).catch(() => {});
+          return interaction.reply({ content: '✅ GIF envoyé dans le salon chat-arrive.', ephemeral: true });
+        }
+
         if (interaction.customId.startsWith('welrole:')) {
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
