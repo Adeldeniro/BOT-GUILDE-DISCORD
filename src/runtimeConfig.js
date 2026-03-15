@@ -38,6 +38,8 @@ function getConfigForGuild(guildId) {
     welcomeRoleGuildeuxId: pick(gc.welcome_role_guildeux_id, null),
     welcomeRoleInviteId: pick(gc.welcome_role_invite_id, null),
     welcomeChatChannelId: pick(gc.welcome_chat_channel_id, null),
+    almanaxChannelId: pick(gc.almanax_channel_id, null),
+    almanaxLastPostYmd: pick(gc.almanax_last_post_ymd, null),
 
     // Rules gating
     rulesChannelId: pick(gc.rules_channel_id, null),

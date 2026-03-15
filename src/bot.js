@@ -627,6 +627,118 @@ async function closeEventThread(guild, sub) {
   try { await thread.setArchived(true, 'Event perco traité (staff)'); } catch {}
 }
 
+function parisParts(date = new Date()) {
+  const dtf = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Europe/Paris',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = dtf.formatToParts(date);
+  const map = Object.fromEntries(parts.filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+  return {
+    ymd: `${map.year}-${map.month}-${map.day}`,
+    hour: Number(map.hour),
+    minute: Number(map.minute),
+    second: Number(map.second),
+  };
+}
+
+function pickOffering(data) {
+  // API might return array or object depending on endpoint
+  if (!data) return null;
+  if (Array.isArray(data)) return data[0] || null;
+  return data.offering || data;
+}
+
+function parseOffering(offering) {
+  const date = offering?.date || offering?.day || '—';
+  const bonus = offering?.bonus?.text || offering?.bonus || offering?.bonus_text || '—';
+  const bonusType = offering?.bonus_type || offering?.bonusType || offering?.bonus?.type || '—';
+  const itemName = offering?.item?.name || offering?.offering?.item?.name || offering?.offering_item?.name || offering?.item_name || '—';
+  const itemQty = offering?.item?.quantity || offering?.offering?.item?.quantity || offering?.quantity || offering?.item_quantity || null;
+  return { date, bonus, bonusType, itemName, itemQty };
+}
+
+async function fetchJson(url) {
+  const resp = await fetch(url, { headers: { accept: 'application/json' } });
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok || !data || data.error) {
+    const msg = data?.error?.text || `HTTP ${resp.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
+  const tz = 'Europe/Paris';
+
+  let off = offering;
+  if (!off) {
+    const lang = 'fr';
+    const url = `https://alm.dofusdu.de/dofus/v1/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`;
+    const data = await fetchJson(url);
+    off = pickOffering(data);
+  }
+
+  const { date, bonus, bonusType, itemName, itemQty } = parseOffering(off);
+
+  return new EmbedBuilder()
+    .setColor(0x9b59b6)
+    .setTitle(`📜 Almanax — J+${daysAhead}`)
+    .setDescription(`**Date :** ${date}`)
+    .addFields(
+      { name: '✨ Bonus', value: String(bonus).slice(0, 1024) || '—', inline: false },
+      { name: '🏷️ Type', value: String(bonusType).slice(0, 1024) || '—', inline: true },
+      { name: '🎁 Offrande', value: itemQty ? `**${itemQty}×** ${itemName}` : String(itemName), inline: true },
+    )
+    .setFooter({ text: `Source: alm.dofusdu.de • TZ ${tz}` });
+}
+
+async function buildAlmanaxSummaryEmbed() {
+  const lang = 'fr';
+  const tz = 'Europe/Paris';
+  const url = `https://alm.dofusdu.de/dofus/v1/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`;
+  const data = await fetchJson(url);
+  const off = pickOffering(data);
+  const { date, bonus, itemName, itemQty } = parseOffering(off);
+
+  return new EmbedBuilder()
+    .setColor(0x9b59b6)
+    .setTitle('📜 Almanax — Résumé du jour')
+    .setDescription(
+      [
+        `**Date :** ${date}`,
+        `**Bonus :** ${String(bonus).slice(0, 250)}`,
+        `**Offrande :** ${itemQty ? `${itemQty}× ` : ''}${itemName}`,
+        '',
+        '➡️ Pour les détails : **/almanax**',
+      ].join('\n')
+    )
+    .setFooter({ text: `Auto • 00:00 • TZ ${tz}` });
+}
+
+async function maybeDailyAlmanax(guild, rc) {
+  if (!rc.almanaxChannelId) return;
+
+  const { ymd, hour, minute } = parisParts();
+  if (!(hour === 0 && minute === 0)) return;
+
+  if (rc.almanaxLastPostYmd === ymd) return;
+
+  const ch = await guild.client.channels.fetch(rc.almanaxChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+
+  const embed = await buildAlmanaxSummaryEmbed();
+  await ch.send({ embeds: [embed] }).catch(() => {});
+
+  updateGuildConfig(guild.id, { almanax_last_post_ymd: ymd });
+}
+
 async function ensureHelpMessage(guild, rc) {
   if (!rc.helpChannelId) return;
   const ch = await guild.client.channels.fetch(rc.helpChannelId).catch(() => null);
@@ -785,6 +897,34 @@ async function registerCommands(client) {
       .addBooleanOption(o => o.setName('reset').setDescription('Reset les scores après annonce (défaut: true)').setRequired(false)),
 
     new SlashCommandBuilder()
+      .setName('almanax')
+      .setDescription("Afficher l'Almanax Dofus (via almanax-api)")
+      .addIntegerOption(o => o
+        .setName('jours')
+        .setDescription("0 = aujourd'hui, 1 = demain, etc. (max 30)")
+        .setMinValue(0)
+        .setMaxValue(30)
+        .setRequired(false))
+      .addIntegerOption(o => o
+        .setName('prochains')
+        .setDescription('Afficher les X prochains jours (1-10)')
+        .setMinValue(1)
+        .setMaxValue(10)
+        .setRequired(false))
+      .addStringOption(o => o
+        .setName('prochain_bonus')
+        .setDescription('Trouver le prochain Almanax avec ce bonus (slug anglais, ex: full-of-life)')
+        .setRequired(false))
+      .addBooleanOption(o => o
+        .setName('bonus_disponibles')
+        .setDescription('Lister les bonus disponibles (FR)')
+        .setRequired(false))
+      .addBooleanOption(o => o
+        .setName('aide')
+        .setDescription('Afficher l’aide de la commande')
+        .setRequired(false)),
+
+    new SlashCommandBuilder()
       .setName('setup_status')
       .setDescription('Afficher la config actuelle (owner only)'),
 
@@ -811,6 +951,15 @@ async function registerCommands(client) {
       .addBooleanOption(o => o.setName('ping_everyone').setDescription('Mentionner @everyone sur chaque arrivée').setRequired(false))
       .addRoleOption(o => o.setName('role_guildeux').setDescription('Rôle donné aux membres de la guilde').setRequired(false))
       .addRoleOption(o => o.setName('role_invite').setDescription('Rôle donné aux invités').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('setup_almanax')
+      .setDescription("Configurer Almanax (salon dédié + post quotidien) (owner only)")
+      .addChannelOption(o => o
+        .setName('salon')
+        .setDescription('Salon où poster Almanax (quotidien + commandes)')
+        .addChannelTypes(0, 5)
+        .setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_reglement')
@@ -958,6 +1107,13 @@ async function main() {
             try {
               if (scoreboardChannel && scoreboardChannel.isTextBased()) {
                 await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10, hour: 22 });
+
+                // Almanax daily post @ 00:00 Europe/Paris
+                try {
+                  await maybeDailyAlmanax(guild, rc);
+                } catch (e2) {
+                  console.warn('[bot] almanax daily failed:', e2?.message || e2);
+                }
               }
             } catch (e) {
               console.warn('[bot] weekly announcement error:', e?.message || e);
@@ -1933,12 +2089,124 @@ async function main() {
       }
 
       if (interaction.isChatInputCommand()) {
-        // Admin auth: guild owner OR one of the allowed roles (meneur/dev mode)
         const guild = interaction.guild;
+        const rc = getConfigForGuild(guild.id);
+
+        // Public commands (no admin required)
+        if (interaction.commandName === 'almanax') {
+          // Restrict usage to the configured channel (soft redirect; do not run elsewhere)
+          if (rc.almanaxChannelId && interaction.channelId !== rc.almanaxChannelId) {
+            return interaction.reply({ content: `📜 Utilise cette commande dans <#${rc.almanaxChannelId}>.`, ephemeral: true }).catch(() => {});
+          }
+
+          await interaction.deferReply({ ephemeral: false }).catch(() => {});
+
+          const daysAhead = interaction.options.getInteger('jours');
+          const prochains = interaction.options.getInteger('prochains');
+          const prochainBonus = (interaction.options.getString('prochain_bonus') || '').trim();
+          const bonusDisponibles = interaction.options.getBoolean('bonus_disponibles');
+          const aide = interaction.options.getBoolean('aide');
+
+          const chosen = [
+            daysAhead !== null && daysAhead !== undefined,
+            prochains !== null && prochains !== undefined,
+            !!prochainBonus,
+            !!bonusDisponibles,
+            !!aide,
+          ].filter(Boolean).length;
+          if (chosen > 1) {
+            return interaction.editReply({ content: '❌ Choisis **une seule** option (jours / prochains / prochain_bonus / bonus_disponibles / aide).' }).catch(() => {});
+          }
+
+          // Help
+          if (aide) {
+            const help = new EmbedBuilder()
+              .setColor(0x9b59b6)
+              .setTitle('📜 Almanax — Aide')
+              .setDescription(
+                [
+                  '• **/almanax** → Almanax du jour',
+                  '• **/almanax jours:7** → Almanax dans 7 jours (J+7)',
+                  '• **/almanax prochains:10** → liste des 10 prochains jours',
+                  '• **/almanax bonus_disponibles:true** → liste des bonus (slugs)',
+                  '• **/almanax prochain_bonus:full-of-life** → prochain jour avec ce bonus',
+                ].join('\n')
+              )
+              .setFooter({ text: 'Source: alm.dofusdu.de (almanax-api)' });
+            return interaction.editReply({ embeds: [help] }).catch(() => {});
+          }
+
+          try {
+            const lang = 'fr';
+            const tz = 'Europe/Paris';
+
+            if (bonusDisponibles) {
+              const url = `https://alm.dofusdu.de/dofus/bonuses/${lang}`;
+              const data = await fetchJson(url);
+              const list = Array.isArray(data) ? data : (data?.bonuses || []);
+
+              const lines = list
+                .map(b => {
+                  const slug = b?.type || b?.bonus_type || b?.id || b?.slug;
+                  const name = b?.name || b?.text || b?.label;
+                  if (!slug) return null;
+                  return `• \`${slug}\`${name ? ` — ${name}` : ''}`;
+                })
+                .filter(Boolean);
+
+              const embed = new EmbedBuilder()
+                .setColor(0x9b59b6)
+                .setTitle('🏷️ Bonus Almanax disponibles')
+                .setDescription(lines.join('\n').slice(0, 3900) || '—');
+
+              return interaction.editReply({ embeds: [embed] }).catch(() => {});
+            }
+
+            if (prochainBonus) {
+              const url = `https://alm.dofusdu.de/dofus/v1/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`;
+              const data = await fetchJson(url);
+              const off = pickOffering(data);
+              const embed = await buildAlmanaxEmbed({ daysAhead: 0, offering: off });
+              embed.setTitle(`🔎 Prochain bonus — ${prochainBonus}`);
+              return interaction.editReply({ embeds: [embed] }).catch(() => {});
+            }
+
+            if (prochains) {
+              const count = Math.max(1, Math.min(10, prochains));
+              const url = `https://alm.dofusdu.de/dofus/v1/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`;
+              const data = await fetchJson(url);
+              const list = Array.isArray(data) ? data : (data?.offerings || data?.days || []);
+
+              const lines = list
+                .slice(0, count)
+                .map((o, idx) => {
+                  const { date, bonus, itemName, itemQty } = parseOffering(o);
+                  const bonusShort = String(bonus).replace(/\s+/g, ' ').slice(0, 80);
+                  const off = `${itemQty ? `${itemQty}× ` : ''}${itemName}`;
+                  return `**J+${idx}** — **${date}**\n• Bonus: ${bonusShort}\n• Offrande: ${off}`;
+                });
+
+              const embed = new EmbedBuilder()
+                .setColor(0x9b59b6)
+                .setTitle(`📆 Prochains Almanax (x${count})`)
+                .setDescription(lines.join('\n\n').slice(0, 3900))
+                .setFooter({ text: `TZ ${tz} • Source: alm.dofusdu.de` });
+
+              return interaction.editReply({ embeds: [embed] }).catch(() => {});
+            }
+
+            const d = daysAhead ?? 0;
+            const embed = await buildAlmanaxEmbed({ daysAhead: d });
+            return interaction.editReply({ embeds: [embed] }).catch(() => {});
+          } catch (e) {
+            return interaction.editReply({ content: `❌ Erreur Almanax: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
+          }
+        }
+
+        // Admin auth: guild owner OR one of the allowed roles (meneur/dev mode)
         const isOwner = guild && interaction.user && guild.ownerId === interaction.user.id;
         const memberRoles = interaction.member?.roles;
 
-        const rc = getConfigForGuild(guild.id);
         const hasLegacyAdmin = !!(memberRoles && rc.adminRoleIdsLegacy.some(rid => memberRoles.cache?.has(rid)));
         const hasConfiguredAdmin = !!(rc.adminRoleId && memberRoles && memberRoles.cache?.has(rc.adminRoleId));
         const isAdmin = isOwner || hasLegacyAdmin || hasConfiguredAdmin;
@@ -1958,6 +2226,48 @@ async function main() {
 
         // Setup commands: allowed anywhere
         if (interaction.commandName.startsWith('setup_')) {
+          if (interaction.commandName === 'setup_almanax') {
+            const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte**.', ephemeral: true });
+            }
+
+            updateGuildConfig(guild.id, {
+              almanax_channel_id: salon.id,
+              // reset last post to allow immediate scheduling
+              almanax_last_post_ymd: null,
+            });
+
+            // Post a pinned info message (best effort)
+            try {
+              const embed = new EmbedBuilder()
+                .setColor(0x9b59b6)
+                .setTitle('📜 Almanax — Dofus (mode d’emploi)')
+                .setDescription(
+                  [
+                    'Commandes disponibles **dans ce salon uniquement** :',
+                    '',
+                    '• **/almanax** → Almanax du jour',
+                    '• **/almanax jours:7** → Almanax dans 7 jours (J+7)',
+                    '• **/almanax prochains:10** → liste des 10 prochains jours',
+                    '• **/almanax bonus_disponibles:true** → liste des bonus (slugs)',
+                    '• **/almanax prochain_bonus:full-of-life** → prochain jour avec ce bonus',
+                    '• **/almanax aide:true** → rappel des commandes',
+                    '',
+                    '⏰ Publication automatique : **tous les jours à 00:00 (Europe/Paris)** (résumé).',
+                  ].join('\n')
+                )
+                .setFooter({ text: 'Source: alm.dofusdu.de (almanax-api)' });
+
+              const recent = await salon.messages.fetch({ limit: 15 }).catch(() => null);
+              const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📜 Almanax — Dofus');
+              const msg = existing ? await existing.edit({ embeds: [embed] }).then(() => existing) : await salon.send({ embeds: [embed] });
+              try { await msg.pin(); } catch {}
+            } catch {}
+
+            return interaction.reply({ content: `✅ Almanax configuré dans <#${salon.id}>.`, ephemeral: true });
+          }
+
           if (interaction.commandName === 'setup_admin') {
             const role = interaction.options.getRole('role', true);
             updateGuildConfig(guild.id, { admin_role_id: role.id });
