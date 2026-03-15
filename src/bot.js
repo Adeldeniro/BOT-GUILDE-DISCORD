@@ -2754,11 +2754,12 @@ async function main() {
           }
 
           // Optional: GIF button posts in chat-arrive (configured via /setup_welcome chat_arrive:...)
+          // This button is meant for OTHER members (not the new joiner) and expires after 2h.
           if (rc.welcomeChatChannelId) {
             const rowGif = new ActionRowBuilder().addComponents(
               new ButtonBuilder()
-                .setCustomId(`welgif:${member.guild.id}`)
-                .setLabel('🎲 Envoyer un GIF de bienvenue')
+                .setCustomId(`welgif:${member.guild.id}:${member.user.id}:${member.joinedTimestamp}`)
+                .setLabel('🎲 Souhaiter la bienvenue (GIF)')
                 .setStyle(ButtonStyle.Secondary)
             );
             components.push(rowGif);
@@ -3181,9 +3182,26 @@ async function main() {
 
         // Welcome role buttons
         if (interaction.customId.startsWith('welgif:')) {
-          const guildId = interaction.customId.split(':')[1];
+          const parts = interaction.customId.split(':');
+          const guildId = parts[1];
+          const newUserId = parts[2];
+          const joinedAt = Number(parts[3] || 0);
+
           if (!interaction.guild || interaction.guild.id !== guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          // New joiner should NOT use this button
+          if (interaction.user.id === newUserId) {
+            return interaction.reply({ content: 'Ce bouton est réservé aux membres pour te souhaiter la bienvenue 🙂', ephemeral: true });
+          }
+
+          // Expire after 2 hours
+          const ageMs = joinedAt ? (Date.now() - joinedAt) : Infinity;
+          if (ageMs > 2 * 60 * 60 * 1000) {
+            // Best-effort: remove the button row if possible
+            try { await interaction.message.edit({ components: [] }); } catch {}
+            return interaction.reply({ content: '⌛ Ce bouton a expiré (2h après l’arrivée).', ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
@@ -3223,10 +3241,10 @@ async function main() {
           const embed = new EmbedBuilder()
             .setColor(0x3498db)
             .setTitle('🎉 Bienvenue !')
-            .setDescription(`${interaction.user} t’envoie un GIF de bienvenue !`)
+            .setDescription(`${interaction.user} souhaite la bienvenue à <@${newUserId}> !`)
             .setImage(gifUrl);
 
-          await ch.send({ embeds: [embed], allowedMentions: { users: [interaction.user.id] } }).catch(() => {});
+          await ch.send({ embeds: [embed], allowedMentions: { users: [newUserId] } }).catch(() => {});
           return interaction.reply({ content: '✅ GIF envoyé dans le salon chat-arrive.', ephemeral: true });
         }
 
@@ -3273,8 +3291,13 @@ async function main() {
 
               modal.addComponents(new ActionRowBuilder().addComponents(input));
 
-              // Hide buttons immediately after click to avoid re-use spam
-              try { await interaction.message.edit({ components: [] }); } catch {}
+              // Hide only the role-choice buttons; keep the GIF button row if present.
+              try {
+                const keep = (interaction.message.components || []).filter(row =>
+                  (row.components || []).some(c => typeof c.customId === 'string' && c.customId.startsWith('welgif:'))
+                );
+                await interaction.message.edit({ components: keep });
+              } catch {}
 
               return interaction.showModal(modal);
             }
