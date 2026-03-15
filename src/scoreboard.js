@@ -76,15 +76,17 @@ async function ensureScoreboardMessage(guild, channel, { topN = 25 } = {}) {
   return msg;
 }
 
-async function buildScoreboardEmbed(guild, { topN = 25 } = {}) {
+async function buildScoreboardEmbed(guild, { topN = 25, skipMemberFetch = false } = {}) {
   const guildId = guild.id;
 
   // Try to fetch members to include everyone with the role, even if 0 pings.
-  // If the privileged intent isn't enabled, this can fail — we fall back to DB-only.
-  try {
-    await guild.members.fetch();
-  } catch {
-    // ignore
+  // This can be slow on large guilds; allow skipping for manual/weekly announcements.
+  if (!skipMemberFetch) {
+    try {
+      await guild.members.fetch();
+    } catch {
+      // ignore
+    }
   }
 
   const { getConfigForGuild } = require('./runtimeConfig');

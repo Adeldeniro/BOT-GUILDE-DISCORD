@@ -2011,19 +2011,22 @@ async function main() {
           }
 
           if (interaction.commandName === 'scoreboard_weekly_run') {
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
             const rc2 = getConfigForGuild(guild.id);
             const reset = interaction.options.getBoolean('reset');
 
             if (!rc2.scoreboardChannelId) {
-              return interaction.reply({ content: 'Scoreboard non configuré (setup_scoreboard).', ephemeral: true });
+              return interaction.editReply({ content: 'Scoreboard non configuré (setup_scoreboard).' }).catch(() => {});
             }
 
             const sbChannel = await interaction.client.channels.fetch(rc2.scoreboardChannelId).catch(() => null);
             if (!sbChannel || !sbChannel.isTextBased()) {
-              return interaction.reply({ content: 'Salon scoreboard inaccessible.', ephemeral: true });
+              return interaction.editReply({ content: 'Salon scoreboard inaccessible.' }).catch(() => {});
             }
 
-            const embed = await scoreboard.buildScoreboardEmbed(guild, { topN: Math.min(10, rc2.scoreboardTopN || 10) });
+            // Build embed fast (skip full member fetch to avoid interaction timeout)
+            const embed = await scoreboard.buildScoreboardEmbed(guild, { topN: Math.min(10, rc2.scoreboardTopN || 10), skipMemberFetch: true });
             embed.setTitle('🏆 Classement hebdo — Guildeux (pings)');
             embed.setDescription(
               (embed.data?.description || '') +
@@ -2039,7 +2042,7 @@ async function main() {
               await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
             }
 
-            return interaction.reply({ content: `✅ Annonce envoyée${doReset ? ' + reset effectué' : ''}.`, ephemeral: true });
+            return interaction.editReply({ content: `✅ Annonce envoyée${doReset ? ' + reset effectué' : ''}.` }).catch(() => {});
           }
 
           if (interaction.commandName === 'setup_status') {
