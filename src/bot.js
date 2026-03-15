@@ -685,9 +685,9 @@ async function buildAlmanaxEmbed({ daysAhead = 0, offering = null } = {}) {
     const lang = 'fr';
     let data;
     try {
-      data = await almanaxFetch\(`/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`);
+      data = await almanaxFetch(`/${lang}/ahead/${daysAhead}?timezone=${encodeURIComponent(tz)}`);
     } catch {
-      data = await almanaxFetch\(`/${lang}/ahead/${daysAhead}`);
+      data = await almanaxFetch(`/${lang}/ahead/${daysAhead}`);
     }
     off = pickOffering(data);
   }
@@ -713,9 +713,9 @@ async function buildAlmanaxSummaryEmbed() {
   // Try with timezone first, then without (some deployments are picky)
   let data;
   try {
-    data = await almanaxFetch\(`/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`);
+    data = await almanaxFetch(`/${lang}/ahead/0?timezone=${encodeURIComponent(tz)}`);
   } catch {
-    data = await almanaxFetch\(`/${lang}/ahead/0`);
+    data = await almanaxFetch(`/${lang}/ahead/0`);
   }
   const off = pickOffering(data);
   const { date, bonus, itemName, itemQty } = parseOffering(off);
@@ -2182,9 +2182,9 @@ async function main() {
             if (prochainBonus) {
               let data;
               try {
-                data = await almanaxFetch\(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`);
+                data = await almanaxFetch(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`);
               } catch {
-                data = await almanaxFetch\(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next`);
+                data = await almanaxFetch(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next`);
               }
               const off = pickOffering(data);
               const embed = await buildAlmanaxEmbed({ daysAhead: 0, offering: off });
@@ -2196,9 +2196,9 @@ async function main() {
               const count = Math.max(1, Math.min(10, prochains));
               let data;
               try {
-                data = await almanaxFetch\(`/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`);
+                data = await almanaxFetch(`/${lang}/ahead/${count}?timezone=${encodeURIComponent(tz)}`);
               } catch {
-                data = await almanaxFetch\(`/${lang}/ahead/${count}`);
+                data = await almanaxFetch(`/${lang}/ahead/${count}`);
               }
               const list = Array.isArray(data) ? data : (data?.offerings || data?.days || data?.results || []);
               if (!Array.isArray(list) || list.length === 0) {
@@ -3987,4 +3987,5 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
 
