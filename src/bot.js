@@ -874,7 +874,7 @@ async function main() {
       GatewayIntentBits.GuildInvites,
       GatewayIntentBits.MessageContent,
     ],
-    partials: [Partials.Message, Partials.Channel],
+    partials: [Partials.Message, Partials.Channel, Partials.GuildMember, Partials.User],
   });
 
   client.once('ready', async () => {
@@ -1334,6 +1334,8 @@ async function main() {
     // Surveillance + cleanup profiles when someone leaves / is kicked
     try {
       const rc = getConfigForGuild(member.guild.id);
+      const userId = member?.user?.id || member?.id;
+      console.log('[surveillance] guildMemberRemove', { guildId: member.guild.id, userId });
 
       // Determine leave vs kick (best effort: audit log)
       let kickedBy = null;
@@ -1349,14 +1351,14 @@ async function main() {
         .setColor(kickedBy ? 0xe74c3c : 0x95a5a6)
         .setTitle(kickedBy ? '⛔ Membre expulsé' : '🚪 Membre parti')
         .addFields(
-          { name: 'Membre', value: `<@${member.id}> (\`${member.id}\`)`, inline: false },
+          { name: 'Membre', value: `<@${userId}> (\`${userId}\`)`, inline: false },
           { name: 'Action', value: kickedBy ? `Kick par ${kickedBy}` : 'Départ volontaire', inline: false },
         )
         .setTimestamp();
       await sendSurveillance(member.guild, rc, embed);
 
       // Cleanup profile + delete profile box
-      const existing = profiles.deleteProfile(member.guild.id, member.user.id);
+      const existing = userId ? profiles.deleteProfile(member.guild.id, userId) : null;
       if (rc.profilesChannelId && existing?.profile_message_id) {
         const ch = await member.client.channels.fetch(rc.profilesChannelId).catch(() => null);
         if (ch && ch.isTextBased()) {
