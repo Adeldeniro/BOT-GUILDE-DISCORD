@@ -2010,40 +2010,6 @@ async function main() {
             return interaction.reply({ content: `Scoreboard configuré, mais salon inaccessible: <#${salon.id}>.`, ephemeral: true });
           }
 
-          if (interaction.commandName === 'scoreboard_weekly_run') {
-            await interaction.deferReply({ ephemeral: true }).catch(() => {});
-
-            const rc2 = getConfigForGuild(guild.id);
-            const reset = interaction.options.getBoolean('reset');
-
-            if (!rc2.scoreboardChannelId) {
-              return interaction.editReply({ content: 'Scoreboard non configuré (setup_scoreboard).' }).catch(() => {});
-            }
-
-            const sbChannel = await interaction.client.channels.fetch(rc2.scoreboardChannelId).catch(() => null);
-            if (!sbChannel || !sbChannel.isTextBased()) {
-              return interaction.editReply({ content: 'Salon scoreboard inaccessible.' }).catch(() => {});
-            }
-
-            // Build embed fast (skip full member fetch to avoid interaction timeout)
-            const embed = await scoreboard.buildScoreboardEmbed(guild, { topN: Math.min(10, rc2.scoreboardTopN || 10), skipMemberFetch: true });
-            embed.setTitle('🏆 Classement hebdo — Guildeux (pings)');
-            embed.setDescription(
-              (embed.data?.description || '') +
-              `\n\n🏅 **GG au vainqueur !** Parlez au **meneur** pour récupérer votre gain : **30% de la banque du meneur**.`
-            );
-            embed.setFooter({ text: 'Annonce manuelle + reset.' });
-
-            await sbChannel.send({ embeds: [embed] });
-
-            const doReset = reset !== false;
-            if (doReset) {
-              scoreboard.resetScores(guild.id);
-              await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
-            }
-
-            return interaction.editReply({ content: `✅ Annonce envoyée${doReset ? ' + reset effectué' : ''}.` }).catch(() => {});
-          }
 
           if (interaction.commandName === 'setup_status') {
             const rc2 = getConfigForGuild(guild.id);
@@ -2513,6 +2479,40 @@ async function main() {
           const rc = getConfigForGuild(interaction.guild.id);
           const msg = await ensurePanelMessage(channel, rc);
           return interaction.reply({ content: `Panneau actualisé dans <#${channel.id}> (message ${msg.id}).`, ephemeral: true });
+        }
+
+        if (interaction.commandName === 'scoreboard_weekly_run') {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+          const rc2 = getConfigForGuild(guild.id);
+          const reset = interaction.options.getBoolean('reset');
+
+          if (!rc2.scoreboardChannelId) {
+            return interaction.editReply({ content: 'Scoreboard non configuré (setup_scoreboard).' }).catch(() => {});
+          }
+
+          const sbChannel = await interaction.client.channels.fetch(rc2.scoreboardChannelId).catch(() => null);
+          if (!sbChannel || !sbChannel.isTextBased()) {
+            return interaction.editReply({ content: 'Salon scoreboard inaccessible.' }).catch(() => {});
+          }
+
+          const embed = await scoreboard.buildScoreboardEmbed(guild, { topN: Math.min(10, rc2.scoreboardTopN || 10), skipMemberFetch: true });
+          embed.setTitle('🏆 Classement hebdo — Guildeux (pings)');
+          embed.setDescription(
+            (embed.data?.description || '') +
+            `\n\n🏅 **GG au vainqueur !** Parlez au **meneur** pour récupérer votre gain : **30% de la banque du meneur**.`
+          );
+          embed.setFooter({ text: 'Annonce manuelle + reset.' });
+
+          await sbChannel.send({ embeds: [embed] });
+
+          const doReset = reset !== false;
+          if (doReset) {
+            scoreboard.resetScores(guild.id);
+            await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
+          }
+
+          return interaction.editReply({ content: `✅ Annonce envoyée${doReset ? ' + reset effectué' : ''}.` }).catch(() => {});
         }
 
         if (interaction.commandName === 'guilde_ajouter') {
