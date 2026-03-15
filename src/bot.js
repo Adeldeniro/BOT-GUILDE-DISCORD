@@ -128,25 +128,25 @@ function canPingRole(guild, me, roleId) {
 function buildRulesEmbed(rc) {
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('📜 CHARTE DE LA GUILDE GTO — RP â€¢ ENTRAIDE â€¢ PVP â€¢ PVM')
+    .setTitle('📜 CHARTE DE LA GUILDE GTO — RP • ENTRAIDE • PVP • PVM')
     .setDescription(
       [
         '**âš”ï¸ 1) Esprit GTO**',
         'Fraternité, respect, loyauté. On se chambre, pas de manque de respect.',
         '',
-        '**ðŸ¤ 2) Entraide**',
+        '**🤝 2) Entraide**',
         'PVM, conseils, organisation : on s’aide et on progresse ensemble.',
         '',
         '**🛡️ 3) PVP**',
         'Fair-play et discipline. On suit les calls en combat.',
         '',
-        '**ðŸ° 4) Défense**',
+        '**🏰 4) Défense**',
         'Quand l’alerte tombe, on se mobilise si possible. Pas de faux pings.',
         '',
-        '**ðŸ—£ï¸ 5) Communication**',
+        '**🗣️ 5) Communication**',
         'Pas de spam, bons salons, respect en vocal.',
         '',
-        '**ðŸ‘‘ 6) Staff**',
+        '**👑 6) Staff**',
         'Si souci : MP staff, pas de drama public.',
         '',
         '✅ **Pour accéder au serveur, valide le règlement via le bouton qui apparaît à ton arrivée.**',
@@ -187,10 +187,10 @@ async function updateProfileBox(guild, rc, targetUserId, { statusText }) {
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('ðŸŽ® Profil joueur')
+    .setTitle('🎮 Profil joueur')
     .addFields(
       { name: 'Discord', value: `<@${targetUserId}> (\`${targetUserId}\`)`, inline: false },
-      { name: 'Pseudos en jeu', value: ignList.map(x => `â€¢ **${x}**`).join('\n').slice(0, 1024) || '—', inline: false },
+      { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024) || '—', inline: false },
       { name: 'Statut', value: statusText, inline: false },
     )
     .setFooter({ text: 'Mise à jour automatique par validation staff.' });
@@ -224,8 +224,8 @@ async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
       `Attribuer les rôles **GTO** + **DEF** si la personne est bien un membre.`
     )
     .addFields(
-      { name: 'ðŸŽ® Pseudos en jeu (profil)', value: ignList.length ? ignList.map(x => `â€¢ **${x}**`).join('\n').slice(0, 1024) : '_Aucun pseudo renseigné._', inline: false },
-      { name: '📌 Infos', value: member ? `â€¢ ID: \`${targetUserId}\`\nâ€¢ Compte: <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>\nâ€¢ Arrivé: <t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : `â€¢ ID: \`${targetUserId}\``, inline: false },
+      { name: '🎮 Pseudos en jeu (profil)', value: ignList.length ? ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024) : '_Aucun pseudo renseigné._', inline: false },
+      { name: '📌 Infos', value: member ? `• ID: \`${targetUserId}\`\n• Compte: <t:${Math.floor(member.user.createdTimestamp / 1000)}:R>\n• Arrivé: <t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : `• ID: \`${targetUserId}\``, inline: false },
     )
     .setThumbnail(avatarUrl)
     .setFooter({ text: 'Clique sur Valider ou Refuser.' });
@@ -240,11 +240,11 @@ async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
         ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:approve`).setLabel('✅ Valider Invité').setStyle(ButtonStyle.Success)
         : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:approve`).setLabel('✅ Valider (GTO+DEF)').setStyle(ButtonStyle.Success),
       mode === 'invite'
-        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:deny`).setLabel('â›” Refuser / Kick').setStyle(ButtonStyle.Danger)
+        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:deny`).setLabel('⚔️ Refuser / Kick').setStyle(ButtonStyle.Danger)
         : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:deny`).setLabel('❌ Refuser (Invité)').setStyle(ButtonStyle.Danger),
       // Extra kick option for guildeux requests
       ...(mode === 'guildeux'
-        ? [new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:kick`).setLabel('â›” Kick').setStyle(ButtonStyle.Danger)]
+        ? [new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:kick`).setLabel('⚔️ Kick').setStyle(ButtonStyle.Danger)]
         : []),
     ),
   ];
@@ -313,18 +313,18 @@ async function ensurePanelMessage(channel, rc) {
     .setDescription('**EN CAS D’ATTAQUE : sélectionne la guilde et déclenche l’alerte.**')
     .addFields(
       {
-        name: 'ðŸ“£ Procédure',
+        name: '📣 Procédure',
         value: '1) Identifie la guilde concernée\n2) Clique sur le bouton correspondant\n3) Renforts en route',
         inline: false,
       },
       {
-        name: 'ðŸŽ¯ Effet',
+        name: '🎯 Effet',
         value: 'Ping **DEF** + ping rôle de guilde dans le salon d’alerte.',
         inline: false,
       },
       {
         name: '🛡️ Discipline',
-        value: 'â€¢ Pas de spam\nâ€¢ Une erreur = on assume, on corrige, et on se regroupe',
+        value: '• Pas de spam\n• Une erreur = on assume, on corrige, et on se regroupe',
         inline: false,
       },
     )
@@ -359,11 +359,11 @@ async function ensurePanelMessage(channel, rc) {
 }
 
 function groupCommandName(name) {
-  if (name.startsWith('setup_')) return 'ðŸ§© Installation / Setup (Owner only)';
+  if (name.startsWith('setup_')) return '🧩 Installation / Setup (Owner only)';
   if (name.startsWith('panneau_') || name.startsWith('guilde_')) return '📌 Panneau & Guilde (Admin)';
-  if (name.startsWith('profile_')) return 'ðŸŽ® Profils (Staff)';
-  if (['clean', 'lock_write', 'role_id'].includes(name)) return 'ðŸ› ï¸ Outils (Admin)';
-  return 'ðŸ“Ž Autres';
+  if (name.startsWith('profile_')) return '🎮 Profils (Staff)';
+  if (['clean', 'lock_write', 'role_id'].includes(name)) return '🛠️ Outils (Admin)';
+  return '📎 Autres';
 }
 
 function chunkLines(lines, maxLen = 1024) {
@@ -395,21 +395,21 @@ function buildHelpEmbedFromCommands(commands) {
 
     const usage = opts ? `/${c.name} ${opts}` : `/${c.name}`;
     const desc = c.description || '';
-    byGroup.get(group).push(`â€¢ \`${usage}\` — ${desc}`);
+    byGroup.get(group).push(`• \`${usage}\` — ${desc}`);
   }
 
   // Stable group order
   const groupOrder = [
-    'ðŸ§© Installation / Setup (Owner only)',
+    '🧩 Installation / Setup (Owner only)',
     '📌 Panneau & Guilde (Admin)',
-    'ðŸ› ï¸ Outils (Admin)',
-    'ðŸŽ® Profils (Staff)',
-    'ðŸ“Ž Autres',
+    '🛠️ Outils (Admin)',
+    '🎮 Profils (Staff)',
+    '📎 Autres',
   ];
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('ðŸ“˜ Commandes du bot GTO — Guide staff')
+    .setTitle('📘 Commandes du bot GTO — Guide staff')
     .setDescription('Liste auto-générée depuis les slash commands enregistrées sur le serveur.')
     .setTimestamp();
 
@@ -427,8 +427,8 @@ function buildHelpEmbedFromCommands(commands) {
   embed.addFields({
     name: 'â„¹ï¸ Notes',
     value:
-      'â€¢ Le bouton **âœï¸ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
-      'â€¢ Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.',
+      '• Le bouton **âœï¸ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
+      '• Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.',
     inline: false,
   });
 
@@ -475,26 +475,26 @@ async function ensureEventAdminPanel(guild, rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0x2c3e50)
-    .setTitle('ðŸ› ï¸ Events Perco — Panneau staff (admin)')
+    .setTitle('🛠️ Events Perco — Panneau staff (admin)')
     .setDescription(
       [
         'Ce panneau reste actif **même après la fin** : corrections, kick, resync…',
         '',
         'Actions principales :',
-        'â€¢ ðŸ”„ Resync = reconstruit le classement à partir de la DB',
-        'â€¢ âž• Add points = ajoute/enlève des points à un joueur',
-        'â€¢ âœï¸ Set points = fixe les points exacts d\'un joueur',
-        'â€¢ ðŸ§¹ Remove player = supprime un joueur du classement (ex: kick event)',
+        '• 🔄 Resync = reconstruit le classement à partir de la DB',
+        '• âž• Add points = ajoute/enlève des points à un joueur',
+        '• âœï¸ Set points = fixe les points exacts d\'un joueur',
+        '• 🧹 Remove player = supprime un joueur du classement (ex: kick event)',
       ].join('\n')
     )
     .setFooter({ text: 'Réservé staff (rôles validation). Toutes les actions mettent à jour le scoreboard.' });
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('evadm:resync').setLabel('ðŸ”„ Resync classement').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('evadm:resync').setLabel('🔄 Resync classement').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('evadm:add').setLabel('âž• Add points').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('evadm:set').setLabel('âœï¸ Set points').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('evadm:remove').setLabel('ðŸ§¹ Remove player').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('evadm:reset').setLabel('ðŸ§¨ Reset saison').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('evadm:remove').setLabel('🧹 Remove player').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('evadm:reset').setLabel('🧨 Reset saison').setStyle(ButtonStyle.Danger),
   );
 
   // Try edit existing
@@ -562,7 +562,7 @@ async function postOfficialEventResult(guild, rc, sub, { status, defenders, part
       { name: '👥 Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : '—', inline: false },
       isApproved
         ? { name: '🏆 Points', value: `**+${defenders}** pts / joueur`, inline: false }
-        : { name: 'ðŸ“ Raison', value: String(reason || '—').slice(0, 1024), inline: false },
+        : { name: '📝 Raison', value: String(reason || '—').slice(0, 1024), inline: false },
     )
     .setImage('attachment://event-official-banner.jpg')
     .setTimestamp();
@@ -597,7 +597,7 @@ async function postEventScreen(guild, rc, sub, { status, defenders, participantI
   const embed = new EmbedBuilder()
     .setColor(isApproved ? 0x2ecc71 : 0xe74c3c)
     .setTitle(isApproved ? '✅ Screen validé' : '❌ Screen refusé')
-    .setDescription(`SID **${sub.id}** â€¢ par <@${validatedBy}>\nThread: ${thread ? `<#${thread.id}>` : '—'}\nPreuve: ${original ? `[lien](${original.url})` : '—'}`)
+    .setDescription(`SID **${sub.id}** • par <@${validatedBy}>\nThread: ${thread ? `<#${thread.id}>` : '—'}\nPreuve: ${original ? `[lien](${original.url})` : '—'}`)
     .addFields(
       { name: 'Participants', value: participantIds?.length ? participantIds.map(id => `<@${id}>`).join(' ') : '—', inline: false },
       isApproved
@@ -894,16 +894,16 @@ async function ensureActivityLogHeader(guild, rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0x2c3e50)
-    .setTitle('ðŸ‘ï¸ Activity Logs — Serveur')
+    .setTitle('👁️ Activity Logs — Serveur')
     .setDescription('Ce salon enregistre automatiquement : commandes, messages modifiés/supprimés, etc. (aucune mention)')
     .addFields(
-      { name: 'Notes', value: 'â€¢ Certains contenus peuvent être indisponibles si Discord ne fournit pas le message (cache/partials).\nâ€¢ Les suppressions via /clean sont loggées en bloc.', inline: false },
+      { name: 'Notes', value: '• Certains contenus peuvent être indisponibles si Discord ne fournit pas le message (cache/partials).\n• Les suppressions via /clean sont loggées en bloc.', inline: false },
     )
     .setFooter({ text: 'Logs silencieux (no ping).' });
 
   // Pin a single header (best effort)
   const recent = await ch.messages.fetch({ limit: 10 }).catch(() => null);
-  const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === 'ðŸ‘ï¸ Activity Logs — Serveur');
+  const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '👁️ Activity Logs — Serveur');
   if (existing) return;
 
   const msg = await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
@@ -934,7 +934,7 @@ async function registerCommands(client) {
       .addStringOption(o => o.setName('emoji').setDescription('Emoji (optionnel)').setRequired(false))
       .addAttachmentOption(o => o.setName('image').setDescription('Blason (image upload) â†’ sera converti en emoji').setRequired(false))
       .addIntegerOption(o => o.setName('ordre').setDescription('Ordre (optionnel)').setRequired(false))
-      .addStringOption(o => o.setName('prefixe').setDescription('Préfixe Unicode (ex: ðŸš¨âš ï¸) pour les notifications').setRequired(false)),
+      .addStringOption(o => o.setName('prefixe').setDescription('Préfixe Unicode (ex: 🚨⚠️) pour les notifications').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('guilde_supprimer')
@@ -1244,7 +1244,7 @@ async function main() {
       if (draft.stage === 'need_participants') {
         const ids = [...message.mentions.users.keys()];
         if (!ids.length) {
-          await message.reply({ content: 'âš ï¸ Mentionne au moins 1 participant (@personne).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          await message.reply({ content: '⚠️ Mentionne au moins 1 participant (@personne).', allowedMentions: { users: [message.author.id] } }).catch(() => {});
           return;
         }
         const participantsText = ids.join(',');
@@ -1258,7 +1258,7 @@ async function main() {
       const atts = [...message.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
       if (atts.length < 1) return;
       if (atts.length > 2) {
-        await message.reply({ content: 'âš ï¸ Maximum **2 images** par combat.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        await message.reply({ content: '⚠️ Maximum **2 images** par combat.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
         return;
       }
 
@@ -1268,11 +1268,11 @@ async function main() {
       // Acknowledge in the thread (pending)
       const pendingEmbed = new EmbedBuilder()
         .setColor(0xf1c40f)
-        .setTitle('ðŸŸ¡ En attente de confirmation')
+        .setTitle('🟡 En attente de confirmation')
         .setDescription('Ton combat a été envoyé au staff pour validation.\nEn cas de refus, tu seras ping avec la raison.')
         .addFields({
           name: 'Participants',
-          value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : 'âš ï¸ Aucun participant',
+          value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun participant',
           inline: false,
         })
         .setTimestamp();
@@ -1316,14 +1316,14 @@ async function main() {
 
           const staffEmbed = new EmbedBuilder()
             .setColor(0xf1c40f)
-            .setTitle('ðŸ§¾ Validation événement perco')
+            .setTitle('🧾 Validation événement perco')
             .setDescription(`[Voir la preuve](${message.url})`)
             .addFields(
               { name: 'Auteur', value: `${message.author} (\`${message.author.id}\`)`, inline: false },
-              { name: 'Participants (déclarés)', value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : 'âš ï¸ Aucun', inline: false },
+              { name: 'Participants (déclarés)', value: participantIds.length ? participantIds.map(id => `<@${id}>`).join(' ') : '⚠️ Aucun', inline: false },
               ignLines.length
-                ? { name: 'ðŸŽ® Pseudos en jeu (profil)', value: ignLines.join('\n').slice(0, 1024), inline: false }
-                : { name: 'ðŸŽ® Pseudos en jeu (profil)', value: '_Aucun pseudo enregistré pour ces joueurs._', inline: false },
+                ? { name: '🎮 Pseudos en jeu (profil)', value: ignLines.join('\n').slice(0, 1024), inline: false }
+                : { name: '🎮 Pseudos en jeu (profil)', value: '_Aucun pseudo enregistré pour ces joueurs._', inline: false },
               { name: 'Règle points', value: 'Points / joueur = nombre de défenseurs présents (perco inclus).', inline: false },
             )
             .setFooter({ text: `SID ${sid}` })
@@ -1351,8 +1351,8 @@ async function main() {
           const row3 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`evpub:${sid}:add`).setLabel('âž• Points').setStyle(ButtonStyle.Primary),
             new ButtonBuilder().setCustomId(`evpub:${sid}:set`).setLabel('âœï¸ Fixer points').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId(`evpub:${sid}:remove`).setLabel('ðŸ§¹ Kick').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`evpub:${sid}:resync`).setLabel('ðŸ”„ Refresh').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:remove`).setLabel('🧹 Kick').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:resync`).setLabel('🔄 Refresh').setStyle(ButtonStyle.Secondary),
           );
 
           const staffMsg = await vch.send({ embeds: [staffEmbed], components: [row1, row2, row3], files, allowedMentions: { parse: [] } });
@@ -1436,7 +1436,7 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0xe67e22)
-        .setTitle('ðŸ—‘ï¸ Message supprimé')
+        .setTitle('🗑️ Message supprimé')
         .addFields(
           { name: 'Auteur', value: author, inline: false },
           { name: 'Supprimé par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu / auteur', inline: false },
@@ -1460,7 +1460,7 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0xd35400)
-        .setTitle('ðŸ§¹ Suppression en masse')
+        .setTitle('🧹 Suppression en masse')
         .addFields(
           { name: 'Nombre', value: String(messages.size), inline: true },
           { name: 'Salon', value: first.channelId ? `<#${first.channelId}>` : '—', inline: true },
@@ -1508,7 +1508,7 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0x9b59b6)
-        .setTitle('ðŸ§© Rôle modifié')
+        .setTitle('🧩 Rôle modifié')
         .addFields(
           { name: 'Rôle', value: `${newRole} (\`${newRole.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1525,7 +1525,7 @@ async function main() {
       const actor = await getAuditActor(channel.guild, { type: 10, targetId: channel.id, windowMs: 20_000 }); // CHANNEL_CREATE
       const embed = new EmbedBuilder()
         .setColor(0x2ecc71)
-        .setTitle('ðŸ“ Salon créé')
+        .setTitle('📁 Salon créé')
         .addFields(
           { name: 'Salon', value: `<#${channel.id}> (\`${channel.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1542,7 +1542,7 @@ async function main() {
       const actor = await getAuditActor(channel.guild, { type: 12, targetId: channel.id, windowMs: 20_000 }); // CHANNEL_DELETE
       const embed = new EmbedBuilder()
         .setColor(0xe74c3c)
-        .setTitle('ðŸ—‘ï¸ Salon supprimé')
+        .setTitle('🗑️ Salon supprimé')
         .addFields(
           { name: 'Salon', value: `#${channel.name} (\`${channel.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1579,7 +1579,7 @@ async function main() {
       const actor = await getAuditActor(guild, { type: 22, targetId: ban.user.id, windowMs: 30_000 }); // MEMBER_BAN_ADD
       const embed = new EmbedBuilder()
         .setColor(0xc0392b)
-        .setTitle('â›” Ban')
+        .setTitle('⚔️ Ban')
         .addFields(
           { name: 'Membre', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: false },
           { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
@@ -1625,7 +1625,7 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(kickedBy ? 0xe74c3c : 0x95a5a6)
-        .setTitle(kickedBy ? 'â›” Membre expulsé' : 'ðŸšª Membre parti')
+        .setTitle(kickedBy ? '⚔️ Membre expulsé' : '🚪 Membre parti')
         .addFields(
           { name: 'Membre', value: `<@${userId}> (\`${userId}\`)`, inline: false },
           { name: 'Action', value: kickedBy ? `Kick par ${kickedBy}` : 'Départ volontaire', inline: false },
@@ -1861,7 +1861,7 @@ async function main() {
 
           ev.removeUser(interaction.guildId, userId);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `ðŸ§¹ OK. <@${userId}> retiré du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
+          return interaction.reply({ content: `🧹 OK. <@${userId}> retiré du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
         }
 
         // Events Perco — correction modal submit (preview only)
@@ -1904,7 +1904,7 @@ async function main() {
 
           const embed = new EmbedBuilder()
             .setColor(0xf1c40f)
-            .setTitle('ðŸ§® Prévisualisation — Correction')
+            .setTitle('🧮 Prévisualisation — Correction')
             .setDescription(
               `SID **${sid}**\n` +
               `Nouveau points/joueur: **${defenders}**\n` +
@@ -1968,7 +1968,7 @@ async function main() {
 
           ev.removeUser(interaction.guildId, userId);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
-          return interaction.reply({ content: `ðŸ§¹ OK. <@${userId}> supprimé du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
+          return interaction.reply({ content: `🧹 OK. <@${userId}> supprimé du classement.`, ephemeral: true, allowedMentions: { parse: [] } });
         }
 
         if (interaction.customId === 'evadm_reset_submit') {
@@ -2011,7 +2011,7 @@ async function main() {
           ev.resetGuild(interaction.guildId);
           await ensureEventScoreboard(interaction.guild, rc).catch(() => {});
 
-          return interaction.reply({ content: 'ðŸ§¨ Reset saison effectué : scores + submissions + screens supprimés (box staff conservée).', ephemeral: true });
+          return interaction.reply({ content: '🧨 Reset saison effectué : scores + submissions + screens supprimés (box staff conservée).', ephemeral: true });
         }
 
         if (interaction.customId.startsWith('profset:')) {
@@ -2088,10 +2088,10 @@ async function main() {
             if (pch && pch.isTextBased()) {
               const embed = new EmbedBuilder()
                 .setColor(0x3498db)
-                .setTitle('ðŸŽ® Profil joueur')
+                .setTitle('🎮 Profil joueur')
                 .addFields(
                   { name: 'Discord', value: `<@${userId}> (\`${userId}\`)`, inline: false },
-                  { name: 'Pseudos en jeu', value: ignList.map(x => `â€¢ **${x}**`).join('\n').slice(0, 1024), inline: false },
+                  { name: 'Pseudos en jeu', value: ignList.map(x => `• **${x}**`).join('\n').slice(0, 1024), inline: false },
                   { name: 'Statut', value: choice === 'guildeux' ? '🛡️ Guildeux (en attente validation staff)' : '🎟️ Invité (en attente validation staff)', inline: false },
                 )
                 .setFooter({ text: 'Ajout automatique à l’arrivée.' });
@@ -2150,7 +2150,7 @@ async function main() {
                       new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                           .setCustomId(`welgif:${guildId}:${userId}:${member.joinedTimestamp}`)
-                          .setLabel('ðŸŽ‰ Souhaiter la bienvenue (GIF)')
+                          .setLabel('🎉 Souhaiter la bienvenue (GIF)')
                           .setStyle(ButtonStyle.Success)
                       )
                     );
@@ -2202,11 +2202,11 @@ async function main() {
               .setTitle('📜 Almanax — Aide')
               .setDescription(
                 [
-                  'â€¢ **/almanax** â†’ Almanax du jour',
-                  'â€¢ **/almanax jours:7** â†’ Almanax dans 7 jours (J+7)',
-                  'â€¢ **/almanax prochains:10** â†’ liste des 10 prochains jours',
-                  'â€¢ **/almanax bonus_disponibles:true** â†’ liste des bonus (slugs)',
-                  'â€¢ **/almanax prochain_bonus:full-of-life** â†’ prochain jour avec ce bonus',
+                  '• **/almanax** â†’ Almanax du jour',
+                  '• **/almanax jours:7** â†’ Almanax dans 7 jours (J+7)',
+                  '• **/almanax prochains:10** â†’ liste des 10 prochains jours',
+                  '• **/almanax bonus_disponibles:true** â†’ liste des bonus (slugs)',
+                  '• **/almanax prochain_bonus:full-of-life** â†’ prochain jour avec ce bonus',
                 ].join('\n')
               )
               .setFooter({ text: 'Source: krosmoz.com (scraping) — Touch' });
@@ -2361,12 +2361,12 @@ async function main() {
                   [
                     'Commandes disponibles **dans ce salon uniquement** :',
                     '',
-                    'â€¢ **/almanax** â†’ Almanax du jour',
-                    'â€¢ **/almanax jours:7** â†’ Almanax dans 7 jours (J+7)',
-                    'â€¢ **/almanax prochains:10** â†’ liste des 10 prochains jours',
-                    'â€¢ **/almanax bonus_disponibles:true** â†’ liste des bonus (slugs)',
-                    'â€¢ **/almanax prochain_bonus:full-of-life** â†’ prochain jour avec ce bonus',
-                    'â€¢ **/almanax aide:true** â†’ rappel des commandes',
+                    '• **/almanax** â†’ Almanax du jour',
+                    '• **/almanax jours:7** â†’ Almanax dans 7 jours (J+7)',
+                    '• **/almanax prochains:10** â†’ liste des 10 prochains jours',
+                    '• **/almanax bonus_disponibles:true** â†’ liste des bonus (slugs)',
+                    '• **/almanax prochain_bonus:full-of-life** â†’ prochain jour avec ce bonus',
+                    '• **/almanax aide:true** â†’ rappel des commandes',
                     '',
                     'â° Publication automatique : **tous les jours à 00:00 (Europe/Paris)** (résumé).',
                   ].join('\n')
@@ -2673,11 +2673,11 @@ async function main() {
 
               const panelEmbed = new EmbedBuilder()
                 .setColor(0x3498db)
-                .setTitle('ðŸ“¸ Événements Perco — Soumission')
+                .setTitle('📸 Événements Perco — Soumission')
                 .setDescription(
                   [
                     '**Comment soumettre un combat :**',
-                    '1) Clique sur **ðŸ“¤ Soumettre un combat**',
+                    '1) Clique sur **📤 Soumettre un combat**',
                     '2) Dans le thread créé, **mentionne tous les participants**',
                     '   âžœ **N’oublie pas de t’identifier toi-même si tu as participé au combat**',
                     '3) Envoie ensuite **1 ou 2 screenshots** (date/heure visibles)',
@@ -2689,14 +2689,14 @@ async function main() {
                   {
                     name: '✅ Règles (obligatoires)',
                     value: [
-                      'â€¢ Date + heure visibles',
-                      'â€¢ Tous les attaquants + défenseurs (**perco inclus**) visibles',
-                      'â€¢ Max **2** images',
+                      '• Date + heure visibles',
+                      '• Tous les attaquants + défenseurs (**perco inclus**) visibles',
+                      '• Max **2** images',
                     ].join('\n'),
                     inline: false,
                   },
                   {
-                    name: 'ðŸ’¡ Astuce',
+                    name: '💡 Astuce',
                     value: 'Si vous avez oublié quelqu’un dans les mentions, prévenez le staff avant validation.',
                     inline: false,
                   },
@@ -2704,12 +2704,12 @@ async function main() {
                 .setImage('attachment://event-perco-banner.png');
 
               const panelRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`evopen:${guild.id}`).setLabel('ðŸ“¤ Soumettre un combat').setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId(`evopen:${guild.id}`).setLabel('📤 Soumettre un combat').setStyle(ButtonStyle.Primary),
               );
 
               // pin one panel (best effort)
               const recent = await targetPanelCh.messages.fetch({ limit: 20 }).catch(() => null);
-              const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === 'ðŸ“¸ Événements Perco — Soumission');
+              const existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📸 Événements Perco — Soumission');
               const bannerPath = path.join(__dirname, '..', 'assets', 'event-perco-banner.png');
               const files = [];
               try { files.push({ attachment: bannerPath, name: 'event-perco-banner.png' }); } catch {}
@@ -2723,7 +2723,7 @@ async function main() {
               warnings.push(`Soumission panel: ${e?.message || e}`);
             }
 
-            const warnText = warnings.length ? `\n\nâš ï¸ Warnings:\nâ€¢ ${warnings.join('\nâ€¢ ').slice(0, 1500)}` : '';
+            const warnText = warnings.length ? `\n\n⚠️ Warnings:\n• ${warnings.join('\n• ').slice(0, 1500)}` : '';
             return interaction.editReply({
               content:
                 `✅ OK. Events configurés.\n` +
@@ -2749,7 +2749,7 @@ async function main() {
               return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les messages**." }).catch(() => {});
             }
 
-            await interaction.editReply({ content: `ðŸ§¹ Nettoyage en cours (${n} messages)…` }).catch(() => {});
+            await interaction.editReply({ content: `🧹 Nettoyage en cours (${n} messages)…` }).catch(() => {});
             try {
               const deleted = await interaction.channel.bulkDelete(n, true);
               return interaction.editReply({ content: `✅ ${deleted.size} messages supprimés.` }).catch(() => {});
@@ -2788,13 +2788,13 @@ async function main() {
               if (unlock) {
                 // Remove overwrite for @everyone to restore inherited perms
                 await salon.permissionOverwrites.delete(everyoneId).catch(() => {});
-                await interaction.editReply({ content: `ðŸ”“ Déverrouillé : <#${salon.id}>` });
+                await interaction.editReply({ content: `🔓 Déverrouillé : <#${salon.id}>` });
               } else {
                 await salon.permissionOverwrites.edit(everyoneId, { SendMessages: false });
                 for (const r of roles) {
                   await salon.permissionOverwrites.edit(r.id, { SendMessages: true });
                 }
-                await interaction.editReply({ content: `ðŸ”’ Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` });
+                await interaction.editReply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` });
               }
             } catch (e) {
               return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
@@ -2859,7 +2859,7 @@ async function main() {
             return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les messages**." }).catch(() => {});
           }
 
-          await interaction.editReply({ content: `ðŸ§¹ Nettoyage en cours (${n} messages)…` }).catch(() => {});
+          await interaction.editReply({ content: `🧹 Nettoyage en cours (${n} messages)…` }).catch(() => {});
           try {
             const deleted = await interaction.channel.bulkDelete(n, true);
             return interaction.editReply({ content: `✅ ${deleted.size} messages supprimés.` }).catch(() => {});
@@ -2892,14 +2892,14 @@ async function main() {
           try {
             if (unlock) {
               await salon.permissionOverwrites.delete(everyoneId).catch(() => {});
-              return interaction.editReply({ content: `ðŸ”“ Déverrouillé : <#${salon.id}>` }).catch(() => {});
+              return interaction.editReply({ content: `🔓 Déverrouillé : <#${salon.id}>` }).catch(() => {});
             }
 
             await salon.permissionOverwrites.edit(everyoneId, { SendMessages: false });
             for (const r of roles) {
               await salon.permissionOverwrites.edit(r.id, { SendMessages: true });
             }
-            return interaction.editReply({ content: `ðŸ”’ Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` }).catch(() => {});
+            return interaction.editReply({ content: `🔒 Verrouillé : <#${salon.id}> (écriture autorisée: ${roles.map(r => r.toString()).join(' ')})` }).catch(() => {});
           } catch (e) {
             return interaction.editReply({ content: `Erreur: ${e.message}` }).catch(() => {});
           }
@@ -2952,14 +2952,14 @@ async function main() {
 
           embed.setDescription(
             [
-              'ðŸ“£ **Merci à tous pour votre réactivité !**',
+              '📣 **Merci à tous pour votre réactivité !**',
               '',
-              `ðŸ¥‡ **Vainqueur :** ${top1.replace('**01.** ', '') || '—'}`,
+              `🥇 **Vainqueur :** ${top1.replace('**01.** ', '') || '—'}`,
               '',
-              'ðŸ… **Top 3 :**',
+              '🏅 **Top 3 :**',
               top3 || '—',
               '',
-              '🎁 **Récompense :** contactez le **meneur** pour récupérer **30% de la banque du meneur** ðŸ‘€',
+              '🎁 **Récompense :** contactez le **meneur** pour récupérer **30% de la banque du meneur** 👀',
             ].join('\n').slice(0, 3900)
           );
 
@@ -3135,8 +3135,8 @@ async function main() {
               // Keep only essential post-validation controls: correction + resync
               try {
                 const rowAfter = new ActionRowBuilder().addComponents(
-                  new ButtonBuilder().setCustomId(`evfix:${id}:open`).setLabel('ðŸ”§ Corriger').setStyle(ButtonStyle.Secondary),
-                  new ButtonBuilder().setCustomId(`evpub:${id}:resync`).setLabel('ðŸ”„ Resync').setStyle(ButtonStyle.Secondary),
+                  new ButtonBuilder().setCustomId(`evfix:${id}:open`).setLabel('🔧 Corriger').setStyle(ButtonStyle.Secondary),
+                  new ButtonBuilder().setCustomId(`evpub:${id}:resync`).setLabel('🔄 Resync').setStyle(ButtonStyle.Secondary),
                 );
                 await interaction.message.edit({ components: [rowAfter] }).catch(() => {});
               } catch {}
@@ -3426,7 +3426,7 @@ async function main() {
           if (action === 'resync') {
             try {
               await ensureEventScoreboard(interaction.guild, rc);
-              return interaction.reply({ content: 'ðŸ”„ Refresh OK (scoreboard mis à jour).', ephemeral: true });
+              return interaction.reply({ content: '🔄 Refresh OK (scoreboard mis à jour).', ephemeral: true });
             } catch (e) {
               return interaction.reply({ content: `❌ Refresh impossible. Vérifie mes permissions dans le salon classement (Voir salon / Envoyer messages / Lire historique / Épingler si possible).\nDétail: ${(e?.message || e)}`.slice(0, 1900), ephemeral: true });
             }
@@ -3449,7 +3449,7 @@ async function main() {
           }
 
           if (action === 'remove') {
-            const modal = new ModalBuilder().setCustomId(`evpub_remove_submit:${sid}`).setTitle('ðŸ§¹ Kick du classement');
+            const modal = new ModalBuilder().setCustomId(`evpub_remove_submit:${sid}`).setTitle('🧹 Kick du classement');
             const u = new TextInputBuilder().setCustomId('user').setLabel('Joueur à retirer (mention ou ID)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(64);
             modal.addComponents(new ActionRowBuilder().addComponents(u));
             return interaction.showModal(modal);
@@ -3475,7 +3475,7 @@ async function main() {
           if (!allowed) return interaction.reply({ content: 'Réservé staff.', ephemeral: true });
 
           const plan = pendingEventFix.get(`${interaction.user.id}:${sid}`);
-          if (!plan) return interaction.reply({ content: 'Plan de correction introuvable (refais ðŸ”§ Corriger).', ephemeral: true });
+          if (!plan) return interaction.reply({ content: 'Plan de correction introuvable (refais 🔧 Corriger).', ephemeral: true });
 
           const sub = ev.getSubmission(sid);
           if (!sub) return interaction.reply({ content: 'Demande introuvable.', ephemeral: true });
@@ -3611,7 +3611,7 @@ async function main() {
           if (action === 'resync') {
             try {
               await ensureEventScoreboard(interaction.guild, rc);
-              return interaction.reply({ content: 'ðŸ”„ Resync terminé (classement mis à jour).', ephemeral: true });
+              return interaction.reply({ content: '🔄 Resync terminé (classement mis à jour).', ephemeral: true });
             } catch (e) {
               return interaction.reply({ content: `❌ Resync impossible. Vérifie mes permissions dans le salon classement.\nDétail: ${(e?.message || e)}`.slice(0, 1900), ephemeral: true });
             }
@@ -3641,7 +3641,7 @@ async function main() {
           }
 
           if (action === 'reset') {
-            const modal = new ModalBuilder().setCustomId('evadm_reset_submit').setTitle('ðŸ§¨ Reset saison Events');
+            const modal = new ModalBuilder().setCustomId('evadm_reset_submit').setTitle('🧨 Reset saison Events');
             const input = new TextInputBuilder()
               .setCustomId('confirm')
               .setLabel('Tape RESET pour confirmer')
@@ -3715,7 +3715,7 @@ async function main() {
                 }
                 await target.kick('Refus staff (invité)');
                 await interaction.message.edit({ components: [] }).catch(() => {});
-                return interaction.reply({ content: `â›” ${targetUserId} expulsé du serveur.`, ephemeral: true });
+                return interaction.reply({ content: `⚔️ ${targetUserId} expulsé du serveur.`, ephemeral: true });
               }
 
               return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
@@ -3757,7 +3757,7 @@ async function main() {
               }
               await target.kick('Refus staff (demande guildeux)').catch(() => {});
               await interaction.message.edit({ components: [] }).catch(() => {});
-              return interaction.reply({ content: `â›” ${targetUserId} expulsé du serveur.`, ephemeral: true });
+              return interaction.reply({ content: `⚔️ ${targetUserId} expulsé du serveur.`, ephemeral: true });
             }
 
             return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
@@ -3779,7 +3779,7 @@ async function main() {
 
           // New joiner should NOT use this button
           if (interaction.user.id === newUserId) {
-            return interaction.reply({ content: 'Ce bouton est réservé aux membres pour te souhaiter la bienvenue ðŸ™‚', ephemeral: true });
+            return interaction.reply({ content: 'Ce bouton est réservé aux membres pour te souhaiter la bienvenue 🙂', ephemeral: true });
           }
 
           // Expire after 2 hours
@@ -3826,7 +3826,7 @@ async function main() {
 
           const embed = new EmbedBuilder()
             .setColor(0x3498db)
-            .setTitle('ðŸŽ‰ Bienvenue !')
+            .setTitle('🎉 Bienvenue !')
             .setDescription(`${interaction.user} souhaite la bienvenue à <@${newUserId}> !`)
             .setImage(gifUrl);
 
@@ -3901,7 +3901,7 @@ async function main() {
                     new ActionRowBuilder().addComponents(
                       new ButtonBuilder()
                         .setCustomId(`welgif:${guildId}:${targetUserId}:${member.joinedTimestamp}`)
-                        .setLabel('ðŸŽ‰ Souhaiter la bienvenue (GIF)')
+                        .setLabel('🎉 Souhaiter la bienvenue (GIF)')
                         .setStyle(ButtonStyle.Success)
                     )
                   );
