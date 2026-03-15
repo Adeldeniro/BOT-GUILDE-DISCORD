@@ -230,10 +230,18 @@ async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
     .setThumbnail(avatarUrl)
     .setFooter({ text: 'Clique sur Valider ou Refuser.' });
 
+  const mode = String(choiceLabel || '').toLowerCase().includes('invité') || String(choiceLabel || '').toLowerCase().includes('invite')
+    ? 'invite'
+    : 'guildeux';
+
   const components = [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:approve`).setLabel('✅ Valider (GTO+DEF)').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:deny`).setLabel('❌ Refuser (Invité)').setStyle(ButtonStyle.Danger),
+      mode === 'invite'
+        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:approve`).setLabel('✅ Valider Invité').setStyle(ButtonStyle.Success)
+        : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:approve`).setLabel('✅ Valider (GTO+DEF)').setStyle(ButtonStyle.Success),
+      mode === 'invite'
+        ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:deny`).setLabel('⛔ Refuser / Kick').setStyle(ButtonStyle.Danger)
+        : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:deny`).setLabel('❌ Refuser (Invité)').setStyle(ButtonStyle.Danger),
     ),
   ];
 
@@ -3144,7 +3152,11 @@ async function main() {
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
           const targetUserId = parts[2];
-          const action = parts[3];
+          // Backward compatible:
+          // old: staffval:guildId:userId:approve
+          // new: staffval:guildId:userId:(guildeux|invite):approve
+          const mode = parts.length >= 5 ? parts[3] : 'guildeux';
+          const action = parts.length >= 5 ? parts[4] : parts[3];
 
           if (!interaction.guild || interaction.guild.id !== guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true });
@@ -3170,6 +3182,35 @@ async function main() {
           const roleInvite = rc.welcomeRoleInviteId ? interaction.guild.roles.cache.get(rc.welcomeRoleInviteId) : null;
 
           try {
+            if (mode === 'invite') {
+              if (action === 'approve') {
+                // Validate as invite: ensure invite role, remove guild roles if any
+                if (roleInvite) await target.roles.add(roleInvite).catch(() => {});
+                if (roleGuildeux) await target.roles.remove(roleGuildeux).catch(() => {});
+                if (roleGTO) await target.roles.remove(roleGTO).catch(() => {});
+                if (roleDEF) await target.roles.remove(roleDEF).catch(() => {});
+
+                await updateProfileBox(interaction.guild, rc, targetUserId, {
+                  statusText: `✅ Invité validé — ${roleInvite ? roleInvite.toString() : 'Invité'}`,
+                });
+
+                await interaction.message.edit({ components: [] }).catch(() => {});
+                return interaction.reply({ content: `✅ Invité validé pour ${target}.`, ephemeral: true });
+              }
+
+              if (action === 'deny') {
+                if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+                  return interaction.reply({ content: "Je n'ai pas la permission **Expulser des membres**.", ephemeral: true });
+                }
+                await target.kick('Refus staff (invité)');
+                await interaction.message.edit({ components: [] }).catch(() => {});
+                return interaction.reply({ content: `⛔ ${targetUserId} expulsé du serveur.`, ephemeral: true });
+              }
+
+              return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
+            }
+
+            // mode = guildeux
             if (action === 'approve') {
               if (roleGTO) await target.roles.add(roleGTO);
               if (roleDEF) await target.roles.add(roleDEF);
@@ -3294,7 +3335,9 @@ async function main() {
           const roleI = rc.welcomeRoleInviteId ? interaction.guild.roles.cache.get(rc.welcomeRoleInviteId) : null;
 
           try {
-            if ((kind === 'guildeux' && roleG) || (kind === 'invite' && roleI)) {
+            if (kind === 'guildeux') {
+              if (!roleG) return interaction.reply({ content: 'Rôle Guildeux non configuré.', ephemeral: true });
+
               // Ask for IGN via modal first; roles + staff alert will happen on modal submit.
               const modal = new ModalBuilder()
                 .setCustomId(`ign:${interaction.guild.id}:${interaction.user.id}:${kind}:${interaction.message.id}`)
@@ -3316,7 +3359,35 @@ async function main() {
               // We will update the message components after the modal submit succeeds.
               return interaction.showModal(modal);
             }
-            return interaction.reply({ content: 'Rôle non configuré.', ephemeral: true });
+
+            if (kind === 'invite') {
+              if (!roleI) return interaction.reply({ content: 'Rôle Invité non configuré.', ephemeral: true });
+
+              // Invités: NO IGN required.
+              await member.roles.add(roleI).catch(() => {});
+              if (roleG) await member.roles.remove(roleG).catch(() => {});
+              await postStaffValidationAlert(interaction.guild, rc, targetUserId, 'Invité').catch(() => {});
+
+              // After selection, replace the welcome message buttons with the GIF button (members-only).
+              try {
+                const rows = [];
+                if (rc.welcomeChatChannelId && member?.joinedTimestamp) {
+                  rows.push(
+                    new ActionRowBuilder().addComponents(
+                      new ButtonBuilder()
+                        .setCustomId(`welgif:${guildId}:${targetUserId}:${member.joinedTimestamp}`)
+                        .setLabel('🎉 Souhaiter la bienvenue (GIF)')
+                        .setStyle(ButtonStyle.Success)
+                    )
+                  );
+                }
+                await interaction.message.edit({ components: rows }).catch(() => {});
+              } catch {}
+
+              return interaction.reply({ content: '✅ Statut Invité enregistré.', ephemeral: true });
+            }
+
+            return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
           } catch (e) {
             return interaction.reply({ content: `Erreur rôle: ${e.message}`, ephemeral: true });
           }
