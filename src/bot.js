@@ -766,6 +766,11 @@ async function registerCommands(client) {
       .addIntegerOption(o => o.setName('top').setDescription('Top N (ex: 25)').setRequired(false)),
 
     new SlashCommandBuilder()
+      .setName('scoreboard_weekly_run')
+      .setDescription('Annonce hebdo + reset du scoreboard pings (admin)')
+      .addBooleanOption(o => o.setName('reset').setDescription('Reset les scores après annonce (défaut: true)').setRequired(false)),
+
+    new SlashCommandBuilder()
       .setName('setup_status')
       .setDescription('Afficher la config actuelle (owner only)'),
 
@@ -938,7 +943,7 @@ async function main() {
           setInterval(async () => {
             try {
               if (scoreboardChannel && scoreboardChannel.isTextBased()) {
-                await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10 });
+                await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10, hour: 22 });
               }
             } catch (e) {
               console.warn('[bot] weekly announcement error:', e?.message || e);
@@ -2003,6 +2008,38 @@ async function main() {
               return interaction.reply({ content: `OK. Scoreboard configuré dans <#${sbChannel.id}> (message ${msg.id}).`, ephemeral: true });
             }
             return interaction.reply({ content: `Scoreboard configuré, mais salon inaccessible: <#${salon.id}>.`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'scoreboard_weekly_run') {
+            const rc2 = getConfigForGuild(guild.id);
+            const reset = interaction.options.getBoolean('reset');
+
+            if (!rc2.scoreboardChannelId) {
+              return interaction.reply({ content: 'Scoreboard non configuré (setup_scoreboard).', ephemeral: true });
+            }
+
+            const sbChannel = await interaction.client.channels.fetch(rc2.scoreboardChannelId).catch(() => null);
+            if (!sbChannel || !sbChannel.isTextBased()) {
+              return interaction.reply({ content: 'Salon scoreboard inaccessible.', ephemeral: true });
+            }
+
+            const embed = await scoreboard.buildScoreboardEmbed(guild, { topN: Math.min(10, rc2.scoreboardTopN || 10) });
+            embed.setTitle('🏆 Classement hebdo — Guildeux (pings)');
+            embed.setDescription(
+              (embed.data?.description || '') +
+              `\n\n🏅 **GG au vainqueur !** Parlez au **meneur** pour récupérer votre gain : **30% de la banque du meneur**.`
+            );
+            embed.setFooter({ text: 'Annonce manuelle + reset.' });
+
+            await sbChannel.send({ embeds: [embed] });
+
+            const doReset = reset !== false;
+            if (doReset) {
+              scoreboard.resetScores(guild.id);
+              await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
+            }
+
+            return interaction.reply({ content: `✅ Annonce envoyée${doReset ? ' + reset effectué' : ''}.`, ephemeral: true });
           }
 
           if (interaction.commandName === 'setup_status') {

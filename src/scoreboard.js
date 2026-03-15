@@ -87,12 +87,16 @@ async function buildScoreboardEmbed(guild, { topN = 25 } = {}) {
     // ignore
   }
 
-  const cfg = require('./config');
-  if (!cfg.guildeuxRoleId) {
-    return new EmbedBuilder().setColor(0x3498db).setTitle('📊 Classement des pings — Guildeux').setDescription('Scoreboard non configuré (GUILDEUX_ROLE_ID manquant).');
+  const { getConfigForGuild } = require('./runtimeConfig');
+  const rc = getConfigForGuild(guild.id);
+  if (!rc.guildeuxRoleId) {
+    return new EmbedBuilder()
+      .setColor(0x3498db)
+      .setTitle('📊 Classement des pings — Guildeux')
+      .setDescription('Scoreboard non configuré (rôle guildeux manquant). Relance **/setup_scoreboard** et sélectionne `role_guildeux`.');
   }
 
-  const role = guild.roles.cache.get(cfg.guildeuxRoleId);
+  const role = guild.roles.cache.get(rc.guildeuxRoleId);
   const guildeuxMembers = role ? role.members.map(m => m) : [];
 
   // Ensure DB rows exist for known guildeux members
@@ -134,25 +138,37 @@ async function buildScoreboardEmbed(guild, { topN = 25 } = {}) {
     .setFooter({ text: 'Mise à jour automatique après chaque ping.' });
 }
 
-async function maybeWeeklyAnnouncement(guild, channel, { topN = 10 } = {}) {
+function resetScores(guildId) {
+  db.prepare(`UPDATE guildeux_scores SET ping_count=0, last_ping_at=NULL WHERE guild_id=?`).run(guildId);
+}
+
+async function maybeWeeklyAnnouncement(guild, channel, { topN = 10, hour = 22 } = {}) {
   const now = new Date();
   const ymd = fmtYmd(now);
 
-  // Sunday 19:00 local time
+  // Sunday at <hour>:00 local time
   const isSunday = now.getDay() === 0;
-  const is19 = now.getHours() === 19;
-  const isMinuteWindow = now.getMinutes() === 0; // run when minute == 0
+  const isHour = now.getHours() === hour;
+  const isMinuteWindow = now.getMinutes() === 0;
 
-  if (!isSunday || !is19 || !isMinuteWindow) return;
+  if (!isSunday || !isHour || !isMinuteWindow) return;
 
   const state = getScoreboardState(guild.id);
   if (state?.last_weekly_announce_date === ymd) return;
 
   const embed = await buildScoreboardEmbed(guild, { topN });
   embed.setTitle('🏆 Classement hebdo — Guildeux (pings)');
-  embed.setFooter({ text: 'Annonce automatique du dimanche 19h.' });
+  embed.setDescription(
+    (embed.data?.description || '') +
+    `\n\n🏅 **GG au vainqueur !** Parlez au **meneur** pour récupérer votre gain : **30% de la banque du meneur**.`
+  );
+  embed.setFooter({ text: `Annonce auto — Dimanche ${String(hour).padStart(2, '0')}h + reset.` });
 
   await channel.send({ embeds: [embed] });
+
+  // Reset weekly scores AFTER announcement
+  resetScores(guild.id);
+
   setLastWeeklyAnnounceDate(guild.id, ymd);
 }
 
@@ -162,4 +178,5 @@ module.exports = {
   incrementPing,
   upsertScoreUser,
   maybeWeeklyAnnouncement,
+  resetScores,
 };
