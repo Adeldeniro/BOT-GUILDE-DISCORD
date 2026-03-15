@@ -3196,12 +3196,12 @@ async function main() {
             return interaction.reply({ content: 'Salon chat-arrive inaccessible.', ephemeral: true });
           }
 
-          // Cooldown per user (30s)
+          // Cooldown per user (3s)
           const key = `welgif:${interaction.guild.id}:${interaction.user.id}`;
           const now = Date.now();
           const last = cooldown.get(key) || 0;
-          if (now - last < 30_000) {
-            return interaction.reply({ content: '⏳ Attends un peu avant de renvoyer un GIF.', ephemeral: true });
+          if (now - last < 3_000) {
+            return interaction.reply({ content: '⏳ Attends 3 secondes avant de renvoyer un GIF.', ephemeral: true });
           }
           cooldown.set(key, now);
 
