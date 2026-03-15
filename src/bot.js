@@ -1850,14 +1850,27 @@ async function main() {
             }
           }
 
-          // Remove welcome buttons message if we still have it
+          // After successful IGN submit: remove the role-choice buttons and add the GIF button (members-only) on the welcome message.
           const msgId = parts[4];
           if (msgId) {
             try {
               const wch = await interaction.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
               if (wch && wch.isTextBased()) {
                 const m = await wch.messages.fetch(msgId).catch(() => null);
-                if (m) await m.edit({ components: [] }).catch(() => {});
+                if (m) {
+                  const rows = [];
+                  if (rc.welcomeChatChannelId && member?.joinedTimestamp) {
+                    rows.push(
+                      new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                          .setCustomId(`welgif:${guildId}:${userId}:${member.joinedTimestamp}`)
+                          .setLabel('🎲 Souhaiter la bienvenue (GIF)')
+                          .setStyle(ButtonStyle.Secondary)
+                      )
+                    );
+                  }
+                  await m.edit({ components: rows }).catch(() => {});
+                }
               }
             } catch {}
           }
@@ -3291,14 +3304,9 @@ async function main() {
 
               modal.addComponents(new ActionRowBuilder().addComponents(input));
 
-              // Hide only the role-choice buttons; keep the GIF button row if present.
-              try {
-                const keep = (interaction.message.components || []).filter(row =>
-                  (row.components || []).some(c => typeof c.customId === 'string' && c.customId.startsWith('welgif:'))
-                );
-                await interaction.message.edit({ components: keep });
-              } catch {}
-
+              // Do NOT edit the welcome message here.
+              // If the member closes the modal by mistake, they must be able to click again.
+              // We will update the message components after the modal submit succeeds.
               return interaction.showModal(modal);
             }
             return interaction.reply({ content: 'Rôle non configuré.', ephemeral: true });
