@@ -242,6 +242,10 @@ async function postStaffValidationAlert(guild, rc, targetUserId, choiceLabel) {
       mode === 'invite'
         ? new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:invite:deny`).setLabel('⛔ Refuser / Kick').setStyle(ButtonStyle.Danger)
         : new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:deny`).setLabel('❌ Refuser (Invité)').setStyle(ButtonStyle.Danger),
+      // Extra kick option for guildeux requests
+      ...(mode === 'guildeux'
+        ? [new ButtonBuilder().setCustomId(`staffval:${guild.id}:${targetUserId}:guildeux:kick`).setLabel('⛔ Kick').setStyle(ButtonStyle.Danger)]
+        : []),
     ),
   ];
 
@@ -1879,13 +1883,21 @@ async function main() {
             if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
               return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
             }
-            if (choice === 'guildeux' && roleG) {
-              await member.roles.add(roleG).catch(() => {});
-              if (roleI) await member.roles.remove(roleI).catch(() => {});
+            if (choice === 'guildeux') {
+              // SECURITY: do NOT grant guild access before staff validation.
+              // Put the member as "Invité" while waiting.
+              if (roleI) await member.roles.add(roleI).catch(() => {});
+              if (roleG) await member.roles.remove(roleG).catch(() => {});
+              // Also ensure no guild roles are given here.
+              const roleGTO = rc.gtoRoleId ? interaction.guild.roles.cache.get(rc.gtoRoleId) : null;
+              const roleDEF = rc.defRoleId ? interaction.guild.roles.cache.get(rc.defRoleId) : null;
+              if (roleGTO) await member.roles.remove(roleGTO).catch(() => {});
+              if (roleDEF) await member.roles.remove(roleDEF).catch(() => {});
+
               await postStaffValidationAlert(interaction.guild, rc, userId, 'Guildeux');
             }
-            if (choice === 'invite' && roleI) {
-              await member.roles.add(roleI).catch(() => {});
+            if (choice === 'invite') {
+              if (roleI) await member.roles.add(roleI).catch(() => {});
               if (roleG) await member.roles.remove(roleG).catch(() => {});
               await postStaffValidationAlert(interaction.guild, rc, userId, 'Invité');
             }
@@ -3287,8 +3299,10 @@ async function main() {
 
             // mode = guildeux
             if (action === 'approve') {
-              if (roleGTO) await target.roles.add(roleGTO);
-              if (roleDEF) await target.roles.add(roleDEF);
+              if (roleGTO) await target.roles.add(roleGTO).catch(() => {});
+              if (roleDEF) await target.roles.add(roleDEF).catch(() => {});
+              // Remove invite role if present
+              if (roleInvite) await target.roles.remove(roleInvite).catch(() => {});
 
               await updateProfileBox(interaction.guild, rc, targetUserId, {
                 statusText: `✅ Validé — ${roleGTO ? roleGTO.toString() : '@GTO'} ${roleDEF ? roleDEF.toString() : '@DEF'}`,
@@ -3299,6 +3313,9 @@ async function main() {
             }
 
             if (action === 'deny') {
+              // Ensure invite role (and remove any guild roles)
+              if (roleGTO) await target.roles.remove(roleGTO).catch(() => {});
+              if (roleDEF) await target.roles.remove(roleDEF).catch(() => {});
               if (roleGuildeux) await target.roles.remove(roleGuildeux).catch(() => {});
               if (roleInvite) await target.roles.add(roleInvite).catch(() => {});
 
@@ -3308,6 +3325,15 @@ async function main() {
 
               await interaction.message.edit({ components: [] }).catch(() => {});
               return interaction.reply({ content: `❌ Refusé. ${target} est maintenant invité.`, ephemeral: true });
+            }
+
+            if (action === 'kick') {
+              if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+                return interaction.reply({ content: "Je n'ai pas la permission **Expulser des membres**.", ephemeral: true });
+              }
+              await target.kick('Refus staff (demande guildeux)').catch(() => {});
+              await interaction.message.edit({ components: [] }).catch(() => {});
+              return interaction.reply({ content: `⛔ ${targetUserId} expulsé du serveur.`, ephemeral: true });
             }
 
             return interaction.reply({ content: 'Action inconnue.', ephemeral: true });
