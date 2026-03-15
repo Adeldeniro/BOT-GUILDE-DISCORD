@@ -3589,17 +3589,14 @@ async function main() {
           allowedMentions: { roles: pingRoles },
         });
 
-        // Scoreboard: count pings for members who have the @guildeux role
+        // Scoreboard: count ALL alert button clicks (guilde, rush, everyone, etc.) as long as the alert was sent successfully.
+        // (User choice: count only on success — this code runs after alertChannel.send)
         try {
-          const member = interaction.member;
-          if (rc.guildeuxRoleId && rc.scoreboardChannelId) {
-            const hasGuildeux = !!(member?.roles && member.roles.cache?.has(rc.guildeuxRoleId));
-            if (hasGuildeux) {
-              scoreboard.incrementPing(interaction.guild.id, interaction.user.id);
-              const sbChannel = await interaction.client.channels.fetch(rc.scoreboardChannelId).catch(() => null);
-              if (sbChannel && sbChannel.isTextBased()) {
-                await scoreboard.ensureScoreboardMessage(interaction.guild, sbChannel, { topN: rc.scoreboardTopN });
-              }
+          if (rc.scoreboardChannelId) {
+            scoreboard.incrementPing(interaction.guild.id, interaction.user.id);
+            const sbChannel = await interaction.client.channels.fetch(rc.scoreboardChannelId).catch(() => null);
+            if (sbChannel && sbChannel.isTextBased()) {
+              await scoreboard.ensureScoreboardMessage(interaction.guild, sbChannel, { topN: rc.scoreboardTopN });
             }
           }
         } catch (e) {
