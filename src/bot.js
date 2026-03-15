@@ -3787,7 +3787,7 @@ async function main() {
           if (ageMs > 2 * 60 * 60 * 1000) {
             // Best-effort: remove the button row if possible
             try { await interaction.message.edit({ components: [] }); } catch {}
-            return interaction.reply({ content: 'âŒ› Ce bouton a expirÃ© (2h aprÃ¨s lâ€™arrivÃ©e).', ephemeral: true });
+            return interaction.reply({ content: '⌛ Ce bouton a expiré (2h après l’arrivée).', ephemeral: true });
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
