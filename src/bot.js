@@ -2209,74 +2209,102 @@ async function main() {
                   'â€¢ **/almanax prochain_bonus:full-of-life** â†’ prochain jour avec ce bonus',
                 ].join('\n')
               )
-              .setFooter({ text: 'Source: alm.dofusdu.de (almanax-api)' });
+              .setFooter({ text: 'Source: krosmoz.com (scraping) — Touch' });
             return interaction.editReply({ embeds: [help] }).catch(() => {});
           }
 
           try {
-            const lang = 'fr';
             const tz = 'Europe/Paris';
 
+            const norm = s => String(s || '')
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/\p{Diacritic}/gu, '')
+              .replace(/[^a-z0-9]+/g, ' ')
+              .trim();
+
             if (bonusDisponibles) {
-              // Bonuses endpoint is not under /v1; try common locations.
-              let data;
-              try { data = await fetchJson(`https://alm.dofusdu.de/dofus/bonuses/${lang}`); }
-              catch { data = await fetchJson(`https://alm.dofusdu.de/touch/bonuses/${lang}`); }
+              // Kaelly ne fournit pas une liste de "slugs" : on fait une liste pratique des bonus (types)
+              // en scannant les prochains jours.
+              const maxDays = 30;
+              const seen = new Map();
 
-              const list = Array.isArray(data) ? data : (data?.bonuses || []);
+              for (let d = 0; d < maxDays; d++) {
+                const ymd = parisYmdForDaysAhead(d);
+                const a = await getKrosmozAlmanaxTouch({ ymd, lang: 'fr' });
+                const key = norm(a.bonusType);
+                if (key && !seen.has(key)) {
+                  seen.set(key, a.bonusType);
+                }
+              }
 
-              const lines = list
-                .map(b => {
-                  const slug = b?.type || b?.bonus_type || b?.id || b?.slug;
-                  const name = b?.name || b?.text || b?.label;
-                  if (!slug) return null;
-                  return `â€¢ \`${slug}\`${name ? ` â€” ${name}` : ''}`;
-                })
-                .filter(Boolean);
+              const lines = Array.from(seen.values())
+                .sort((a, b) => a.localeCompare(b, 'fr'))
+                .map(t => `• **${t}**`);
 
               const embed = new EmbedBuilder()
                 .setColor(0x9b59b6)
-                .setTitle('ðŸ·ï¸ Bonus Almanax disponibles')
-                .setDescription(lines.join('\n').slice(0, 3900) || 'â€”');
+                .setTitle('🏷️ Bonus Almanax (Touch) — types détectés')
+                .setDescription(
+                  [
+                    `Scan: prochains **${maxDays}** jours (TZ ${tz})`,
+                    '',
+                    ...(lines.length ? lines : ['—']),
+                    '',
+                    'Astuce: utilise **/almanax prochain_bonus:** avec un mot-clé (ex: `butin`, `xp`, `metier`).'
+                  ].join('\n').slice(0, 3900)
+                );
 
               return interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
 
             if (prochainBonus) {
-              let data;
-              try {
-                data = await almanaxFetch(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next?timezone=${encodeURIComponent(tz)}`);
-              } catch {
-                data = await almanaxFetch(`/${lang}/bonus/${encodeURIComponent(prochainBonus)}/next`);
+              // En mode "Kaelly": pas de slug API. On interprète l'entrée comme un MOT-CLÉ
+              // et on scanne à l'avance jusqu'à trouver un bonus dont le type/description matche.
+              const query = norm(prochainBonus);
+              const limit = 366;
+
+              let foundDaysAhead = null;
+              let found = null;
+
+              for (let d = 0; d < limit; d++) {
+                const ymd = parisYmdForDaysAhead(d);
+                const a = await getKrosmozAlmanaxTouch({ ymd, lang: 'fr' });
+                const hay = norm(`${a.bonusType} ${a.bonusDesc}`);
+                if (hay.includes(query)) {
+                  foundDaysAhead = d;
+                  found = a;
+                  break;
+                }
               }
-              const off = pickOffering(data);
-              const embed = await buildAlmanaxEmbed({ daysAhead: 0, offering: off });
-              embed.setTitle(`ðŸ”Ž Prochain bonus â€” ${prochainBonus}`);
+
+              if (foundDaysAhead == null) {
+                return interaction.editReply({ content: `❌ Aucun bonus correspondant trouvé dans les ${limit} prochains jours (recherche: \`${prochainBonus}\`).` }).catch(() => {});
+              }
+
+              const embed = await buildAlmanaxEmbed({ daysAhead: foundDaysAhead });
+              embed.setTitle(`🔎 Prochain bonus (Touch) — ${prochainBonus}`);
+              embed.setFooter({ text: `Trouvé à J+${foundDaysAhead} • Source: krosmoz.com • TZ ${tz}` });
               return interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
 
             if (prochains) {
               const count = Math.max(1, Math.min(10, prochains));
-              const data = await almanaxFetch(`/${lang}/ahead/${count}`);
-              const list = Array.isArray(data) ? data : (data?.offerings || data?.days || data?.results || []);
-              if (!Array.isArray(list) || list.length === 0) {
-                return interaction.editReply({ content: "âŒ Almanax indisponible pour l'instant (API)." }).catch(() => {});
-              }
+              const lines = [];
 
-              const lines = list
-                .slice(0, count)
-                .map((o, idx) => {
-                  const { date, bonus, itemName, itemQty } = parseOffering(o);
-                  const bonusShort = String(bonus).replace(/\s+/g, ' ').slice(0, 80);
-                  const off = `${itemQty ? `${itemQty}Ã— ` : ''}${itemName}`;
-                  return `**J+${idx}** â€” **${date}**\nâ€¢ Bonus: ${bonusShort}\nâ€¢ Offrande: ${off}`;
-                });
+              for (let d = 0; d < count; d++) {
+                const ymd = parisYmdForDaysAhead(d);
+                const a = await getKrosmozAlmanaxTouch({ ymd, lang: 'fr' });
+                const bonusShort = `${a.bonusType} — ${String(a.bonusDesc).replace(/\s+/g, ' ').slice(0, 90)}`;
+                const off = a.itemQty ? `${a.itemQty}× ${a.itemName}` : a.offeringText;
+                lines.push(`**J+${d}** — **${ymd}**\n• Bonus: ${bonusShort}\n• Offrande: ${String(off).slice(0, 120)}`);
+              }
 
               const embed = new EmbedBuilder()
                 .setColor(0x9b59b6)
-                .setTitle(`ðŸ“† Prochains Almanax (x${count})`)
+                .setTitle(`📆 Prochains Almanax (Touch) (x${count})`)
                 .setDescription(lines.join('\n\n').slice(0, 3900))
-                .setFooter({ text: `TZ ${tz} â€¢ Source: alm.dofusdu.de` });
+                .setFooter({ text: `TZ ${tz} • Source: krosmoz.com` });
 
               return interaction.editReply({ embeds: [embed] }).catch(() => {});
             }
@@ -2285,7 +2313,7 @@ async function main() {
             const embed = await buildAlmanaxEmbed({ daysAhead: d });
             return interaction.editReply({ embeds: [embed] }).catch(() => {});
           } catch (e) {
-            return interaction.editReply({ content: `âŒ Erreur Almanax: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
+            return interaction.editReply({ content: `❌ Erreur Almanax: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
           }
         }
 
