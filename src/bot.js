@@ -1864,8 +1864,8 @@ async function main() {
                       new ActionRowBuilder().addComponents(
                         new ButtonBuilder()
                           .setCustomId(`welgif:${guildId}:${userId}:${member.joinedTimestamp}`)
-                          .setLabel('🎲 Souhaiter la bienvenue (GIF)')
-                          .setStyle(ButtonStyle.Secondary)
+                          .setLabel('🎉 Souhaiter la bienvenue (GIF)')
+                          .setStyle(ButtonStyle.Success)
                       )
                     );
                   }
@@ -2766,17 +2766,6 @@ async function main() {
             components.push(row);
           }
 
-          // Optional: GIF button posts in chat-arrive (configured via /setup_welcome chat_arrive:...)
-          // This button is meant for OTHER members (not the new joiner) and expires after 2h.
-          if (rc.welcomeChatChannelId) {
-            const rowGif = new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId(`welgif:${member.guild.id}:${member.user.id}:${member.joinedTimestamp}`)
-                .setLabel('🎲 Souhaiter la bienvenue (GIF)')
-                .setStyle(ButtonStyle.Secondary)
-            );
-            components.push(rowGif);
-          }
 
           const files = [];
 
