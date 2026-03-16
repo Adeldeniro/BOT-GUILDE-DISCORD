@@ -72,6 +72,9 @@ function getConfigForGuild(guildId) {
     eventAdminMessageId: pick(gc.event_admin_message_id, null),
     eventSubmitPanelChannelId: pick(gc.event_submit_panel_channel_id, null),
     eventSubmitPanelMessageId: pick(gc.event_submit_panel_message_id, null),
+
+    ankamaProfileChannelId: pick(gc.ankama_profile_channel_id, null),
+    ankamaProfileMessageId: pick(gc.ankama_profile_message_id, null),
   };
 }
 

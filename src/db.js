@@ -85,7 +85,9 @@ CREATE TABLE IF NOT EXISTS guild_config (
   event_admin_channel_id TEXT,
   event_admin_message_id TEXT,
   event_submit_panel_channel_id TEXT,
-  event_submit_panel_message_id TEXT
+  event_submit_panel_message_id TEXT,
+  ankama_profile_channel_id TEXT,
+  ankama_profile_message_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS event_submissions (
@@ -255,6 +257,12 @@ if (!cfgCols.includes('event_submit_panel_channel_id')) {
 }
 if (!cfgCols.includes('event_submit_panel_message_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN event_submit_panel_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('ankama_profile_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN ankama_profile_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('ankama_profile_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN ankama_profile_message_id TEXT'); } catch {}
 }
 
 // Migration for event_submissions

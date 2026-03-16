@@ -848,6 +848,71 @@ async function ensureHelpMessage(guild, rc) {
   updateGuildConfig(guild.id, { help_channel_id: ch.id, help_message_id: msg.id });
 }
 
+function ankamaTagToSlug(inputRaw) {
+  const raw = String(inputRaw || '').trim();
+  if (!raw) return null;
+
+  // Accept: pseudo#1234 OR pseudo-1234 OR full URL.
+  const urlMatch = raw.match(/profil-ankama\/([a-zA-Z0-9._\-]+-\d{1,10})/);
+  if (urlMatch) return urlMatch[1];
+
+  // If already pseudo-1234
+  if (/^[^\s#]+-\d{1,10}$/.test(raw)) return raw;
+
+  // pseudo#1234
+  const m = raw.match(/^(.+?)#(\d{1,10})$/);
+  if (!m) return null;
+
+  let pseudo = m[1].trim();
+  const code = m[2];
+
+  // Krosmoz/Ankama uses hyphens
+  pseudo = pseudo.replace(/\s+/g, '-');
+  // keep only safe url chars
+  pseudo = pseudo.replace(/[^a-zA-Z0-9._\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+  if (!pseudo) return null;
+  return `${pseudo}-${code}`;
+}
+
+async function ensureAnkamaProfilePanel(guild, channel, rc) {
+  if (!channel || !channel.isTextBased?.()) return;
+
+  const embed = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle('🔎 Profils Ankama — Contrôle rapide')
+    .setDescription(
+      [
+        'Entre un pseudo au format **pseudo#1234** (comme en jeu).',
+        'Le bot convertit automatiquement en **pseudo-1234** et te donne le lien cliquable.',
+      ].join('\n')
+    )
+    .addFields(
+      { name: 'Exemple', value: '`MonPseudo#6715` → <https://account.ankama.com/fr/profil-ankama/MonPseudo-6715>', inline: false },
+    )
+    .setFooter({ text: 'Astuce: accepte aussi un lien Ankama ou pseudo-1234.' });
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`ankprof:open:${guild.id}`)
+      .setLabel('🔗 Ouvrir un profil')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  // edit existing message if possible
+  if (rc.ankamaProfileMessageId) {
+    const existing = await channel.messages.fetch(rc.ankamaProfileMessageId).catch(() => null);
+    if (existing) {
+      await existing.edit({ embeds: [embed], components: [row] }).catch(() => {});
+      return;
+    }
+  }
+
+  const msg = await channel.send({ embeds: [embed], components: [row] });
+  try { await msg.pin(); } catch {}
+  updateGuildConfig(guild.id, { ankama_profile_channel_id: channel.id, ankama_profile_message_id: msg.id });
+}
+
 // Invite tracking (best effort)
 const inviteCache = new Map(); // guildId -> Collection(code -> invite)
 
@@ -1065,6 +1130,15 @@ async function registerCommands(client) {
       .setName('setup_profiles')
       .setDescription('Configurer le salon des profils (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription('Salon où poster les profils (IGN)').addChannelTypes(0,5).setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_profil_ankama')
+      .setDescription('Configurer le panneau de contrôle des profils Ankama (owner only)')
+      .addChannelOption(o => o
+        .setName('salon')
+        .setDescription('Salon dédié où poster le panneau')
+        .addChannelTypes(0, 5)
+        .setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('clean')
@@ -1712,6 +1786,39 @@ async function main() {
       }
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
+
+        if (interaction.customId.startsWith('ankprof:submit:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          if (rc.ankamaProfileChannelId && interaction.channelId !== rc.ankamaProfileChannelId) {
+            return interaction.reply({ content: `Utilise ce panneau uniquement dans <#${rc.ankamaProfileChannelId}>.`, ephemeral: true });
+          }
+
+          const input = (interaction.fields.getTextInputValue('tag') || '').trim();
+          const slug = ankamaTagToSlug(input);
+          if (!slug) {
+            return interaction.reply({
+              content: "❌ Format invalide. Attendu: **pseudo#1234** (ex: `MonPseudo#6715`).",
+              ephemeral: true,
+            });
+          }
+
+          const url = `https://account.ankama.com/fr/profil-ankama/${encodeURIComponent(slug)}`;
+
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(url).setLabel('🔗 Ouvrir le profil')
+          );
+
+          return interaction.reply({
+            content: `Voici le profil Ankama demandé : <${url}>`,
+            components: [row],
+            ephemeral: true,
+          });
+        }
 
         if (interaction.customId.startsWith('evparts:')) { 
           const id = Number(interaction.customId.split(':')[1]);
@@ -2593,6 +2700,27 @@ async function main() {
             return interaction.reply({ content: `OK. Salon profils configuré : <#${salon.id}>`, ephemeral: true });
           }
 
+          if (interaction.commandName === 'setup_profil_ankama') {
+            const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour le panneau Ankama.', ephemeral: true });
+            }
+
+            updateGuildConfig(guild.id, { ankama_profile_channel_id: salon.id });
+            const rc2 = getConfigForGuild(guild.id);
+
+            await ensureAnkamaProfilePanel(guild, salon, rc2);
+
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
+              }
+            }
+
+            return interaction.reply({ content: `OK. Panneau profil Ankama configuré dans <#${salon.id}> (épinglé).`, ephemeral: true });
+          }
+
           if (interaction.commandName === 'setup_help') {
             const salon = interaction.options.getChannel('salon', true);
             if (!salon.isTextBased?.()) {
@@ -3074,6 +3202,35 @@ async function main() {
       }
 
       if (interaction.isButton()) {
+        // Ankama profile panel
+        if (interaction.customId.startsWith('ankprof:open:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          if (rc.ankamaProfileChannelId && interaction.channelId !== rc.ankamaProfileChannelId) {
+            return interaction.reply({ content: `Utilise ce panneau uniquement dans <#${rc.ankamaProfileChannelId}>.`, ephemeral: true });
+          }
+
+          const modal = new ModalBuilder()
+            .setCustomId(`ankprof:submit:${guildId}`)
+            .setTitle('Ouvrir un profil Ankama');
+
+          const input = new TextInputBuilder()
+            .setCustomId('tag')
+            .setLabel('Pseudo Ankama (format jeu)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMaxLength(64)
+            .setPlaceholder('pseudo#1234')
+            .setValue('pseudo#1234');
+
+          modal.addComponents(new ActionRowBuilder().addComponents(input));
+          return interaction.showModal(modal);
+        }
+
         // Events Perco — validation buttons
         if (interaction.customId.startsWith('evval:')) {
           try {
