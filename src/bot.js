@@ -4190,9 +4190,9 @@ async function main() {
         // Style 4 (RP / dramatique) — 3 lines
         const hiddenMentions = `||${rolesText}||`;
         const content = [
-          `${prefix}${emojiPart}âš”ï¸ **${btn.label} EST ATTAQUÉE !**`,
+          `${prefix}${emojiPart}⚔️ **${btn.label} EST ATTAQUÉE !**`,
           `Rassemblement immédiat — défendez le blason !`,
-          `Alerte envoyée par ${interaction.user} â†’ ${hiddenMentions}`,
+          `Alerte envoyée par ${interaction.user} → ${hiddenMentions}`,
         ].join('\n');
 
         await alertChannel.send({
