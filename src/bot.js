@@ -1009,23 +1009,28 @@ function buildDofusbookPanelEmbed(rows) {
 }
 
 function buildDofusbookPanelComponents(guildId) {
-  const row1 = new ActionRowBuilder().addComponents(
+  // IMPORTANT (Discord constraint): a select menu takes the full width of a row.
+  // So we must use one select per ActionRow.
+  const rowClass = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId(`dbp:class:${guildId}`)
       .setPlaceholder('Choisir une classe')
-      .addOptions(DOFUS_TOUCH_CLASSES.map(c => ({ label: c.label, value: c.key }))),
+      .addOptions(DOFUS_TOUCH_CLASSES.map(c => ({ label: c.label, value: c.key })))
+  );
+
+  const rowElem = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId(`dbp:elem:${guildId}`)
       .setPlaceholder('Choisir un élément')
-      .addOptions(DOFUS_TOUCH_ELEMENTS.map(e => ({ label: e.label, value: e.key }))),
+      .addOptions(DOFUS_TOUCH_ELEMENTS.map(e => ({ label: e.label, value: e.key })))
   );
 
-  const row2 = new ActionRowBuilder().addComponents(
+  const rowButtons = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`dbp:add:${guildId}`).setLabel('➕ Ajouter un build').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`dbp:mine:${guildId}`).setLabel('🧩 Mes builds').setStyle(ButtonStyle.Secondary),
   );
 
-  return [row1, row2];
+  return [rowClass, rowElem, rowButtons];
 }
 
 async function ensureDofusbookPanel(guild, channel, rc) {
