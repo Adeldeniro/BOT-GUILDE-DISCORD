@@ -75,6 +75,9 @@ function getConfigForGuild(guildId) {
 
     ankamaProfileChannelId: pick(gc.ankama_profile_channel_id, null),
     ankamaProfileMessageId: pick(gc.ankama_profile_message_id, null),
+
+    dofusbookPanelChannelId: pick(gc.dofusbook_panel_channel_id, null),
+    dofusbookPanelMessageId: pick(gc.dofusbook_panel_message_id, null),
   };
 }
 

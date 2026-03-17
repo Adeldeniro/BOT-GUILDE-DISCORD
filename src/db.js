@@ -87,7 +87,21 @@ CREATE TABLE IF NOT EXISTS guild_config (
   event_submit_panel_channel_id TEXT,
   event_submit_panel_message_id TEXT,
   ankama_profile_channel_id TEXT,
-  ankama_profile_message_id TEXT
+  ankama_profile_message_id TEXT,
+  dofusbook_panel_channel_id TEXT,
+  dofusbook_panel_message_id TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dofusbook_builds (
+  guild_id TEXT NOT NULL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  class_key TEXT NOT NULL,
+  element_key TEXT NOT NULL,
+  level INTEGER NOT NULL,
+  build_name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  created_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS event_submissions (
@@ -263,6 +277,12 @@ if (!cfgCols.includes('ankama_profile_channel_id')) {
 }
 if (!cfgCols.includes('ankama_profile_message_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN ankama_profile_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('dofusbook_panel_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN dofusbook_panel_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('dofusbook_panel_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN dofusbook_panel_message_id TEXT'); } catch {}
 }
 
 // Migration for event_submissions

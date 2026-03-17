@@ -913,6 +913,140 @@ async function ensureAnkamaProfilePanel(guild, channel, rc) {
   updateGuildConfig(guild.id, { ankama_profile_channel_id: channel.id, ankama_profile_message_id: msg.id });
 }
 
+function isGtoOrDefMember(member, rc) {
+  const ridG = rc.validationGtoRoleId;
+  const ridD = rc.validationDefRoleId;
+  if (!member?.roles?.cache) return false;
+  return Boolean((ridG && member.roles.cache.has(ridG)) || (ridD && member.roles.cache.has(ridD)));
+}
+
+function sanitizeDofusbookUrl(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return null;
+  let u;
+  try { u = new URL(raw); } catch { return null; }
+  if (!['http:', 'https:'].includes(u.protocol)) return null;
+  // accept dofusbook only (touch/normal). You can widen later if needed.
+  const host = u.hostname.toLowerCase();
+  if (!host.includes('dofusbook')) return null;
+  return u.toString();
+}
+
+const DOFUS_TOUCH_CLASSES = [
+  { key: 'feca', label: 'Féca' },
+  { key: 'osamodas', label: 'Osamodas' },
+  { key: 'enutrof', label: 'Enutrof' },
+  { key: 'sram', label: 'Sram' },
+  { key: 'xelor', label: 'Xélor' },
+  { key: 'ecaflip', label: 'Ecaflip' },
+  { key: 'eniripsa', label: 'Eniripsa' },
+  { key: 'iop', label: 'Iop' },
+  { key: 'cra', label: 'Cra' },
+  { key: 'sadida', label: 'Sadida' },
+  { key: 'sacrieur', label: 'Sacrieur' },
+  { key: 'pandawa', label: 'Pandawa' },
+];
+
+const DOFUS_TOUCH_ELEMENTS = [
+  { key: 'air', label: 'Air' },
+  { key: 'eau', label: 'Eau' },
+  { key: 'feu', label: 'Feu' },
+  { key: 'terre', label: 'Terre' },
+  { key: 'multi', label: 'Multi' },
+  { key: 'tank', label: 'Tank' },
+  { key: 'dopou', label: 'Dopou' },
+  { key: 'hybride', label: 'Hybride' },
+];
+
+const dofusbookDrafts = new Map(); // key: guildId:userId -> { classKey, elementKey }
+
+function getDraft(guildId, userId) {
+  return dofusbookDrafts.get(`${guildId}:${userId}`) || { classKey: null, elementKey: null };
+}
+
+function setDraft(guildId, userId, patch) {
+  const key = `${guildId}:${userId}`;
+  const cur = getDraft(guildId, userId);
+  const next = { ...cur, ...patch };
+  dofusbookDrafts.set(key, next);
+  return next;
+}
+
+function renderBuildLine(row) {
+  const cls = DOFUS_TOUCH_CLASSES.find(c => c.key === row.class_key)?.label || row.class_key;
+  const el = DOFUS_TOUCH_ELEMENTS.find(e => e.key === row.element_key)?.label || row.element_key;
+  const name = String(row.build_name || 'Build').slice(0, 60);
+  const lvl = Number(row.level) || 0;
+  const url = String(row.url || '').trim();
+  return `• **${name}** — *${cls}* — **${el}** — **lvl ${lvl}** — <@${row.user_id}> — [Dofusbook](${url})`;
+}
+
+function buildDofusbookPanelEmbed(rows) {
+  const byClass = new Map();
+  for (const c of DOFUS_TOUCH_CLASSES) byClass.set(c.key, []);
+  for (const r of rows) {
+    if (!byClass.has(r.class_key)) byClass.set(r.class_key, []);
+    byClass.get(r.class_key).push(r);
+  }
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2ecc71)
+    .setTitle('📚 Dofusbook (Touch) — Builds de la guilde')
+    .setDescription('Panneau de liens pour retrouver rapidement des stuffs. Tri par niveau décroissant.')
+    .setFooter({ text: 'Ajout réservé aux membres GTO/DEF.' });
+
+  for (const c of DOFUS_TOUCH_CLASSES) {
+    const list = byClass.get(c.key) || [];
+    list.sort((a, b) => (Number(b.level) || 0) - (Number(a.level) || 0));
+    const shown = list.slice(0, 8);
+    let value = shown.length ? shown.map(renderBuildLine).join('\n') : '—';
+    if (list.length > shown.length) value += `\n… +${list.length - shown.length} autre(s)`;
+    embed.addFields({ name: c.label, value: value.slice(0, 1024), inline: false });
+  }
+
+  return embed;
+}
+
+function buildDofusbookPanelComponents(guildId) {
+  const row1 = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId(`dbp:class:${guildId}`)
+      .setPlaceholder('Choisir une classe')
+      .addOptions(DOFUS_TOUCH_CLASSES.map(c => ({ label: c.label, value: c.key }))),
+    new StringSelectMenuBuilder()
+      .setCustomId(`dbp:elem:${guildId}`)
+      .setPlaceholder('Choisir un élément')
+      .addOptions(DOFUS_TOUCH_ELEMENTS.map(e => ({ label: e.label, value: e.key }))),
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dbp:add:${guildId}`).setLabel('➕ Ajouter un build').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`dbp:mine:${guildId}`).setLabel('🧩 Mes builds').setStyle(ButtonStyle.Secondary),
+  );
+
+  return [row1, row2];
+}
+
+async function ensureDofusbookPanel(guild, channel, rc) {
+  if (!channel || !channel.isTextBased?.()) return;
+
+  const rows = db.prepare('SELECT * FROM dofusbook_builds WHERE guild_id=?').all(guild.id);
+  const embed = buildDofusbookPanelEmbed(rows);
+  const components = buildDofusbookPanelComponents(guild.id);
+
+  if (rc.dofusbookPanelMessageId) {
+    const existing = await channel.messages.fetch(rc.dofusbookPanelMessageId).catch(() => null);
+    if (existing) {
+      await existing.edit({ embeds: [embed], components }).catch(() => {});
+      return;
+    }
+  }
+
+  const msg = await channel.send({ embeds: [embed], components });
+  try { await msg.pin(); } catch {}
+  updateGuildConfig(guild.id, { dofusbook_panel_channel_id: channel.id, dofusbook_panel_message_id: msg.id });
+}
+
 // Invite tracking (best effort)
 const inviteCache = new Map(); // guildId -> Collection(code -> invite)
 
@@ -1134,6 +1268,15 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_profil_ankama')
       .setDescription('Configurer le panneau de contrôle des profils Ankama (owner only)')
+      .addChannelOption(o => o
+        .setName('salon')
+        .setDescription('Salon dédié où poster le panneau')
+        .addChannelTypes(0, 5)
+        .setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('setup_dofusbook_panel')
+      .setDescription('Configurer le panneau des builds Dofusbook (Touch) (owner only)')
       .addChannelOption(o => o
         .setName('salon')
         .setDescription('Salon dédié où poster le panneau')
@@ -1786,6 +1929,58 @@ async function main() {
       }
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
+
+        if (interaction.customId.startsWith('dbp:add_submit:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!member || !isGtoOrDefMember(member, rc)) {
+            return interaction.reply({ content: 'Réservé aux membres **GTO/DEF**.', ephemeral: true });
+          }
+
+          const draft = getDraft(guildId, interaction.user.id);
+          if (!draft.classKey || !draft.elementKey) {
+            return interaction.reply({ content: '❌ Choisis d\'abord une **classe** et un **élément** dans le panneau.', ephemeral: true });
+          }
+
+          const buildName = (interaction.fields.getTextInputValue('name') || '').trim();
+          const levelRaw = (interaction.fields.getTextInputValue('level') || '').trim();
+          const urlRaw = (interaction.fields.getTextInputValue('url') || '').trim();
+
+          const level = Number(levelRaw);
+          if (!Number.isFinite(level) || level < 1 || level > 200) {
+            return interaction.reply({ content: '❌ Niveau invalide (1-200).', ephemeral: true });
+          }
+
+          const url = sanitizeDofusbookUrl(urlRaw);
+          if (!url) {
+            return interaction.reply({ content: '❌ Lien invalide. Donne un lien **dofusbook** (http/https).', ephemeral: true });
+          }
+
+          if (!buildName || buildName.length < 2) {
+            return interaction.reply({ content: '❌ Nom de build invalide.', ephemeral: true });
+          }
+
+          db.prepare('INSERT INTO dofusbook_builds (guild_id, user_id, class_key, element_key, level, build_name, url, created_at) VALUES (?,?,?,?,?,?,?,?)')
+            .run(guildId, interaction.user.id, draft.classKey, draft.elementKey, level, buildName.slice(0, 80), url, Date.now());
+
+          // refresh panel
+          try {
+            const rc2 = getConfigForGuild(guildId);
+            if (rc2.dofusbookPanelChannelId) {
+              const ch = await interaction.client.channels.fetch(rc2.dofusbookPanelChannelId).catch(() => null);
+              if (ch && ch.isTextBased()) {
+                await ensureDofusbookPanel(interaction.guild, ch, rc2);
+              }
+            }
+          } catch {}
+
+          return interaction.reply({ content: '✅ Build ajouté au panneau.', ephemeral: true });
+        }
 
         if (interaction.customId.startsWith('ankprof:submit:')) {
           const guildId = interaction.customId.split(':')[2];
@@ -2721,6 +2916,27 @@ async function main() {
             return interaction.reply({ content: `OK. Panneau profil Ankama configuré dans <#${salon.id}> (épinglé).`, ephemeral: true });
           }
 
+          if (interaction.commandName === 'setup_dofusbook_panel') {
+            const salon = interaction.options.getChannel('salon', true);
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour le panneau Dofusbook.', ephemeral: true });
+            }
+
+            updateGuildConfig(guild.id, { dofusbook_panel_channel_id: salon.id });
+            const rc2 = getConfigForGuild(guild.id);
+
+            await ensureDofusbookPanel(guild, salon, rc2);
+
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
+              }
+            }
+
+            return interaction.reply({ content: `OK. Panneau Dofusbook configuré dans <#${salon.id}> (épinglé).`, ephemeral: true });
+          }
+
           if (interaction.commandName === 'setup_help') {
             const salon = interaction.options.getChannel('salon', true);
             if (!salon.isTextBased?.()) {
@@ -3201,7 +3417,154 @@ async function main() {
 
       }
 
+      if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
+        // Dofusbook panel selects
+        if (interaction.customId.startsWith('dbp:class:') || interaction.customId.startsWith('dbp:elem:') || interaction.customId.startsWith('dbp:delpick:')) {
+          const parts = interaction.customId.split(':');
+          const kind = parts[1];
+          const guildId = parts[2];
+
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+
+          if (kind === 'delpick') {
+            if (!member || !isGtoOrDefMember(member, rc)) {
+              return interaction.reply({ content: 'Réservé aux membres **GTO/DEF**.', ephemeral: true });
+            }
+            const buildId = Number(interaction.values?.[0]);
+            if (!buildId) return interaction.reply({ content: 'Build invalide.', ephemeral: true });
+
+            const row = db.prepare('SELECT * FROM dofusbook_builds WHERE guild_id=? AND id=?').get(guildId, buildId);
+            if (!row || row.user_id !== interaction.user.id) {
+              return interaction.reply({ content: 'Tu ne peux supprimer que tes propres builds.', ephemeral: true });
+            }
+
+            db.prepare('DELETE FROM dofusbook_builds WHERE guild_id=? AND id=? AND user_id=?').run(guildId, buildId, interaction.user.id);
+
+            // refresh panel
+            try {
+              const rc2 = getConfigForGuild(guildId);
+              if (rc2.dofusbookPanelChannelId) {
+                const ch = await interaction.client.channels.fetch(rc2.dofusbookPanelChannelId).catch(() => null);
+                if (ch && ch.isTextBased()) {
+                  await ensureDofusbookPanel(interaction.guild, ch, rc2);
+                }
+              }
+            } catch {}
+
+            return interaction.update({ content: '🧹 Build supprimé.', embeds: [], components: [] }).catch(() => {});
+          }
+
+          // class/elem selection: store draft
+          if (!member || !isGtoOrDefMember(member, rc)) {
+            return interaction.reply({ content: 'Réservé aux membres **GTO/DEF**.', ephemeral: true });
+          }
+
+          if (kind === 'class') {
+            const classKey = interaction.values?.[0];
+            setDraft(guildId, interaction.user.id, { classKey });
+            return interaction.reply({ content: `✅ Classe sélectionnée : **${DOFUS_TOUCH_CLASSES.find(c => c.key === classKey)?.label || classKey}**`, ephemeral: true });
+          }
+          if (kind === 'elem') {
+            const elementKey = interaction.values?.[0];
+            setDraft(guildId, interaction.user.id, { elementKey });
+            return interaction.reply({ content: `✅ Élément sélectionné : **${DOFUS_TOUCH_ELEMENTS.find(e => e.key === elementKey)?.label || elementKey}**`, ephemeral: true });
+          }
+        }
+      }
+
       if (interaction.isButton()) {
+        // Dofusbook builds panel
+        if (interaction.customId.startsWith('dbp:add:') || interaction.customId.startsWith('dbp:mine:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          if (rc.dofusbookPanelChannelId && interaction.channelId !== rc.dofusbookPanelChannelId) {
+            return interaction.reply({ content: `Utilise ce panneau uniquement dans <#${rc.dofusbookPanelChannelId}>.`, ephemeral: true });
+          }
+
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!member || !isGtoOrDefMember(member, rc)) {
+            return interaction.reply({ content: 'Réservé aux membres **GTO/DEF**.', ephemeral: true });
+          }
+
+          if (interaction.customId.startsWith('dbp:add:')) {
+            const draft = getDraft(guildId, interaction.user.id);
+            const modal = new ModalBuilder()
+              .setCustomId(`dbp:add_submit:${guildId}`)
+              .setTitle('Ajouter un build Dofusbook');
+
+            const inputName = new TextInputBuilder()
+              .setCustomId('name')
+              .setLabel('Nom du build (ex: PVM 130, PVP tank...)')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+              .setMaxLength(40);
+
+            const inputLevel = new TextInputBuilder()
+              .setCustomId('level')
+              .setLabel('Niveau (1-200)')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+              .setMaxLength(3)
+              .setValue('200');
+
+            const inputUrl = new TextInputBuilder()
+              .setCustomId('url')
+              .setLabel('Lien Dofusbook')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+              .setPlaceholder('https://...dofusbook...');
+
+            modal.addComponents(
+              new ActionRowBuilder().addComponents(inputName),
+              new ActionRowBuilder().addComponents(inputLevel),
+              new ActionRowBuilder().addComponents(inputUrl),
+            );
+
+            // Store draft selections in modal via runtime map (we will read from it on submit)
+            setDraft(guildId, interaction.user.id, { classKey: draft.classKey, elementKey: draft.elementKey });
+            return interaction.showModal(modal);
+          }
+
+          if (interaction.customId.startsWith('dbp:mine:')) {
+            const rows = db.prepare('SELECT * FROM dofusbook_builds WHERE guild_id=? AND user_id=? ORDER BY level DESC, created_at DESC').all(guildId, interaction.user.id);
+            if (!rows.length) {
+              return interaction.reply({ content: 'Tu n\'as encore aucun build publié.', ephemeral: true });
+            }
+
+            const opts = rows.slice(0, 25).map(r => {
+              const cls = DOFUS_TOUCH_CLASSES.find(c => c.key === r.class_key)?.label || r.class_key;
+              const el = DOFUS_TOUCH_ELEMENTS.find(e => e.key === r.element_key)?.label || r.element_key;
+              return {
+                label: `${r.build_name}`.slice(0, 80),
+                description: `${cls} • ${el} • lvl ${r.level}`.slice(0, 100),
+                value: String(r.id),
+              };
+            });
+
+            const embed = new EmbedBuilder()
+              .setColor(0x95a5a6)
+              .setTitle('🧩 Mes builds Dofusbook')
+              .setDescription(rows.slice(0, 10).map(renderBuildLine).join('\n').slice(0, 3900));
+
+            const row = new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId(`dbp:delpick:${guildId}`)
+                .setPlaceholder('Sélectionner un build à supprimer')
+                .addOptions(opts)
+            );
+            return interaction.reply({ embeds: [embed], components: [row], ephemeral: true, allowedMentions: { parse: [] } });
+          }
+        }
+
         // Ankama profile panel
         if (interaction.customId.startsWith('ankprof:open:')) {
           const guildId = interaction.customId.split(':')[2];
