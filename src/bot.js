@@ -2,6 +2,7 @@
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
+const db = require('./db');
 const { getConfigForGuild } = require('./runtimeConfig');
 const { updateGuildConfig } = require('./guildConfig');
 const panel = require('./panel');
