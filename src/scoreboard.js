@@ -54,13 +54,13 @@ function fmtYmd(d) {
   return `${y}-${m}-${day}`;
 }
 
-async function ensureScoreboardMessage(guild, channel, { topN = 25 } = {}) {
+async function ensureScoreboardMessage(guild, channel, { topN = 25, forceNew = false, mode = 'current' } = {}) {
   const guildId = guild.id;
   const state = getScoreboardState(guildId);
 
-  const embed = await buildScoreboardEmbed(guild, { topN });
+  const embed = await buildScoreboardEmbed(guild, { topN, mode });
 
-  if (state?.message_id && state?.channel_id === channel.id) {
+  if (!forceNew && state?.message_id && state?.channel_id === channel.id) {
     try {
       const msg = await channel.messages.fetch(state.message_id);
       await msg.edit({ embeds: [embed] });
@@ -71,12 +71,12 @@ async function ensureScoreboardMessage(guild, channel, { topN = 25 } = {}) {
   }
 
   const msg = await channel.send({ embeds: [embed] });
-  try { await msg.pin(); } catch {}
+  // No pin by default (user preference)
   setScoreboardMessage(guildId, channel.id, msg.id);
   return msg;
 }
 
-async function buildScoreboardEmbed(guild, { topN = 25, skipMemberFetch = false } = {}) {
+async function buildScoreboardEmbed(guild, { topN = 25, skipMemberFetch = false, mode = 'current' } = {}) {
   const guildId = guild.id;
 
   // Try to fetch members to include everyone with the role, even if 0 pings.
@@ -133,15 +133,38 @@ async function buildScoreboardEmbed(guild, { topN = 25, skipMemberFetch = false 
     ? ''
     : "\n\n*(Note: impossible de lister les membres @guildeux côté bot — vérifie l'intent 'Server Members' et les permissions.)*";
 
+  const isArchived = mode === 'archived';
+
   return new EmbedBuilder()
-    .setColor(0x3498db)
-    .setTitle('📊 Classement des pings — Guildeux')
+    .setColor(isArchived ? 0xe74c3c : 0x2ecc71)
+    .setTitle(isArchived ? '🔴 Scoreboard — Semaine terminée' : '🟢 Scoreboard — Semaine en cours')
     .setDescription((lines.length ? lines.join('\n') : 'Aucun score enregistré.') + note)
-    .setFooter({ text: 'Mise à jour automatique après chaque ping.' });
+    .setFooter({ text: isArchived ? 'Archivé (semaine précédente).' : 'Semaine en cours — mise à jour automatique.' });
 }
 
 function resetScores(guildId) {
   db.prepare(`UPDATE guildeux_scores SET ping_count=0, last_ping_at=NULL WHERE guild_id=?`).run(guildId);
+}
+
+async function rotateWeeklyBoard(guild, channel, { boardTopN = 25 } = {}) {
+  const state = getScoreboardState(guild.id);
+
+  // Archive current board (red)
+  if (state?.message_id && state?.channel_id === channel.id) {
+    try {
+      const msg = await channel.messages.fetch(state.message_id).catch(() => null);
+      if (msg) {
+        const archived = await buildScoreboardEmbed(guild, { topN: boardTopN, skipMemberFetch: true, mode: 'archived' });
+        await msg.edit({ embeds: [archived] }).catch(() => {});
+      }
+    } catch {}
+  }
+
+  // Reset
+  resetScores(guild.id);
+
+  // Post new current board (green) just after winners message
+  await ensureScoreboardMessage(guild, channel, { topN: boardTopN, forceNew: true, mode: 'current' });
 }
 
 async function maybeWeeklyAnnouncement(guild, channel, { topN = 10, hour = 22 } = {}) {
@@ -168,13 +191,12 @@ async function maybeWeeklyAnnouncement(guild, channel, { topN = 10, hour = 22 } 
 
   await channel.send({ embeds: [embed] });
 
-  // Reset weekly scores AFTER announcement
-  resetScores(guild.id);
-
-  // Refresh the live scoreboard message so a new week starts immediately
+  // Archive old board, reset, and post a new fresh board under the winners message
   try {
-    await ensureScoreboardMessage(guild, channel, { topN: 25 });
-  } catch {}
+    await rotateWeeklyBoard(guild, channel, { boardTopN: 25 });
+  } catch (e) {
+    console.warn('[bot] weekly rotate failed:', e?.message || e);
+  }
 
   setLastWeeklyAnnounceDate(guild.id, ymd);
 }
@@ -186,4 +208,5 @@ module.exports = {
   upsertScoreUser,
   maybeWeeklyAnnouncement,
   resetScores,
+  rotateWeeklyBoard,
 };

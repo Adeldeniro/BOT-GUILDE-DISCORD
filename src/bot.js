@@ -3453,11 +3453,10 @@ async function main() {
 
           const doReset = reset !== false;
           if (doReset) {
-            scoreboard.resetScores(guild.id);
-            await scoreboard.ensureScoreboardMessage(guild, sbChannel, { topN: rc2.scoreboardTopN });
+            await scoreboard.rotateWeeklyBoard(guild, sbChannel, { boardTopN: rc2.scoreboardTopN });
           }
 
-          return interaction.editReply({ content: `✅ Annonce envoyée${doReset ? ' + reset effectué' : ''}.` }).catch(() => {});
+          return interaction.editReply({ content: `✅ Annonce envoyée${doReset ? ' + reset + nouveau tableau posté' : ''}.` }).catch(() => {});
         }
 
         if (interaction.commandName === 'guilde_ajouter') {
