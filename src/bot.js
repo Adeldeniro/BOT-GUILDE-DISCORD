@@ -2489,22 +2489,23 @@ async function main() {
         }
 
         if (interaction.customId.startsWith('ign:')) { 
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
           const userId = parts[2];
           const choice = parts[3];
 
           if (!interaction.guild || interaction.guild.id !== guildId) {
-            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+            return interaction.editReply({ content: 'Action invalide.' }).catch(() => {});
           }
           if (interaction.user.id !== userId) {
-            return interaction.reply({ content: 'Ce formulaire ne te concerne pas.', ephemeral: true });
+            return interaction.editReply({ content: 'Ce formulaire ne te concerne pas.' }).catch(() => {});
           }
 
           const rc = getConfigForGuild(guildId);
           const ignRaw = (interaction.fields.getTextInputValue('ign') || '').trim();
           if (!ignRaw || ignRaw.length < 2) {
-            return interaction.reply({ content: 'Pseudo en jeu invalide.', ephemeral: true });
+            return interaction.editReply({ content: 'Pseudo en jeu invalide.' }).catch(() => {});
           }
 
           // Save profile (append, so user can submit again later if needed)
@@ -2590,7 +2591,7 @@ async function main() {
             } catch {}
           }
 
-          return interaction.reply({ content: '✅ Pseudo enregistré, merci !', ephemeral: true });
+          return interaction.editReply({ content: '✅ Pseudo enregistré, merci !' }).catch(() => {});
         }
       }
 
@@ -4401,7 +4402,7 @@ async function main() {
                       const embed = new EmbedBuilder()
                         .setColor(0x3498db)
                         .setTitle('🎉 Bienvenue !')
-                        .setDescription(`@everyone Bienvenue à <@${targetUserId}> !`)
+                        .setDescription(`Bienvenue à <@${targetUserId}> !`)
                         .setImage(typeof gifUrl === 'string' && gifUrl.startsWith('http') ? gifUrl : null);
 
                       const files = [];
@@ -4410,7 +4411,7 @@ async function main() {
                         embed.setImage('attachment://welcome.gif');
                       }
 
-                      await chat.send({ content: '@everyone', embeds: [embed], files, allowedMentions: { parse: ['everyone'], users: [targetUserId] } }).catch(() => {});
+                      await chat.send({ embeds: [embed], files, allowedMentions: { users: [targetUserId], parse: [] } }).catch(() => {});
                       db.prepare(
                         `INSERT INTO welcome_state (guild_id, user_id, first_gif_sent_at)
                          VALUES (?, ?, ?)
@@ -4486,7 +4487,7 @@ async function main() {
                     const embed = new EmbedBuilder()
                       .setColor(0x3498db)
                       .setTitle('🎉 Bienvenue !')
-                      .setDescription(`@everyone Bienvenue à <@${targetUserId}> !`)
+                      .setDescription(`Bienvenue à <@${targetUserId}> !`)
                       .setImage(typeof gifUrl === 'string' && gifUrl.startsWith('http') ? gifUrl : null);
 
                     const files = [];
@@ -4495,7 +4496,7 @@ async function main() {
                       embed.setImage('attachment://welcome.gif');
                     }
 
-                    await chat.send({ content: '@everyone', embeds: [embed], files, allowedMentions: { parse: ['everyone'], users: [targetUserId] } }).catch(() => {});
+                    await chat.send({ embeds: [embed], files, allowedMentions: { users: [targetUserId], parse: [] } }).catch(() => {});
                     db.prepare(
                       `INSERT INTO welcome_state (guild_id, user_id, first_gif_sent_at)
                        VALUES (?, ?, ?)
