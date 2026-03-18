@@ -168,6 +168,16 @@ CREATE TABLE IF NOT EXISTS player_profiles (
   profile_message_id TEXT,
   PRIMARY KEY (guild_id, user_id)
 );
+
+-- Track welcome flow state separately from player_profiles (invités may have no IGN)
+CREATE TABLE IF NOT EXISTS welcome_state (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  welcome_message_id TEXT,
+  joined_at INTEGER,
+  first_gif_sent_at INTEGER,
+  PRIMARY KEY (guild_id, user_id)
+);
 `);
 
 // Migration for older DBs
@@ -331,6 +341,22 @@ try {
 const profCols = db.prepare(`PRAGMA table_info(player_profiles)`).all().map(r => r.name);
 if (!profCols.includes('profile_message_id')) {
   try { db.exec('ALTER TABLE player_profiles ADD COLUMN profile_message_id TEXT'); } catch {}
+}
+
+// welcome_state table (for onboarding state)
+try {
+  db.prepare('SELECT 1 FROM welcome_state LIMIT 1').get();
+} catch {
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS welcome_state (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      welcome_message_id TEXT,
+      joined_at INTEGER,
+      first_gif_sent_at INTEGER,
+      PRIMARY KEY (guild_id, user_id)
+    );`);
+  } catch {}
 }
 
 module.exports = db;

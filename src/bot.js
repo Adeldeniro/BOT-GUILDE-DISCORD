@@ -2568,7 +2568,8 @@ async function main() {
             }
           }
 
-          // After successful IGN submit: remove the role-choice buttons and add the GIF button (members-only) on the welcome message.
+          // After successful IGN submit: remove the role-choice buttons.
+          // The GIF button will be enabled ONLY after staff validation.
           const msgId = parts[4];
           if (msgId) {
             try {
@@ -2576,18 +2577,14 @@ async function main() {
               if (wch && wch.isTextBased()) {
                 const m = await wch.messages.fetch(msgId).catch(() => null);
                 if (m) {
-                  const rows = [];
-                  if (rc.welcomeChatChannelId && member?.joinedTimestamp) {
-                    rows.push(
-                      new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                          .setCustomId(`welgif:${guildId}:${userId}:${member.joinedTimestamp}`)
-                          .setLabel('🎉 Souhaiter la bienvenue (GIF)')
-                          .setStyle(ButtonStyle.Success)
-                      )
-                    );
-                  }
-                  await m.edit({ components: rows }).catch(() => {});
+                  const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                      .setCustomId(`welwait:${guildId}:${userId}`)
+                      .setLabel('⏳ En attente de validation staff')
+                      .setStyle(ButtonStyle.Secondary)
+                      .setDisabled(true)
+                  );
+                  await m.edit({ components: [row] }).catch(() => {});
                 }
               }
             } catch {}
@@ -3855,47 +3852,49 @@ async function main() {
 
         // Rules acceptance button
         if (interaction.customId.startsWith('rulesok:')) {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
           const parts = interaction.customId.split(':');
           const guildId = parts[1];
           const targetUserId = parts[2];
 
           if (!interaction.guild || interaction.guild.id !== guildId) {
-            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+            return interaction.editReply({ content: 'Action invalide.' }).catch(() => {});
           }
           if (interaction.user.id !== targetUserId) {
-            return interaction.reply({ content: "Ce bouton est réservé au nouveau membre.", ephemeral: true });
+            return interaction.editReply({ content: "Ce bouton est réservé au nouveau membre." }).catch(() => {});
           }
 
           const rc = getConfigForGuild(interaction.guild.id);
           if (!rc.rulesAccessRoleId) {
-            return interaction.reply({ content: "Règlement non configuré (role_acces manquant).", ephemeral: true });
+            return interaction.editReply({ content: "Règlement non configuré (role_acces manquant)." }).catch(() => {});
           }
 
           // Add access role
           if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
-            return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+            return interaction.editReply({ content: "Je n'ai pas la permission **Gérer les rôles**." }).catch(() => {});
           }
 
           const accessRole = interaction.guild.roles.cache.get(rc.rulesAccessRoleId);
-          if (!accessRole) return interaction.reply({ content: "Rôle d'accès introuvable.", ephemeral: true });
+          if (!accessRole) return interaction.editReply({ content: "Rôle d'accès introuvable." }).catch(() => {});
 
           const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-          if (!member) return interaction.reply({ content: 'Impossible de te récupérer.', ephemeral: true });
+          if (!member) return interaction.editReply({ content: 'Impossible de te récupérer.' }).catch(() => {});
 
           try {
             await member.roles.add(accessRole);
           } catch (e) {
-            return interaction.reply({ content: `Erreur rôle: ${e.message}`, ephemeral: true });
+            return interaction.editReply({ content: `Erreur rôle: ${e.message}` }).catch(() => {});
           }
 
           // Send welcome message now (arrival step)
           if (!rc.welcomeChannelId) {
-            return interaction.reply({ content: '✅ Règlement validé. (Salon arrivée non configuré)', ephemeral: true });
+            return interaction.editReply({ content: '✅ Règlement validé. (Salon arrivée non configuré)' }).catch(() => {});
           }
 
           const ch = await interaction.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
           if (!ch || !ch.isTextBased()) {
-            return interaction.reply({ content: '✅ Règlement validé. (Salon arrivée inaccessible)', ephemeral: true });
+            return interaction.editReply({ content: '✅ Règlement validé. (Salon arrivée inaccessible)' }).catch(() => {});
           }
 
           // Build welcome message
@@ -3907,7 +3906,7 @@ async function main() {
           const avatarEmbed = new EmbedBuilder()
             .setColor(0x2c3e50)
             .setTitle(`🆕 ${member.user.tag || member.user.username}`)
-            .setDescription(`Profil de ${member} (${member.id})`)
+            .setDescription(`Profil de ${member} (ID: ${member.id})`)
             .setImage(avatarUrl);
 
           // Embed 2: welcome text + optional GIF banner
@@ -3963,14 +3962,23 @@ async function main() {
           } catch {}
 
 
-          const content = rc.welcomePingEveryone ? '@everyone' : '';
-          await ch.send({
-            content,
+          // IMPORTANT: never ping @everyone during onboarding.
+          const sentWelcome = await ch.send({
+            content: '',
             embeds: [avatarEmbed, embed],
             components,
             files,
-            allowedMentions: rc.welcomePingEveryone ? { parse: ['everyone'] } : { parse: [] },
+            allowedMentions: { parse: [] },
           });
+
+          // Track the welcome message to enable GIF button after staff validation
+          try {
+            db.prepare(
+              `INSERT INTO welcome_state (guild_id, user_id, welcome_message_id, joined_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(guild_id, user_id) DO UPDATE SET welcome_message_id=excluded.welcome_message_id, joined_at=excluded.joined_at`
+            ).run(interaction.guild.id, member.user.id, sentWelcome.id, Number(member.joinedTimestamp) || Date.now());
+          } catch {}
 
           // Remove the prompt message entirely after success (less visible to others)
           try { await interaction.message.delete(); } catch {}
@@ -4354,6 +4362,64 @@ async function main() {
                   statusText: `✅ Invité validé — ${roleInvite ? roleInvite.toString() : 'Invité'}`,
                 });
 
+                // Enable GIF button + auto-send first GIF (with @everyone) once validated
+                try {
+                  const ws = db.prepare('SELECT welcome_message_id, joined_at, first_gif_sent_at FROM welcome_state WHERE guild_id=? AND user_id=?').get(guildId, targetUserId);
+                  if (ws?.welcome_message_id && rc.welcomeChannelId) {
+                    const wch = await interaction.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
+                    if (wch && wch.isTextBased()) {
+                      const wm = await wch.messages.fetch(ws.welcome_message_id).catch(() => null);
+                      if (wm) {
+                        const row = new ActionRowBuilder().addComponents(
+                          new ButtonBuilder()
+                            .setCustomId(`welgif:${guildId}:${targetUserId}:${Number(ws.joined_at || target.joinedTimestamp || Date.now())}`)
+                            .setLabel('🎉 Souhaiter la bienvenue (GIF)')
+                            .setStyle(ButtonStyle.Success)
+                        );
+                        await wm.edit({ components: [row] }).catch(() => {});
+                      }
+                    }
+                  }
+
+                  if (!ws?.first_gif_sent_at && rc.welcomeChatChannelId) {
+                    let gifUrl = null;
+                    try {
+                      const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
+                      const raw = require('fs').readFileSync(gifsPath, 'utf8');
+                      const urls = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+                      if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
+                    } catch {}
+                    if (!gifUrl) {
+                      try {
+                        const fallback = path.join(__dirname, '..', 'assets', 'welcome-default.gif');
+                        if (require('fs').existsSync(fallback)) gifUrl = fallback;
+                      } catch {}
+                    }
+
+                    const chat = await interaction.client.channels.fetch(rc.welcomeChatChannelId).catch(() => null);
+                    if (chat && chat.isTextBased()) {
+                      const embed = new EmbedBuilder()
+                        .setColor(0x3498db)
+                        .setTitle('🎉 Bienvenue !')
+                        .setDescription(`@everyone Bienvenue à <@${targetUserId}> !`)
+                        .setImage(typeof gifUrl === 'string' && gifUrl.startsWith('http') ? gifUrl : null);
+
+                      const files = [];
+                      if (gifUrl && typeof gifUrl === 'string' && !gifUrl.startsWith('http')) {
+                        files.push({ attachment: gifUrl, name: 'welcome.gif' });
+                        embed.setImage('attachment://welcome.gif');
+                      }
+
+                      await chat.send({ content: '@everyone', embeds: [embed], files, allowedMentions: { parse: ['everyone'], users: [targetUserId] } }).catch(() => {});
+                      db.prepare(
+                        `INSERT INTO welcome_state (guild_id, user_id, first_gif_sent_at)
+                         VALUES (?, ?, ?)
+                         ON CONFLICT(guild_id, user_id) DO UPDATE SET first_gif_sent_at=excluded.first_gif_sent_at`
+                      ).run(guildId, targetUserId, Date.now());
+                    }
+                  }
+                } catch {}
+
                 await interaction.message.edit({ components: [] }).catch(() => {});
                 return interaction.reply({ content: `✅ Invité validé pour ${target}.`, ephemeral: true });
               }
@@ -4380,6 +4446,64 @@ async function main() {
               await updateProfileBox(interaction.guild, rc, targetUserId, {
                 statusText: `✅ Validé — ${roleGTO ? roleGTO.toString() : '@GTO'} ${roleDEF ? roleDEF.toString() : '@DEF'}`,
               });
+
+              // Enable GIF button + auto-send first GIF (with @everyone) once validated
+              try {
+                const ws = db.prepare('SELECT welcome_message_id, joined_at, first_gif_sent_at FROM welcome_state WHERE guild_id=? AND user_id=?').get(guildId, targetUserId);
+                if (ws?.welcome_message_id && rc.welcomeChannelId) {
+                  const wch = await interaction.client.channels.fetch(rc.welcomeChannelId).catch(() => null);
+                  if (wch && wch.isTextBased()) {
+                    const wm = await wch.messages.fetch(ws.welcome_message_id).catch(() => null);
+                    if (wm) {
+                      const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                          .setCustomId(`welgif:${guildId}:${targetUserId}:${Number(ws.joined_at || target.joinedTimestamp || Date.now())}`)
+                          .setLabel('🎉 Souhaiter la bienvenue (GIF)')
+                          .setStyle(ButtonStyle.Success)
+                      );
+                      await wm.edit({ components: [row] }).catch(() => {});
+                    }
+                  }
+                }
+
+                if (!ws?.first_gif_sent_at && rc.welcomeChatChannelId) {
+                  let gifUrl = null;
+                  try {
+                    const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
+                    const raw = require('fs').readFileSync(gifsPath, 'utf8');
+                    const urls = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+                    if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
+                  } catch {}
+                  if (!gifUrl) {
+                    try {
+                      const fallback = path.join(__dirname, '..', 'assets', 'welcome-default.gif');
+                      if (require('fs').existsSync(fallback)) gifUrl = fallback;
+                    } catch {}
+                  }
+
+                  const chat = await interaction.client.channels.fetch(rc.welcomeChatChannelId).catch(() => null);
+                  if (chat && chat.isTextBased()) {
+                    const embed = new EmbedBuilder()
+                      .setColor(0x3498db)
+                      .setTitle('🎉 Bienvenue !')
+                      .setDescription(`@everyone Bienvenue à <@${targetUserId}> !`)
+                      .setImage(typeof gifUrl === 'string' && gifUrl.startsWith('http') ? gifUrl : null);
+
+                    const files = [];
+                    if (gifUrl && typeof gifUrl === 'string' && !gifUrl.startsWith('http')) {
+                      files.push({ attachment: gifUrl, name: 'welcome.gif' });
+                      embed.setImage('attachment://welcome.gif');
+                    }
+
+                    await chat.send({ content: '@everyone', embeds: [embed], files, allowedMentions: { parse: ['everyone'], users: [targetUserId] } }).catch(() => {});
+                    db.prepare(
+                      `INSERT INTO welcome_state (guild_id, user_id, first_gif_sent_at)
+                       VALUES (?, ?, ?)
+                       ON CONFLICT(guild_id, user_id) DO UPDATE SET first_gif_sent_at=excluded.first_gif_sent_at`
+                    ).run(guildId, targetUserId, Date.now());
+                  }
+                }
+              } catch {}
 
               await interaction.message.edit({ components: [] }).catch(() => {});
               return interaction.reply({ content: `✅ Validé. Rôles attribués à ${target}.`, ephemeral: true });
@@ -4542,20 +4666,17 @@ async function main() {
               if (roleG) await member.roles.remove(roleG).catch(() => {});
               await postStaffValidationAlert(interaction.guild, rc, targetUserId, 'Invité').catch(() => {});
 
-              // After selection, replace the welcome message buttons with the GIF button (members-only).
+              // After selection, remove the welcome message buttons.
+              // The GIF button will be enabled ONLY after staff validation.
               try {
-                const rows = [];
-                if (rc.welcomeChatChannelId && member?.joinedTimestamp) {
-                  rows.push(
-                    new ActionRowBuilder().addComponents(
-                      new ButtonBuilder()
-                        .setCustomId(`welgif:${guildId}:${targetUserId}:${member.joinedTimestamp}`)
-                        .setLabel('🎉 Souhaiter la bienvenue (GIF)')
-                        .setStyle(ButtonStyle.Success)
-                    )
-                  );
-                }
-                await interaction.message.edit({ components: rows }).catch(() => {});
+                const row = new ActionRowBuilder().addComponents(
+                  new ButtonBuilder()
+                    .setCustomId(`welwait:${guildId}:${targetUserId}`)
+                    .setLabel('⏳ En attente de validation staff')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(true)
+                );
+                await interaction.message.edit({ components: [row] }).catch(() => {});
               } catch {}
 
               return interaction.reply({ content: '✅ Statut Invité enregistré.', ephemeral: true });
