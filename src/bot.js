@@ -23,13 +23,16 @@ async function deeplTranslate(text, targetLang) {
   if (!key) throw new Error('Traduction non configurée (clé DeepL manquante).');
 
   const body = new URLSearchParams();
-  body.set('auth_key', key);
   body.set('text', text);
   body.set('target_lang', targetLang);
 
   const resp = await fetch(deeplEndpointForKey(key), {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      // DeepL legacy auth_key form param has been deprecated (Nov 2025)
+      Authorization: `DeepL-Auth-Key ${key}`,
+    },
     body,
   });
 
