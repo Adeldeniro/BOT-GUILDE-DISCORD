@@ -3984,9 +3984,22 @@ async function main() {
           // Remove the prompt message entirely after success (less visible to others)
           try { await interaction.message.delete(); } catch {}
 
-          // Ack
+          // React on the rules message (thumbs up)
           try {
-            await interaction.reply({ content: `✅ Règlement validé. Accès débloqué via ${accessRole}.`, ephemeral: true });
+            if (rc.rulesChannelId && rc.rulesMessageId) {
+              const rch = await interaction.client.channels.fetch(rc.rulesChannelId).catch(() => null);
+              if (rch && rch.isTextBased()) {
+                const rm = await rch.messages.fetch(rc.rulesMessageId).catch(() => null);
+                if (rm) await rm.react('👍🏽').catch(() => {});
+              }
+            }
+          } catch {}
+
+          // Ack + link to the next step
+          try {
+            await interaction.editReply({
+              content: `✅ Règlement validé. Accès débloqué via ${accessRole}.\n➡️ Suite : va dans <#${rc.welcomeChannelId}> pour choisir **Guildeux** ou **Invité**.`,
+            }).catch(() => {});
           } catch {}
 
           return;
