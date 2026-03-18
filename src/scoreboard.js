@@ -171,6 +171,11 @@ async function maybeWeeklyAnnouncement(guild, channel, { topN = 10, hour = 22 } 
   // Reset weekly scores AFTER announcement
   resetScores(guild.id);
 
+  // Refresh the live scoreboard message so a new week starts immediately
+  try {
+    await ensureScoreboardMessage(guild, channel, { topN: 25 });
+  } catch {}
+
   setLastWeeklyAnnounceDate(guild.id, ymd);
 }
 
