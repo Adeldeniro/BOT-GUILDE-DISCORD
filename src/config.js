@@ -24,4 +24,7 @@ module.exports = {
   guildeuxRoleId: process.env.GUILDEUX_ROLE_ID || null,
   scoreboardChannelId: process.env.SCOREBOARD_CHANNEL_ID || null,
   scoreboardTopN: Number(process.env.SCOREBOARD_TOP_N || 25),
+
+  // DeepL (optional)
+  deeplApiKey: process.env.DEEPL_API_KEY || null,
 };

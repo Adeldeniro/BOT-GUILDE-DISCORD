@@ -1,4 +1,4 @@
-﻿const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
+﻿const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
 const path = require('path');
 const sharp = require('sharp');
 const config = require('./config');
@@ -10,6 +10,49 @@ const scoreboard = require('./scoreboard');
 const profiles = require('./profiles');
 const ev = require('./events');
 const drafts = require('./eventDrafts');
+
+// DeepL translation (optional)
+const deeplThrottle = new Map(); // userId -> lastTs
+function deeplEndpointForKey(key) {
+  // Free API keys often end with :fx
+  return String(key || '').includes(':fx') ? 'https://api-free.deepl.com/v2/translate' : 'https://api.deepl.com/v2/translate';
+}
+
+async function deeplTranslate(text, targetLang) {
+  const key = config.deeplApiKey;
+  if (!key) throw new Error('Traduction non configurée (clé DeepL manquante).');
+
+  const body = new URLSearchParams();
+  body.set('auth_key', key);
+  body.set('text', text);
+  body.set('target_lang', targetLang);
+
+  const resp = await fetch(deeplEndpointForKey(key), {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+
+  const json = await resp.json().catch(() => null);
+  if (!resp.ok) {
+    const msg = json?.message || json?.error || `HTTP ${resp.status}`;
+    throw new Error(msg);
+  }
+
+  const out = json?.translations?.[0]?.text;
+  if (!out) throw new Error('Réponse DeepL invalide.');
+  return out;
+}
+
+async function withDeeplThrottle(userId, fn) {
+  const now = Date.now();
+  const last = deeplThrottle.get(userId) || 0;
+  const waitMs = Math.max(0, (last + 2000) - now);
+  if (waitMs) await new Promise(r => setTimeout(r, waitMs));
+  deeplThrottle.set(userId, Date.now());
+  return fn();
+}
+
 
 function buildDashboardEmbed(rc) {
   const okPing = !!(rc.panelChannelId && rc.alertChannelId && rc.defRoleId);
@@ -1121,6 +1164,16 @@ async function ensureActivityLogHeader(guild, rc) {
 
 async function registerCommands(client) {
   const commands = [
+    // Message context menu — translation (ephemeral)
+    new ContextMenuCommandBuilder()
+      .setName('Traduire FR')
+      .setType(ApplicationCommandType.Message),
+    new ContextMenuCommandBuilder()
+      .setName('Translate EN')
+      .setType(ApplicationCommandType.Message),
+    new ContextMenuCommandBuilder()
+      .setName('Traducir ES')
+      .setType(ApplicationCommandType.Message),
     new SlashCommandBuilder()
       .setName('panneau_creer')
       .setDescription('Créer ou mettre à jour le panneau de boutons')
@@ -1894,6 +1947,70 @@ async function main() {
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      // Message context menu: DeepL translation (ephemeral)
+      if (interaction.isMessageContextMenuCommand && interaction.isMessageContextMenuCommand()) {
+        const name = interaction.commandName;
+        const map = {
+          'Traduire FR': 'FR',
+          'Translate EN': 'EN-GB',
+          'Traducir ES': 'ES',
+        };
+        const target = map[name];
+        if (target) {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+          const msg = interaction.targetMessage;
+          const extractFromEmbed = (emb) => {
+            if (!emb) return '';
+            const parts = [];
+            if (emb.title) parts.push(String(emb.title));
+            if (emb.description) parts.push(String(emb.description));
+            if (Array.isArray(emb.fields)) {
+              for (const f of emb.fields) {
+                if (f?.name) parts.push(String(f.name));
+                if (f?.value) parts.push(String(f.value));
+              }
+            }
+            return parts.join('\n');
+          };
+
+          const rawText =
+            (msg?.content && String(msg.content).trim()) ||
+            extractFromEmbed(msg?.embeds?.[0]) ||
+            '';
+
+          const text = rawText
+            .replace(/<@&?\d+>/g, '') // remove mentions
+            .replace(/<#[0-9]+>/g, '')
+            .replace(/<:[^:]+:\d+>/g, '')
+            .replace(/<a:[^:]+:\d+>/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (!text) {
+            return interaction.editReply({ content: '❌ Rien à traduire sur ce message (texte vide).' }).catch(() => {});
+          }
+
+          const limited = text.slice(0, 1500);
+
+          try {
+            const translated = await withDeeplThrottle(interaction.user.id, () => deeplTranslate(limited, target));
+
+            const embed = new EmbedBuilder()
+              .setColor(0x1abc9c)
+              .setTitle('🌍 Traduction')
+              .addFields(
+                { name: 'Résultat', value: String(translated).slice(0, 3900) || '—', inline: false },
+              )
+              .setFooter({ text: `DeepL • cible ${target}` });
+
+            return interaction.editReply({ embeds: [embed] }).catch(() => {});
+          } catch (e) {
+            return interaction.editReply({ content: `❌ Erreur traduction: ${(e?.message || e)}`.slice(0, 1800) }).catch(() => {});
+          }
+        }
+      }
+
       // Event validation select
       if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
         if (interaction.customId.startsWith('evdef:')) {
