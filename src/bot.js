@@ -2047,12 +2047,12 @@ async function main() {
           if (kind === 'pa') state.criteria.pa = value;
           if (kind === 'pm') state.criteria.pm = value;
 
-          const components = stuffGen.buildUI(sessionId, state.criteria);
+          const components = stuffGen.buildUI(sessionId, state.criteria, { regenLabel: 'Générer' });
           return interaction.update({
             content: [
               '**Générateur de stuff — Dashboard**',
               `Sélection: element=${state.criteria.element || '—'} | PA=${state.criteria.pa || '—'} | PM=${state.criteria.pm || '—'}`,
-              'Clique sur **⟲ Autres 10** pour recevoir les liens en privé (éphémère).',
+              'Clique sur **Générer** pour recevoir 10 liens en privé (éphémère).',
             ].join('\n'),
             components,
           });
@@ -3469,14 +3469,14 @@ async function main() {
           const sessionId = stuffGen.newSessionId();
           stuffSessions.set(sessionId, { criteria: { element: null, pa: null, pm: null } });
 
-          const components = stuffGen.buildUI(sessionId, { element: null, pa: null, pm: null });
+          const components = stuffGen.buildUI(sessionId, { element: null, pa: null, pm: null }, { regenLabel: 'Générer' });
 
           await interaction.reply({ content: '✅ Dashboard posté.', ephemeral: true });
 
           const msg = await target.send({
             content: [
               '**Générateur de stuff — Dashboard**',
-              'Choisis **Élément**, **PA**, **PM**, puis clique **⟲ Autres 10**.',
+              'Choisis **Élément**, **PA**, **PM**, puis clique **Générer**.',
               '(Les résultats arrivent en privé / éphémère.)',
             ].join('\n'),
             components,
@@ -3691,50 +3691,64 @@ async function main() {
       if (interaction.isButton()) {
         // Stuff generator button
         if (interaction.customId.startsWith('gs:regen:')) {
-          if (interaction.channelId !== STUFF_GEN_CHANNEL_ID) {
-            return interaction.reply({ content: `Utilise le générateur uniquement dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
-          }
-
-          const [_, __, sessionId] = interaction.customId.split(':');
-          const state = stuffSessions.get(sessionId);
-          if (!state) {
-            return interaction.reply({ content: 'Session expirée. Demande à un admin de relancer /generateurstuff.', ephemeral: true });
-          }
-
-          let items;
           try {
-            ({ items } = stuffGen.loadCatalog());
-          } catch (e) {
-            return interaction.reply({
-              content: `Catalogue introuvable/corrompu. (${e?.message || e})`,
+            if (interaction.channelId !== STUFF_GEN_CHANNEL_ID) {
+              return interaction.reply({ content: `Utilise le générateur uniquement dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
+            }
+
+            // ACK immediately (prevents "Unknown interaction" if any processing takes time)
+            await interaction.deferUpdate().catch(() => {});
+
+            const [_, __, sessionId] = interaction.customId.split(':');
+            const state = stuffSessions.get(sessionId);
+            if (!state) {
+              return interaction.followUp({ content: 'Session expirée. Demande à un admin de relancer /generateurstuff.', ephemeral: true }).catch(() => {});
+            }
+
+            let items;
+            try {
+              ({ items } = stuffGen.loadCatalog());
+            } catch (e) {
+              return interaction.followUp({
+                content: `Catalogue introuvable/corrompu. (${e?.message || e})`,
+                ephemeral: true,
+              }).catch(() => {});
+            }
+
+            const filtered = stuffGen.filterItems(items, state.criteria);
+
+            const perUserKey = `${sessionId}:${interaction.user.id}`;
+            const perUser = stuffSessions.get(perUserKey) || { alreadyShown: new Set(), generatedOnce: false };
+            if (!(perUser.alreadyShown instanceof Set)) perUser.alreadyShown = new Set();
+
+            const list = stuffGen.pick10(filtered, perUser.alreadyShown);
+            list.forEach((x) => perUser.alreadyShown.add(String(x.stuff_id)));
+            perUser.generatedOnce = true;
+            stuffSessions.set(perUserKey, perUser);
+
+            const embed = stuffGen.buildResultsEmbed(list, state.criteria);
+
+            // Keep dashboard message clean (edit the original message)
+            const components = stuffGen.buildUI(sessionId, state.criteria, { regenLabel: '⟲ Autres 10' });
+            await interaction.editReply({
+              content: [
+                '**Générateur de stuff — Dashboard**',
+                `Sélection: element=${state.criteria.element || '—'} | PA=${state.criteria.pa || '—'} | PM=${state.criteria.pm || '—'}`,
+                'Clique sur **⟲ Autres 10** pour voir d\'autres propositions.',
+              ].join('\n'),
+              components,
+            }).catch(() => {});
+
+            // Results in ephemeral with a single "Autres 10" button
+            return interaction.followUp({
+              embeds: [embed],
+              components: stuffGen.buildRegenOnlyRow(sessionId, { label: '⟲ Autres 10' }),
               ephemeral: true,
-            });
+            }).catch(() => {});
+          } catch (e) {
+            console.error('[stuff] regen error:', e);
+            return interaction.followUp({ content: `Erreur interne: ${(e?.message || e)}`.slice(0, 1500), ephemeral: true }).catch(() => {});
           }
-
-          const filtered = stuffGen.filterItems(items, state.criteria);
-
-          const perUserKey = `${sessionId}:${interaction.user.id}`;
-          const perUser = stuffSessions.get(perUserKey) || { alreadyShown: new Set() };
-          if (!(perUser.alreadyShown instanceof Set)) perUser.alreadyShown = new Set();
-
-          const list = stuffGen.pick10(filtered, perUser.alreadyShown);
-          list.forEach((x) => perUser.alreadyShown.add(String(x.stuff_id)));
-          stuffSessions.set(perUserKey, perUser);
-
-          const embed = stuffGen.buildResultsEmbed(list, state.criteria);
-
-          // Keep dashboard message clean
-          const components = stuffGen.buildUI(sessionId, state.criteria);
-          await interaction.update({
-            content: [
-              '**Générateur de stuff — Dashboard**',
-              `Sélection: element=${state.criteria.element || '—'} | PA=${state.criteria.pa || '—'} | PM=${state.criteria.pm || '—'}`,
-              'Clique sur **⟲ Autres 10** pour voir d\'autres propositions.',
-            ].join('\n'),
-            components,
-          }).catch(() => {});
-
-          return interaction.followUp({ embeds: [embed], components: stuffGen.buildRegenOnlyRow(sessionId), ephemeral: true });
         }
 
         // Dofusbook builds panel

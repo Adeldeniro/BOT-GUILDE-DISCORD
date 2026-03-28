@@ -33,7 +33,7 @@ function score(x) {
   return pdv + rs * 50;
 }
 
-function buildUI(sessionId, criteria) {
+function buildUI(sessionId, criteria, { regenLabel = 'Générer' } = {}) {
   const elementOptions = ['terre', 'feu', 'eau', 'air', 'multi', 'dopou', 'docrit'];
   const paChoices = ['11', '12'];
   const pmChoices = ['5', '6'];
@@ -79,7 +79,7 @@ function buildUI(sessionId, criteria) {
 
   const regenBtn = new ButtonBuilder()
     .setCustomId(`gs:regen:${sessionId}`)
-    .setLabel('⟲ Autres 10')
+    .setLabel(regenLabel)
     .setStyle(ButtonStyle.Primary);
 
   return [
@@ -157,10 +157,10 @@ function buildResultsEmbed(list, criteria) {
   return embed;
 }
 
-function buildRegenOnlyRow(sessionId) {
+function buildRegenOnlyRow(sessionId, { label = '⟲ Autres 10' } = {}) {
   const regenBtn = new ButtonBuilder()
     .setCustomId(`gs:regen:${sessionId}`)
-    .setLabel('⟲ Autres 10')
+    .setLabel(label)
     .setStyle(ButtonStyle.Primary);
 
   return [new ActionRowBuilder().addComponents(regenBtn)];
