@@ -127,6 +127,11 @@ function pick10(items, alreadyShown) {
   return effectivePool.slice(0, 10);
 }
 
+function clamp(s, max) {
+  const str = String(s ?? '');
+  return str.length > max ? `${str.slice(0, max - 1)}…` : str;
+}
+
 function buildResultsEmbed(list, criteria) {
   const elem = criteria.element || '—';
   const pa = criteria.pa || '—';
@@ -142,18 +147,23 @@ function buildResultsEmbed(list, criteria) {
     return embed;
   }
 
-  const value = list.map((x, i) => {
+  // IMPORTANT: Discord embed field values are limited (1024 chars).
+  // We create 10 small fields instead of one huge block to avoid "Received one or more errors".
+  list.slice(0, 10).forEach((x, i) => {
     const pdv = x?.display?.pdv ?? '?';
     const r = x?.display?.res || {};
     const paV = x?.display?.pa ?? '?';
     const pmV = x?.display?.pm ?? '?';
-    return [
-      `**#${i + 1}** — **PdV ${pdv}**  •  **${paV}PA/${pmV}PM** — [Ouvrir](${x.url})`,
-      `Res **N/T/E/F/A**: ${r.neutre ?? 0}/${r.terre ?? 0}/${r.eau ?? 0}/${r.feu ?? 0}/${r.air ?? 0}`,
-    ].join('\n');
-  }).join('\n\n');
 
-  embed.addFields({ name: 'Top 10', value });
+    const name = clamp(`#${i + 1} — PdV ${pdv} • ${paV}PA/${pmV}PM`, 256);
+    const value = clamp(
+      `Res N/T/E/F/A: ${r.neutre ?? 0}/${r.terre ?? 0}/${r.eau ?? 0}/${r.feu ?? 0}/${r.air ?? 0}\n[Ouvrir](${x.url})`,
+      1024,
+    );
+
+    embed.addFields({ name, value, inline: false });
+  });
+
   return embed;
 }
 
