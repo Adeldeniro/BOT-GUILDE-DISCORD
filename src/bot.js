@@ -10,6 +10,11 @@ const scoreboard = require('./scoreboard');
 const profiles = require('./profiles');
 const ev = require('./events');
 const drafts = require('./eventDrafts');
+const stuffGen = require('./stuffGenerator');
+
+// Stuff generator (DofusBook Touch)
+const STUFF_GEN_CHANNEL_ID = '1480657603779362963';
+const stuffSessions = new Map(); // sessionId -> { criteria } and per-user shown in `${sessionId}:${userId}`
 
 // DeepL translation (optional)
 const deeplThrottle = new Map(); // userId -> lastTs
@@ -1346,6 +1351,15 @@ async function registerCommands(client) {
         .setRequired(true)),
 
     new SlashCommandBuilder()
+      .setName('generateurstuff')
+      .setDescription('Poster le générateur de stuffs opti PVP (admin only)')
+      .addChannelOption(o => o
+        .setName('salon')
+        .setDescription('Salon où poster la box (défaut: salon actuel)')
+        .addChannelTypes(0, 5)
+        .setRequired(false)),
+
+    new SlashCommandBuilder()
       .setName('clean')
       .setDescription('Nettoyer les messages dans ce salon (admin)')
       .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages à supprimer (1-100)').setRequired(false)),
@@ -2016,6 +2030,34 @@ async function main() {
 
       // Event validation select
       if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
+        // Stuff generator selects
+        if (interaction.customId.startsWith('gs:')) {
+          if (interaction.channelId !== STUFF_GEN_CHANNEL_ID) {
+            return interaction.reply({ content: `Utilise le générateur uniquement dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
+          }
+
+          const [_, kind, sessionId] = interaction.customId.split(':');
+          const state = stuffSessions.get(sessionId);
+          if (!state) {
+            return interaction.reply({ content: 'Session expirée. Demande à un admin de relancer /generateurstuff.', ephemeral: true });
+          }
+
+          const value = interaction.values?.[0];
+          if (kind === 'elem') state.criteria.element = value;
+          if (kind === 'pa') state.criteria.pa = value;
+          if (kind === 'pm') state.criteria.pm = value;
+
+          const components = stuffGen.buildUI(sessionId, state.criteria);
+          return interaction.update({
+            content: [
+              '**Générateur de stuff — Dashboard**',
+              `Sélection: element=${state.criteria.element || '—'} | PA=${state.criteria.pa || '—'} | PM=${state.criteria.pm || '—'}`,
+              'Clique sur **⟲ Autres 10** pour recevoir les liens en privé (éphémère).',
+            ].join('\n'),
+            components,
+          });
+        }
+
         if (interaction.customId.startsWith('evdef:')) {
           const id = Number(interaction.customId.split(':')[1]);
           const defenders = Number(interaction.values?.[0]);
@@ -3399,6 +3441,52 @@ async function main() {
           return interaction.reply({ content: `Panneau actualisé dans <#${channel.id}> (message ${msg.id}).`, ephemeral: true });
         }
 
+        if (interaction.commandName === 'generateurstuff') {
+          // Admin-only + restricted channel
+          if (!interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: 'Commande réservée aux **admins** du serveur.', ephemeral: true });
+          }
+
+          const target = interaction.options.getChannel('salon', false) || interaction.channel;
+          if (!target?.isTextBased?.()) {
+            return interaction.reply({ content: 'Choisis un **salon texte**.', ephemeral: true });
+          }
+
+          if (target.id !== STUFF_GEN_CHANNEL_ID) {
+            return interaction.reply({ content: `Cette commande doit être utilisée dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
+          }
+
+          // Verify catalog readable
+          try {
+            const { items, catalogPath } = stuffGen.loadCatalog();
+            if (!items.length) {
+              return interaction.reply({ content: `Catalogue vide: ${catalogPath}`, ephemeral: true });
+            }
+          } catch (e) {
+            return interaction.reply({ content: `Catalogue introuvable/corrompu. (${e?.message || e})`, ephemeral: true });
+          }
+
+          const sessionId = stuffGen.newSessionId();
+          stuffSessions.set(sessionId, { criteria: { element: null, pa: null, pm: null } });
+
+          const components = stuffGen.buildUI(sessionId, { element: null, pa: null, pm: null });
+
+          await interaction.reply({ content: '✅ Dashboard posté.', ephemeral: true });
+
+          const msg = await target.send({
+            content: [
+              '**Générateur de stuff — Dashboard**',
+              'Choisis **Élément**, **PA**, **PM**, puis clique **⟲ Autres 10**.',
+              '(Les résultats arrivent en privé / éphémère.)',
+            ].join('\n'),
+            components,
+            allowedMentions: { parse: [] },
+          });
+          try { await msg.pin(); } catch {}
+
+          return;
+        }
+
         if (interaction.commandName === 'scoreboard_weekly_run') {
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -3601,6 +3689,54 @@ async function main() {
       }
 
       if (interaction.isButton()) {
+        // Stuff generator button
+        if (interaction.customId.startsWith('gs:regen:')) {
+          if (interaction.channelId !== STUFF_GEN_CHANNEL_ID) {
+            return interaction.reply({ content: `Utilise le générateur uniquement dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
+          }
+
+          const [_, __, sessionId] = interaction.customId.split(':');
+          const state = stuffSessions.get(sessionId);
+          if (!state) {
+            return interaction.reply({ content: 'Session expirée. Demande à un admin de relancer /generateurstuff.', ephemeral: true });
+          }
+
+          let items;
+          try {
+            ({ items } = stuffGen.loadCatalog());
+          } catch (e) {
+            return interaction.reply({
+              content: `Catalogue introuvable/corrompu. (${e?.message || e})`,
+              ephemeral: true,
+            });
+          }
+
+          const filtered = stuffGen.filterItems(items, state.criteria);
+
+          const perUserKey = `${sessionId}:${interaction.user.id}`;
+          const perUser = stuffSessions.get(perUserKey) || { alreadyShown: new Set() };
+          if (!(perUser.alreadyShown instanceof Set)) perUser.alreadyShown = new Set();
+
+          const list = stuffGen.pick10(filtered, perUser.alreadyShown);
+          list.forEach((x) => perUser.alreadyShown.add(String(x.stuff_id)));
+          stuffSessions.set(perUserKey, perUser);
+
+          const embed = stuffGen.buildResultsEmbed(list, state.criteria);
+
+          // Keep dashboard message clean
+          const components = stuffGen.buildUI(sessionId, state.criteria);
+          await interaction.update({
+            content: [
+              '**Générateur de stuff — Dashboard**',
+              `Sélection: element=${state.criteria.element || '—'} | PA=${state.criteria.pa || '—'} | PM=${state.criteria.pm || '—'}`,
+              'Clique sur **⟲ Autres 10** pour voir d\'autres propositions.',
+            ].join('\n'),
+            components,
+          }).catch(() => {});
+
+          return interaction.followUp({ embeds: [embed], components: stuffGen.buildRegenOnlyRow(sessionId), ephemeral: true });
+        }
+
         // Dofusbook builds panel
         if (interaction.customId.startsWith('dbp:add:') || interaction.customId.startsWith('dbp:mine:')) {
           const guildId = interaction.customId.split(':')[2];

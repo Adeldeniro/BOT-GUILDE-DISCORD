@@ -1,0 +1,3865 @@
+{
+  "meta": {
+    "min_pdv": 4500,
+    "min_res": {
+      "neutre": 0,
+      "terre": 25,
+      "eau": 25,
+      "feu": 25,
+      "air": 25
+    },
+    "quota_per_element": 50,
+    "counts": {
+      "terre": 50,
+      "feu": 50,
+      "eau": 50,
+      "air": 45,
+      "multi": 5
+    },
+    "total": 200
+  },
+  "items": [
+    {
+      "stuff_id": "3155600",
+      "url": "https://touch.dofusbook.net/fr/equipement/3155600/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 5,
+          "terre": 40,
+          "eau": 39,
+          "feu": 30,
+          "air": 33
+        },
+        "pdv": 5150,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Air low"
+    },
+    {
+      "stuff_id": "3288402",
+      "url": "https://touch.dofusbook.net/fr/equipement/3288402/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 39,
+          "eau": 30,
+          "feu": 30,
+          "air": 32
+        },
+        "pdv": 4675,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Enutrof M 200"
+    },
+    {
+      "stuff_id": "3072906",
+      "url": "https://touch.dofusbook.net/fr/equipement/3072906/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 35,
+          "eau": 31,
+          "feu": 31,
+          "air": 30
+        },
+        "pdv": 4825,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Terre cc variante 3"
+    },
+    {
+      "stuff_id": "2304690",
+      "url": "https://touch.dofusbook.net/fr/equipement/2304690/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 36,
+          "eau": 36,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Mode terre cc no pano"
+    },
+    {
+      "stuff_id": "2380951",
+      "url": "https://touch.dofusbook.net/fr/equipement/2380951/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 30,
+          "eau": 30,
+          "feu": 30,
+          "air": 33
+        },
+        "pdv": 4895,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Kolo lun dopou"
+    },
+    {
+      "stuff_id": "1941129",
+      "url": "https://touch.dofusbook.net/fr/equipement/1941129/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 37,
+          "terre": 25,
+          "eau": 35,
+          "feu": 30,
+          "air": 50
+        },
+        "pdv": 4695,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "full resi harpelle"
+    },
+    {
+      "stuff_id": "2631456",
+      "url": "https://touch.dofusbook.net/fr/equipement/2631456/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 26,
+          "eau": 28,
+          "feu": 28,
+          "air": 32
+        },
+        "pdv": 4575,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Terre feu"
+    },
+    {
+      "stuff_id": "2759461",
+      "url": "https://touch.dofusbook.net/fr/equipement/2759461/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 32,
+          "eau": 35,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 5795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2111898",
+      "url": "https://touch.dofusbook.net/fr/equipement/2111898/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 11,
+          "terre": 31,
+          "eau": 31,
+          "feu": 26,
+          "air": 25
+        },
+        "pdv": 4985,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Goodedios "
+    },
+    {
+      "stuff_id": "2709042",
+      "url": "https://touch.dofusbook.net/fr/equipement/2709042/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 27,
+          "eau": 33,
+          "feu": 35,
+          "air": 30
+        },
+        "pdv": 4895,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Fuerza 200"
+    },
+    {
+      "stuff_id": "3012767",
+      "url": "https://touch.dofusbook.net/fr/equipement/3012767/objets",
+      "element": "terre",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 33,
+          "eau": 36,
+          "feu": 32,
+          "air": 30
+        },
+        "pdv": 5000,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Crit wulan terre"
+    },
+    {
+      "stuff_id": "2321168",
+      "url": "https://touch.dofusbook.net/fr/equipement/2321168/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 32,
+          "eau": 31,
+          "feu": 38,
+          "air": 35
+        },
+        "pdv": 5045,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "sadi feu eau JDA"
+    },
+    {
+      "stuff_id": "3059787",
+      "url": "https://touch.dofusbook.net/fr/equipement/3059787/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 40,
+          "terre": 29,
+          "eau": 25,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4895,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Feu/eau classique "
+    },
+    {
+      "stuff_id": "3287163",
+      "url": "https://touch.dofusbook.net/fr/equipement/3287163/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 35,
+          "eau": 25,
+          "feu": 27,
+          "air": 43
+        },
+        "pdv": 5195,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3085869",
+      "url": "https://touch.dofusbook.net/fr/equipement/3085869/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 36,
+          "terre": 34,
+          "eau": 27,
+          "feu": 30,
+          "air": 29
+        },
+        "pdv": 4625,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Steamer M 200"
+    },
+    {
+      "stuff_id": "2891819",
+      "url": "https://touch.dofusbook.net/fr/equipement/2891819/objets",
+      "element": "terre",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 33,
+          "eau": 33,
+          "feu": 34,
+          "air": 29
+        },
+        "pdv": 5045,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Terrodp"
+    },
+    {
+      "stuff_id": "2983450",
+      "url": "https://touch.dofusbook.net/fr/equipement/2983450/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 36,
+          "eau": 36,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 5171,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "MultiClass M 200"
+    },
+    {
+      "stuff_id": "2704286",
+      "url": "https://touch.dofusbook.net/fr/equipement/2704286/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 24,
+          "terre": 37,
+          "eau": 29,
+          "feu": 33,
+          "air": 30
+        },
+        "pdv": 4745,
+        "pa": 10,
+        "pm": 6
+      },
+      "title": "Espectral"
+    },
+    {
+      "stuff_id": "3035510",
+      "url": "https://touch.dofusbook.net/fr/equipement/3035510/objets",
+      "element": "eau",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 27,
+          "eau": 25,
+          "feu": 27,
+          "air": 33
+        },
+        "pdv": 4605,
+        "pa": 10,
+        "pm": 5
+      },
+      "title": "MultiClass M 200"
+    },
+    {
+      "stuff_id": "2656989",
+      "url": "https://touch.dofusbook.net/fr/equipement/2656989/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 44,
+          "terre": 30,
+          "eau": 30,
+          "feu": 35,
+          "air": 25
+        },
+        "pdv": 4695,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Osamodas M 200"
+    },
+    {
+      "stuff_id": "2779835",
+      "url": "https://touch.dofusbook.net/fr/equipement/2779835/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 5,
+          "terre": 25,
+          "eau": 30,
+          "feu": 37,
+          "air": 34
+        },
+        "pdv": 4575,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Iop M 200"
+    },
+    {
+      "stuff_id": "2888492",
+      "url": "https://touch.dofusbook.net/fr/equipement/2888492/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 32,
+          "eau": 30,
+          "feu": 33,
+          "air": 39
+        },
+        "pdv": 4945,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Steamer M 200"
+    },
+    {
+      "stuff_id": "2715465",
+      "url": "https://touch.dofusbook.net/fr/equipement/2715465/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 29,
+          "eau": 30,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 4790,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2700663",
+      "url": "https://touch.dofusbook.net/fr/equipement/2700663/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 36,
+          "eau": 36,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 5175,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Polichonera"
+    },
+    {
+      "stuff_id": "2877643",
+      "url": "https://touch.dofusbook.net/fr/equipement/2877643/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 25,
+          "eau": 32,
+          "feu": 40,
+          "air": 31
+        },
+        "pdv": 4575,
+        "pa": 10,
+        "pm": 5
+      },
+      "title": "Ecaflip M 200"
+    },
+    {
+      "stuff_id": "2891465",
+      "url": "https://touch.dofusbook.net/fr/equipement/2891465/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 27,
+          "eau": 27,
+          "feu": 30,
+          "air": 29
+        },
+        "pdv": 4990,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Eau 200 do"
+    },
+    {
+      "stuff_id": "2984161",
+      "url": "https://touch.dofusbook.net/fr/equipement/2984161/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 35,
+          "eau": 28,
+          "feu": 28,
+          "air": 29
+        },
+        "pdv": 4875,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Sakari"
+    },
+    {
+      "stuff_id": "2689907",
+      "url": "https://touch.dofusbook.net/fr/equipement/2689907/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 34,
+          "eau": 33,
+          "feu": 33,
+          "air": 34
+        },
+        "pdv": 4705,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Multi"
+    },
+    {
+      "stuff_id": "2178295",
+      "url": "https://touch.dofusbook.net/fr/equipement/2178295/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 31,
+          "eau": 32,
+          "feu": 36,
+          "air": 33
+        },
+        "pdv": 4975,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Omamori"
+    },
+    {
+      "stuff_id": "2460354",
+      "url": "https://touch.dofusbook.net/fr/equipement/2460354/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 33,
+          "eau": 32,
+          "feu": 30,
+          "air": 29
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Rbi3"
+    },
+    {
+      "stuff_id": "2623994",
+      "url": "https://touch.dofusbook.net/fr/equipement/2623994/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 30,
+          "terre": 30,
+          "eau": 27,
+          "feu": 28,
+          "air": 49
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "inte"
+    },
+    {
+      "stuff_id": "2836934",
+      "url": "https://touch.dofusbook.net/fr/equipement/2836934/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 36,
+          "eau": 36,
+          "feu": 31,
+          "air": 27
+        },
+        "pdv": 6465,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2911626",
+      "url": "https://touch.dofusbook.net/fr/equipement/2911626/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 35,
+          "eau": 30,
+          "feu": 30,
+          "air": 35
+        },
+        "pdv": 5695,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Stuff chelou a test"
+    },
+    {
+      "stuff_id": "3230424",
+      "url": "https://touch.dofusbook.net/fr/equipement/3230424/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 33,
+          "eau": 32,
+          "feu": 36,
+          "air": 25
+        },
+        "pdv": 5100,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Agi res empuje"
+    },
+    {
+      "stuff_id": "2747000",
+      "url": "https://touch.dofusbook.net/fr/equipement/2747000/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 27,
+          "eau": 30,
+          "feu": 27,
+          "air": 27
+        },
+        "pdv": 5145,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Terre eau air"
+    },
+    {
+      "stuff_id": "3050103",
+      "url": "https://touch.dofusbook.net/fr/equipement/3050103/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 33,
+          "eau": 35,
+          "feu": 46,
+          "air": 35
+        },
+        "pdv": 4675,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Suerte meta"
+    },
+    {
+      "stuff_id": "3191713",
+      "url": "https://touch.dofusbook.net/fr/equipement/3191713/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 5,
+          "terre": 31,
+          "eau": 38,
+          "feu": 30,
+          "air": 32
+        },
+        "pdv": 4525,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Pandawa M 200"
+    },
+    {
+      "stuff_id": "2236514",
+      "url": "https://touch.dofusbook.net/fr/equipement/2236514/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 5,
+          "terre": 27,
+          "eau": 39,
+          "feu": 32,
+          "air": 31
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "terre new trophe"
+    },
+    {
+      "stuff_id": "3267185",
+      "url": "https://touch.dofusbook.net/fr/equipement/3267185/objets",
+      "element": "terre",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 29,
+          "eau": 29,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4945,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Chimique terre dague "
+    },
+    {
+      "stuff_id": "1821957",
+      "url": "https://touch.dofusbook.net/fr/equipement/1821957/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 27,
+          "terre": 35,
+          "eau": 27,
+          "feu": 30,
+          "air": 30
+        },
+        "pdv": 4895,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Pandawa M 200"
+    },
+    {
+      "stuff_id": "2596244",
+      "url": "https://touch.dofusbook.net/fr/equipement/2596244/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 29,
+          "eau": 29,
+          "feu": 41,
+          "air": 40
+        },
+        "pdv": 4845,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "stuff pvp sacri"
+    },
+    {
+      "stuff_id": "3157729",
+      "url": "https://touch.dofusbook.net/fr/equipement/3157729/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 14,
+          "terre": 27,
+          "eau": 26,
+          "feu": 31,
+          "air": 29
+        },
+        "pdv": 4845,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Pvm200"
+    },
+    {
+      "stuff_id": "3009267",
+      "url": "https://touch.dofusbook.net/fr/equipement/3009267/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 42,
+          "eau": 26,
+          "feu": 30,
+          "air": 31
+        },
+        "pdv": 4775,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Terre"
+    },
+    {
+      "stuff_id": "2994171",
+      "url": "https://touch.dofusbook.net/fr/equipement/2994171/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 35,
+          "eau": 32,
+          "feu": 35,
+          "air": 37
+        },
+        "pdv": 4875,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Jsp"
+    },
+    {
+      "stuff_id": "1871116",
+      "url": "https://touch.dofusbook.net/fr/equipement/1871116/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 37,
+          "eau": 30,
+          "feu": 40,
+          "air": 27
+        },
+        "pdv": 4695,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3082308",
+      "url": "https://touch.dofusbook.net/fr/equipement/3082308/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 5,
+          "terre": 25,
+          "eau": 30,
+          "feu": 37,
+          "air": 34
+        },
+        "pdv": 5175,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Sram M 200"
+    },
+    {
+      "stuff_id": "2961456",
+      "url": "https://touch.dofusbook.net/fr/equipement/2961456/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 5,
+          "terre": 29,
+          "eau": 41,
+          "feu": 35,
+          "air": 26
+        },
+        "pdv": 4595,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "MultiClass M 200"
+    },
+    {
+      "stuff_id": "3029553",
+      "url": "https://touch.dofusbook.net/fr/equipement/3029553/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 35,
+          "terre": 34,
+          "eau": 30,
+          "feu": 30,
+          "air": 30
+        },
+        "pdv": 5745,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Osamodas M 200"
+    },
+    {
+      "stuff_id": "2168257",
+      "url": "https://touch.dofusbook.net/fr/equipement/2168257/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 30,
+          "eau": 30,
+          "feu": 30,
+          "air": 36
+        },
+        "pdv": 4590,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Mix"
+    },
+    {
+      "stuff_id": "3001697",
+      "url": "https://touch.dofusbook.net/fr/equipement/3001697/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 5,
+          "terre": 31,
+          "eau": 31,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 5095,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Aircrig"
+    },
+    {
+      "stuff_id": "3179616",
+      "url": "https://touch.dofusbook.net/fr/equipement/3179616/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 26,
+          "eau": 25,
+          "feu": 26,
+          "air": 36
+        },
+        "pdv": 4824,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Iop M 200"
+    },
+    {
+      "stuff_id": "3096330",
+      "url": "https://touch.dofusbook.net/fr/equipement/3096330/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 8,
+          "terre": 34,
+          "eau": 43,
+          "feu": 43,
+          "air": 33
+        },
+        "pdv": 5245,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Pandawa M 200"
+    },
+    {
+      "stuff_id": "2487252",
+      "url": "https://touch.dofusbook.net/fr/equipement/2487252/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 26,
+          "terre": 27,
+          "eau": 27,
+          "feu": 30,
+          "air": 32
+        },
+        "pdv": 4845,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3197537",
+      "url": "https://touch.dofusbook.net/fr/equipement/3197537/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 30,
+          "eau": 34,
+          "feu": 30,
+          "air": 35
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Wwrr"
+    },
+    {
+      "stuff_id": "3074971",
+      "url": "https://touch.dofusbook.net/fr/equipement/3074971/objets",
+      "element": "terre",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 6,
+          "terre": 26,
+          "eau": 26,
+          "feu": 27,
+          "air": 26
+        },
+        "pdv": 4905,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Noctuwul belladone "
+    },
+    {
+      "stuff_id": "2186013",
+      "url": "https://touch.dofusbook.net/fr/equipement/2186013/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 28,
+          "terre": 30,
+          "eau": 28,
+          "feu": 30,
+          "air": 28
+        },
+        "pdv": 4595,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Eau air 12 6"
+    },
+    {
+      "stuff_id": "1570588",
+      "url": "https://touch.dofusbook.net/fr/equipement/1570588/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 29,
+          "terre": 39,
+          "eau": 39,
+          "feu": 39,
+          "air": 35
+        },
+        "pdv": 4575,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Shihan"
+    },
+    {
+      "stuff_id": "2993677",
+      "url": "https://touch.dofusbook.net/fr/equipement/2993677/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 42,
+          "eau": 25,
+          "feu": 37,
+          "air": 25
+        },
+        "pdv": 4845,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3160801",
+      "url": "https://touch.dofusbook.net/fr/equipement/3160801/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 40,
+          "terre": 29,
+          "eau": 25,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4845,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Mazin"
+    },
+    {
+      "stuff_id": "3123532",
+      "url": "https://touch.dofusbook.net/fr/equipement/3123532/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 11,
+          "terre": 31,
+          "eau": 31,
+          "feu": 26,
+          "air": 25
+        },
+        "pdv": 4795,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Set shian 12/6"
+    },
+    {
+      "stuff_id": "3041048",
+      "url": "https://touch.dofusbook.net/fr/equipement/3041048/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 35,
+          "eau": 39,
+          "feu": 26,
+          "air": 28
+        },
+        "pdv": 5225,
+        "pa": 10,
+        "pm": 5
+      },
+      "title": "MultiClass M 200"
+    },
+    {
+      "stuff_id": "3027077",
+      "url": "https://touch.dofusbook.net/fr/equipement/3027077/objets",
+      "element": "terre",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 29,
+          "eau": 25,
+          "feu": 35,
+          "air": 30
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Terre dc"
+    },
+    {
+      "stuff_id": "2177674",
+      "url": "https://touch.dofusbook.net/fr/equipement/2177674/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 43,
+          "eau": 25,
+          "feu": 29,
+          "air": 28
+        },
+        "pdv": 4800,
+        "pa": 11,
+        "pm": 4
+      },
+      "title": "Zobal M 200"
+    },
+    {
+      "stuff_id": "2766714",
+      "url": "https://touch.dofusbook.net/fr/equipement/2766714/objets",
+      "element": "eau",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 14,
+          "terre": 28,
+          "eau": 25,
+          "feu": 32,
+          "air": 27
+        },
+        "pdv": 4664,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Eniripsa M 200"
+    },
+    {
+      "stuff_id": "2681301",
+      "url": "https://touch.dofusbook.net/fr/equipement/2681301/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 36,
+          "eau": 36,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 5825,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Sacrieur M 200"
+    },
+    {
+      "stuff_id": "3109740",
+      "url": "https://touch.dofusbook.net/fr/equipement/3109740/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 32,
+          "eau": 29,
+          "feu": 31,
+          "air": 26
+        },
+        "pdv": 4645,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Iop M 200"
+    },
+    {
+      "stuff_id": "3114846",
+      "url": "https://touch.dofusbook.net/fr/equipement/3114846/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 27,
+          "terre": 33,
+          "eau": 34,
+          "feu": 35,
+          "air": 32
+        },
+        "pdv": 4850,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Stranded"
+    },
+    {
+      "stuff_id": "2550582",
+      "url": "https://touch.dofusbook.net/fr/equipement/2550582/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 27,
+          "eau": 25,
+          "feu": 27,
+          "air": 43
+        },
+        "pdv": 4825,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Ecaflip M 200"
+    },
+    {
+      "stuff_id": "2616872",
+      "url": "https://touch.dofusbook.net/fr/equipement/2616872/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 21,
+          "terre": 31,
+          "eau": 32,
+          "feu": 33,
+          "air": 29
+        },
+        "pdv": 4675,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Steamer M 200"
+    },
+    {
+      "stuff_id": "3256856",
+      "url": "https://touch.dofusbook.net/fr/equipement/3256856/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 13,
+          "terre": 28,
+          "eau": 34,
+          "feu": 30,
+          "air": 30
+        },
+        "pdv": 5095,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Setfinalfuerza-inteligenciaPOT"
+    },
+    {
+      "stuff_id": "3248341",
+      "url": "https://touch.dofusbook.net/fr/equipement/3248341/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 30,
+          "eau": 29,
+          "feu": 29,
+          "air": 32
+        },
+        "pdv": 5045,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Iop M 200"
+    },
+    {
+      "stuff_id": "2923240",
+      "url": "https://touch.dofusbook.net/fr/equipement/2923240/objets",
+      "element": "multi",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 25,
+          "eau": 26,
+          "feu": 28,
+          "air": 36
+        },
+        "pdv": 4925,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Ecaflip M 200"
+    },
+    {
+      "stuff_id": "3292544",
+      "url": "https://touch.dofusbook.net/fr/equipement/3292544/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 48,
+          "eau": 30,
+          "feu": 34,
+          "air": 33
+        },
+        "pdv": 5145,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2877733",
+      "url": "https://touch.dofusbook.net/fr/equipement/2877733/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 30,
+          "eau": 37,
+          "feu": 39,
+          "air": 34
+        },
+        "pdv": 4675,
+        "pa": 11,
+        "pm": 7
+      },
+      "title": "powaSAC"
+    },
+    {
+      "stuff_id": "2631760",
+      "url": "https://touch.dofusbook.net/fr/equipement/2631760/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 36,
+          "eau": 36,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 6335,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Pandawa M 200"
+    },
+    {
+      "stuff_id": "3252153",
+      "url": "https://touch.dofusbook.net/fr/equipement/3252153/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 33,
+          "terre": 29,
+          "eau": 32,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4650,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "Roublard M 200"
+    },
+    {
+      "stuff_id": "3299375",
+      "url": "https://touch.dofusbook.net/fr/equipement/3299375/objets",
+      "element": "terre",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 13,
+          "terre": 34,
+          "eau": 36,
+          "feu": 31,
+          "air": 25
+        },
+        "pdv": 4695,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "iop terre opti thl docrit"
+    },
+    {
+      "stuff_id": "2977020",
+      "url": "https://touch.dofusbook.net/fr/equipement/2977020/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 16,
+          "terre": 37,
+          "eau": 31,
+          "feu": 25,
+          "air": 28
+        },
+        "pdv": 5375,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Sadida M 200"
+    },
+    {
+      "stuff_id": "3041618",
+      "url": "https://touch.dofusbook.net/fr/equipement/3041618/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 29,
+          "eau": 30,
+          "feu": 40,
+          "air": 31
+        },
+        "pdv": 5025,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2324337",
+      "url": "https://touch.dofusbook.net/fr/equipement/2324337/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 34,
+          "eau": 26,
+          "feu": 41,
+          "air": 28
+        },
+        "pdv": 5045,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Sacrieur M 200"
+    },
+    {
+      "stuff_id": "3240136",
+      "url": "https://touch.dofusbook.net/fr/equipement/3240136/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 34,
+          "eau": 33,
+          "feu": 25,
+          "air": 27
+        },
+        "pdv": 5022,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Ecaflip M 200"
+    },
+    {
+      "stuff_id": "2692955",
+      "url": "https://touch.dofusbook.net/fr/equipement/2692955/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 13,
+          "terre": 31,
+          "eau": 31,
+          "feu": 35,
+          "air": 28
+        },
+        "pdv": 5225,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Iop M 200"
+    },
+    {
+      "stuff_id": "2749082",
+      "url": "https://touch.dofusbook.net/fr/equipement/2749082/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 11,
+          "terre": 27,
+          "eau": 45,
+          "feu": 35,
+          "air": 38
+        },
+        "pdv": 4945,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "inte /aire no gc huida"
+    },
+    {
+      "stuff_id": "3103561",
+      "url": "https://touch.dofusbook.net/fr/equipement/3103561/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 16,
+          "terre": 31,
+          "eau": 33,
+          "feu": 32,
+          "air": 33
+        },
+        "pdv": 4695,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2741380",
+      "url": "https://touch.dofusbook.net/fr/equipement/2741380/objets",
+      "element": "terre",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 23,
+          "terre": 33,
+          "eau": 33,
+          "feu": 33,
+          "air": 33
+        },
+        "pdv": 5535,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "le mal absolu"
+    },
+    {
+      "stuff_id": "3140708",
+      "url": "https://touch.dofusbook.net/fr/equipement/3140708/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 35,
+          "eau": 36,
+          "feu": 35,
+          "air": 27
+        },
+        "pdv": 5010,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2902586",
+      "url": "https://touch.dofusbook.net/fr/equipement/2902586/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 36,
+          "eau": 30,
+          "feu": 34,
+          "air": 30
+        },
+        "pdv": 5275,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Agi cha"
+    },
+    {
+      "stuff_id": "2417855",
+      "url": "https://touch.dofusbook.net/fr/equipement/2417855/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 37,
+          "eau": 30,
+          "feu": 38,
+          "air": 29
+        },
+        "pdv": 5095,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Set tanque "
+    },
+    {
+      "stuff_id": "2260654",
+      "url": "https://touch.dofusbook.net/fr/equipement/2260654/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 36,
+          "eau": 30,
+          "feu": 26,
+          "air": 30
+        },
+        "pdv": 5325,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Roublard M 200"
+    },
+    {
+      "stuff_id": "2804377",
+      "url": "https://touch.dofusbook.net/fr/equipement/2804377/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 31,
+          "eau": 33,
+          "feu": 30,
+          "air": 42
+        },
+        "pdv": 4715,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Maztrophus II"
+    },
+    {
+      "stuff_id": "2722748",
+      "url": "https://touch.dofusbook.net/fr/equipement/2722748/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 32,
+          "eau": 30,
+          "feu": 31,
+          "air": 31
+        },
+        "pdv": 4695,
+        "pa": 10,
+        "pm": 5
+      },
+      "title": "Xélor M 200"
+    },
+    {
+      "stuff_id": "3066738",
+      "url": "https://touch.dofusbook.net/fr/equipement/3066738/objets",
+      "element": "eau",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 30,
+          "eau": 25,
+          "feu": 27,
+          "air": 33
+        },
+        "pdv": 5139,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "MultiClass M 200"
+    },
+    {
+      "stuff_id": "3166273",
+      "url": "https://touch.dofusbook.net/fr/equipement/3166273/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 26,
+          "terre": 32,
+          "eau": 29,
+          "feu": 25,
+          "air": 29
+        },
+        "pdv": 4720,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "TesTes"
+    },
+    {
+      "stuff_id": "2777133",
+      "url": "https://touch.dofusbook.net/fr/equipement/2777133/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 25,
+          "eau": 32,
+          "feu": 34,
+          "air": 29
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Fo cha"
+    },
+    {
+      "stuff_id": "2040124",
+      "url": "https://touch.dofusbook.net/fr/equipement/2040124/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 30,
+          "terre": 48,
+          "eau": 50,
+          "feu": 40,
+          "air": 48
+        },
+        "pdv": 4845,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "Pandawa M 200"
+    },
+    {
+      "stuff_id": "2485002",
+      "url": "https://touch.dofusbook.net/fr/equipement/2485002/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 40,
+          "terre": 29,
+          "eau": 25,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4995,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Osa mazin pnose bandit "
+    },
+    {
+      "stuff_id": "2542893",
+      "url": "https://touch.dofusbook.net/fr/equipement/2542893/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 43,
+          "eau": 25,
+          "feu": 29,
+          "air": 28
+        },
+        "pdv": 4875,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Steamer M 200"
+    },
+    {
+      "stuff_id": "3162421",
+      "url": "https://touch.dofusbook.net/fr/equipement/3162421/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 29,
+          "eau": 30,
+          "feu": 30,
+          "air": 32
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Dark Vlad Mazin"
+    },
+    {
+      "stuff_id": "3293913",
+      "url": "https://touch.dofusbook.net/fr/equipement/3293913/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 33,
+          "terre": 29,
+          "eau": 32,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Steamer M 200"
+    },
+    {
+      "stuff_id": "1982628",
+      "url": "https://touch.dofusbook.net/fr/equipement/1982628/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 43,
+          "eau": 42,
+          "feu": 43,
+          "air": 41
+        },
+        "pdv": 4695,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Enutrof M 200"
+    },
+    {
+      "stuff_id": "3240628",
+      "url": "https://touch.dofusbook.net/fr/equipement/3240628/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 33,
+          "terre": 29,
+          "eau": 32,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "Eniripsa M 200"
+    },
+    {
+      "stuff_id": "2934666",
+      "url": "https://touch.dofusbook.net/fr/equipement/2934666/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 14,
+          "terre": 28,
+          "eau": 25,
+          "feu": 30,
+          "air": 30
+        },
+        "pdv": 4615,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2659148",
+      "url": "https://touch.dofusbook.net/fr/equipement/2659148/objets",
+      "element": "eau",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 14,
+          "terre": 28,
+          "eau": 25,
+          "feu": 32,
+          "air": 27
+        },
+        "pdv": 4703,
+        "pa": 10,
+        "pm": 6
+      },
+      "title": "Iop M 200"
+    },
+    {
+      "stuff_id": "1397481",
+      "url": "https://touch.dofusbook.net/fr/equipement/1397481/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 24,
+          "terre": 44,
+          "eau": 25,
+          "feu": 26,
+          "air": 32
+        },
+        "pdv": 4615,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2972185",
+      "url": "https://touch.dofusbook.net/fr/equipement/2972185/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 36,
+          "eau": 29,
+          "feu": 29,
+          "air": 38
+        },
+        "pdv": 4945,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Eau/air"
+    },
+    {
+      "stuff_id": "3219666",
+      "url": "https://touch.dofusbook.net/fr/equipement/3219666/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 35,
+          "eau": 25,
+          "feu": 35,
+          "air": 35
+        },
+        "pdv": 4955,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Feu eau soutien 3v3 / PERCO "
+    },
+    {
+      "stuff_id": "3026784",
+      "url": "https://touch.dofusbook.net/fr/equipement/3026784/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 29,
+          "eau": 25,
+          "feu": 34,
+          "air": 30
+        },
+        "pdv": 4875,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Féca suerte ini exo resis"
+    },
+    {
+      "stuff_id": "3279753",
+      "url": "https://touch.dofusbook.net/fr/equipement/3279753/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 32,
+          "eau": 37,
+          "feu": 33,
+          "air": 31
+        },
+        "pdv": 4695,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Zobal M 200"
+    },
+    {
+      "stuff_id": "3199103",
+      "url": "https://touch.dofusbook.net/fr/equipement/3199103/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 36,
+          "terre": 30,
+          "eau": 31,
+          "feu": 35,
+          "air": 30
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "ouare sinistro kidibon"
+    },
+    {
+      "stuff_id": "1883989",
+      "url": "https://touch.dofusbook.net/fr/equipement/1883989/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 36,
+          "eau": 35,
+          "feu": 42,
+          "air": 38
+        },
+        "pdv": 4990,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "Zobal M 200"
+    },
+    {
+      "stuff_id": "2767473",
+      "url": "https://touch.dofusbook.net/fr/equipement/2767473/objets",
+      "element": "eau",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 14,
+          "terre": 28,
+          "eau": 25,
+          "feu": 32,
+          "air": 27
+        },
+        "pdv": 4845,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Zobal M 200"
+    },
+    {
+      "stuff_id": "3188426",
+      "url": "https://touch.dofusbook.net/fr/equipement/3188426/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 16,
+          "terre": 33,
+          "eau": 31,
+          "feu": 30,
+          "air": 33
+        },
+        "pdv": 5000,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Mazanctu 11 nocri"
+    },
+    {
+      "stuff_id": "3010752",
+      "url": "https://touch.dofusbook.net/fr/equipement/3010752/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 32,
+          "terre": 29,
+          "eau": 25,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Jok"
+    },
+    {
+      "stuff_id": "3129679",
+      "url": "https://touch.dofusbook.net/fr/equipement/3129679/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 24,
+          "terre": 31,
+          "eau": 28,
+          "feu": 35,
+          "air": 36
+        },
+        "pdv": 4895,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Féca M 200"
+    },
+    {
+      "stuff_id": "3002610",
+      "url": "https://touch.dofusbook.net/fr/equipement/3002610/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 31,
+          "terre": 30,
+          "eau": 28,
+          "feu": 33,
+          "air": 27
+        },
+        "pdv": 4765,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Nini soin compo Sadi "
+    },
+    {
+      "stuff_id": "1414710",
+      "url": "https://touch.dofusbook.net/fr/equipement/1414710/objets",
+      "element": "eau",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 36,
+          "eau": 35,
+          "feu": 42,
+          "air": 38
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "iop foene"
+    },
+    {
+      "stuff_id": "2989173",
+      "url": "https://touch.dofusbook.net/fr/equipement/2989173/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 31,
+          "eau": 29,
+          "feu": 33,
+          "air": 31
+        },
+        "pdv": 4955,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Wulan Sinistro II"
+    },
+    {
+      "stuff_id": "3124158",
+      "url": "https://touch.dofusbook.net/fr/equipement/3124158/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 31,
+          "eau": 31,
+          "feu": 40,
+          "air": 30
+        },
+        "pdv": 4925,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Feu air adei"
+    },
+    {
+      "stuff_id": "3167745",
+      "url": "https://touch.dofusbook.net/fr/equipement/3167745/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 29,
+          "eau": 34,
+          "feu": 26,
+          "air": 27
+        },
+        "pdv": 4795,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Terre eau pui sadi"
+    },
+    {
+      "stuff_id": "2421954",
+      "url": "https://touch.dofusbook.net/fr/equipement/2421954/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 47,
+          "eau": 32,
+          "feu": 30,
+          "air": 33
+        },
+        "pdv": 5591,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Roublard M 200"
+    },
+    {
+      "stuff_id": "2956539",
+      "url": "https://touch.dofusbook.net/fr/equipement/2956539/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 25,
+          "eau": 37,
+          "feu": 33,
+          "air": 44
+        },
+        "pdv": 4845,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2734721",
+      "url": "https://touch.dofusbook.net/fr/equipement/2734721/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 27,
+          "eau": 43,
+          "feu": 32,
+          "air": 30
+        },
+        "pdv": 4625,
+        "pa": 11,
+        "pm": 4
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3097717",
+      "url": "https://touch.dofusbook.net/fr/equipement/3097717/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 33,
+          "eau": 30,
+          "feu": 35,
+          "air": 27
+        },
+        "pdv": 5525,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "C'ha rogue"
+    },
+    {
+      "stuff_id": "2656641",
+      "url": "https://touch.dofusbook.net/fr/equipement/2656641/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 30,
+          "eau": 30,
+          "feu": 38,
+          "air": 29
+        },
+        "pdv": 4645,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "OSA FEU AIR "
+    },
+    {
+      "stuff_id": "3109871",
+      "url": "https://touch.dofusbook.net/fr/equipement/3109871/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 11,
+          "terre": 25,
+          "eau": 39,
+          "feu": 29,
+          "air": 36
+        },
+        "pdv": 4845,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Bella Wukin Virale AL15 ChaAgi"
+    },
+    {
+      "stuff_id": "3009416",
+      "url": "https://touch.dofusbook.net/fr/equipement/3009416/objets",
+      "element": "air",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 36,
+          "eau": 28,
+          "feu": 32,
+          "air": 29
+        },
+        "pdv": 4841,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3018522",
+      "url": "https://touch.dofusbook.net/fr/equipement/3018522/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 27,
+          "eau": 37,
+          "feu": 29,
+          "air": 34
+        },
+        "pdv": 5255,
+        "pa": 10,
+        "pm": 5
+      },
+      "title": "Roublard M 200"
+    },
+    {
+      "stuff_id": "3078214",
+      "url": "https://touch.dofusbook.net/fr/equipement/3078214/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 40,
+          "terre": 29,
+          "eau": 25,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 5045,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Vantablackeur eau/feu"
+    },
+    {
+      "stuff_id": "2332103",
+      "url": "https://touch.dofusbook.net/fr/equipement/2332103/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 37,
+          "eau": 36,
+          "feu": 30,
+          "air": 38
+        },
+        "pdv": 4745,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Osamodas M 200"
+    },
+    {
+      "stuff_id": "2281100",
+      "url": "https://touch.dofusbook.net/fr/equipement/2281100/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 33,
+          "terre": 29,
+          "eau": 32,
+          "feu": 43,
+          "air": 29
+        },
+        "pdv": 4675,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "Eauuuuuu"
+    },
+    {
+      "stuff_id": "2289506",
+      "url": "https://touch.dofusbook.net/fr/equipement/2289506/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 48,
+          "eau": 26,
+          "feu": 41,
+          "air": 35
+        },
+        "pdv": 4700,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Eniripsa M 200"
+    },
+    {
+      "stuff_id": "3188050",
+      "url": "https://touch.dofusbook.net/fr/equipement/3188050/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 26,
+          "eau": 29,
+          "feu": 27,
+          "air": 32
+        },
+        "pdv": 4700,
+        "pa": 11,
+        "pm": 4
+      },
+      "title": "Xélor M 200"
+    },
+    {
+      "stuff_id": "2982352",
+      "url": "https://touch.dofusbook.net/fr/equipement/2982352/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 42,
+          "eau": 27,
+          "feu": 25,
+          "air": 28
+        },
+        "pdv": 4665,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Ecaflip M 200"
+    },
+    {
+      "stuff_id": "2852957",
+      "url": "https://touch.dofusbook.net/fr/equipement/2852957/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 23,
+          "terre": 28,
+          "eau": 26,
+          "feu": 33,
+          "air": 33
+        },
+        "pdv": 5045,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Multi"
+    },
+    {
+      "stuff_id": "3201444",
+      "url": "https://touch.dofusbook.net/fr/equipement/3201444/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 33,
+          "eau": 32,
+          "feu": 36,
+          "air": 25
+        },
+        "pdv": 4955,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "agi resis empuje"
+    },
+    {
+      "stuff_id": "2922838",
+      "url": "https://touch.dofusbook.net/fr/equipement/2922838/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 35,
+          "eau": 35,
+          "feu": 35,
+          "air": 35
+        },
+        "pdv": 4645,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3209509",
+      "url": "https://touch.dofusbook.net/fr/equipement/3209509/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 21,
+          "terre": 32,
+          "eau": 36,
+          "feu": 29,
+          "air": 34
+        },
+        "pdv": 4695,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "mazin belladone"
+    },
+    {
+      "stuff_id": "2337586",
+      "url": "https://touch.dofusbook.net/fr/equipement/2337586/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 35,
+          "eau": 30,
+          "feu": 28,
+          "air": 30
+        },
+        "pdv": 5030,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "misti air ret pa"
+    },
+    {
+      "stuff_id": "2942685",
+      "url": "https://touch.dofusbook.net/fr/equipement/2942685/objets",
+      "element": "feu",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 27,
+          "eau": 26,
+          "feu": 27,
+          "air": 28
+        },
+        "pdv": 4575,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Assacro"
+    },
+    {
+      "stuff_id": "2711113",
+      "url": "https://touch.dofusbook.net/fr/equipement/2711113/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 40,
+          "terre": 29,
+          "eau": 25,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4575,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Feca feu eau 200 opti"
+    },
+    {
+      "stuff_id": "2446743",
+      "url": "https://touch.dofusbook.net/fr/equipement/2446743/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 40,
+          "terre": 29,
+          "eau": 25,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4775,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Féca M 200"
+    },
+    {
+      "stuff_id": "3093312",
+      "url": "https://touch.dofusbook.net/fr/equipement/3093312/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 21,
+          "terre": 29,
+          "eau": 43,
+          "feu": 29,
+          "air": 35
+        },
+        "pdv": 5095,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Sadi c'ha int"
+    },
+    {
+      "stuff_id": "2372156",
+      "url": "https://touch.dofusbook.net/fr/equipement/2372156/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 27,
+          "terre": 25,
+          "eau": 33,
+          "feu": 25,
+          "air": 32
+        },
+        "pdv": 5025,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "Roublard M 200"
+    },
+    {
+      "stuff_id": "2473253",
+      "url": "https://touch.dofusbook.net/fr/equipement/2473253/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 41,
+          "terre": 41,
+          "eau": 27,
+          "feu": 37,
+          "air": 27
+        },
+        "pdv": 4845,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "aermyne glours pnose"
+    },
+    {
+      "stuff_id": "3078980",
+      "url": "https://touch.dofusbook.net/fr/equipement/3078980/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 28,
+          "eau": 37,
+          "feu": 25,
+          "air": 27
+        },
+        "pdv": 4725,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Osamodas M 200"
+    },
+    {
+      "stuff_id": "2834733",
+      "url": "https://touch.dofusbook.net/fr/equipement/2834733/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 29,
+          "terre": 29,
+          "eau": 28,
+          "feu": 38,
+          "air": 32
+        },
+        "pdv": 5000,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Feu eau pelle vice"
+    },
+    {
+      "stuff_id": "2469281",
+      "url": "https://touch.dofusbook.net/fr/equipement/2469281/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 29,
+          "eau": 38,
+          "feu": 29,
+          "air": 30
+        },
+        "pdv": 5103,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Age pot"
+    },
+    {
+      "stuff_id": "3093175",
+      "url": "https://touch.dofusbook.net/fr/equipement/3093175/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 13,
+          "terre": 31,
+          "eau": 30,
+          "feu": 35,
+          "air": 30
+        },
+        "pdv": 5045,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "inte agi"
+    },
+    {
+      "stuff_id": "2932697",
+      "url": "https://touch.dofusbook.net/fr/equipement/2932697/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 30,
+          "eau": 30,
+          "feu": 40,
+          "air": 27
+        },
+        "pdv": 4945,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Je suis Music V"
+    },
+    {
+      "stuff_id": "2725243",
+      "url": "https://touch.dofusbook.net/fr/equipement/2725243/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 43,
+          "eau": 25,
+          "feu": 29,
+          "air": 28
+        },
+        "pdv": 4795,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2279055",
+      "url": "https://touch.dofusbook.net/fr/equipement/2279055/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 32,
+          "eau": 29,
+          "feu": 30,
+          "air": 25
+        },
+        "pdv": 5481,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Enutrof M 200"
+    },
+    {
+      "stuff_id": "3230615",
+      "url": "https://touch.dofusbook.net/fr/equipement/3230615/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 29,
+          "terre": 31,
+          "eau": 30,
+          "feu": 35,
+          "air": 32
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2881292",
+      "url": "https://touch.dofusbook.net/fr/equipement/2881292/objets",
+      "element": "eau",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 30,
+          "terre": 33,
+          "eau": 34,
+          "feu": 35,
+          "air": 34
+        },
+        "pdv": 5195,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Eau sinistrofucrit"
+    },
+    {
+      "stuff_id": "3143130",
+      "url": "https://touch.dofusbook.net/fr/equipement/3143130/objets",
+      "element": "feu",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 34,
+          "eau": 25,
+          "feu": 25,
+          "air": 27
+        },
+        "pdv": 4645,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Bandit vlad"
+    },
+    {
+      "stuff_id": "2283828",
+      "url": "https://touch.dofusbook.net/fr/equipement/2283828/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 29,
+          "eau": 30,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 4695,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Air "
+    },
+    {
+      "stuff_id": "2958533",
+      "url": "https://touch.dofusbook.net/fr/equipement/2958533/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 35,
+          "eau": 34,
+          "feu": 25,
+          "air": 28
+        },
+        "pdv": 5495,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "air no pano vive ratique"
+    },
+    {
+      "stuff_id": "3041543",
+      "url": "https://touch.dofusbook.net/fr/equipement/3041543/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 35,
+          "eau": 25,
+          "feu": 35,
+          "air": 35
+        },
+        "pdv": 5000,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "JDA FEU EAU 11/6/6/4 THANOS"
+    },
+    {
+      "stuff_id": "3090807",
+      "url": "https://touch.dofusbook.net/fr/equipement/3090807/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 26,
+          "terre": 34,
+          "eau": 28,
+          "feu": 28,
+          "air": 25
+        },
+        "pdv": 4945,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Xélor M 200"
+    },
+    {
+      "stuff_id": "2251755",
+      "url": "https://touch.dofusbook.net/fr/equipement/2251755/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 28,
+          "eau": 37,
+          "feu": 33,
+          "air": 25
+        },
+        "pdv": 4595,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Ava fugi"
+    },
+    {
+      "stuff_id": "2593362",
+      "url": "https://touch.dofusbook.net/fr/equipement/2593362/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 42,
+          "eau": 27,
+          "feu": 25,
+          "air": 28
+        },
+        "pdv": 5385,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Osamodas M 200"
+    },
+    {
+      "stuff_id": "2351205",
+      "url": "https://touch.dofusbook.net/fr/equipement/2351205/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 24,
+          "terre": 30,
+          "eau": 30,
+          "feu": 30,
+          "air": 34
+        },
+        "pdv": 4645,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Steamer M 200"
+    },
+    {
+      "stuff_id": "2283987",
+      "url": "https://touch.dofusbook.net/fr/equipement/2283987/objets",
+      "element": "multi",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 27,
+          "eau": 37,
+          "feu": 27,
+          "air": 27
+        },
+        "pdv": 5350,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Ahokkj"
+    },
+    {
+      "stuff_id": "2665192",
+      "url": "https://touch.dofusbook.net/fr/equipement/2665192/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 28,
+          "terre": 25,
+          "eau": 27,
+          "feu": 27,
+          "air": 27
+        },
+        "pdv": 5045,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "otroosa"
+    },
+    {
+      "stuff_id": "2001810",
+      "url": "https://touch.dofusbook.net/fr/equipement/2001810/objets",
+      "element": "multi",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 25,
+          "eau": 26,
+          "feu": 34,
+          "air": 28
+        },
+        "pdv": 4730,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Alex"
+    },
+    {
+      "stuff_id": "2964691",
+      "url": "https://touch.dofusbook.net/fr/equipement/2964691/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 38,
+          "eau": 29,
+          "feu": 27,
+          "air": 34
+        },
+        "pdv": 4545,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Osamodas M 200"
+    },
+    {
+      "stuff_id": "2779015",
+      "url": "https://touch.dofusbook.net/fr/equipement/2779015/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 33,
+          "terre": 29,
+          "eau": 32,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 4735,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Pandawa M 200"
+    },
+    {
+      "stuff_id": "3109428",
+      "url": "https://touch.dofusbook.net/fr/equipement/3109428/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 29,
+          "terre": 34,
+          "eau": 31,
+          "feu": 29,
+          "air": 28
+        },
+        "pdv": 4750,
+        "pa": 10,
+        "pm": 5
+      },
+      "title": "Pano2sacriair"
+    },
+    {
+      "stuff_id": "3260383",
+      "url": "https://touch.dofusbook.net/fr/equipement/3260383/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 37,
+          "eau": 30,
+          "feu": 30,
+          "air": 28
+        },
+        "pdv": 5245,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3016485",
+      "url": "https://touch.dofusbook.net/fr/equipement/3016485/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 37,
+          "eau": 35,
+          "feu": 30,
+          "air": 30
+        },
+        "pdv": 4945,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Agi mp ascia"
+    },
+    {
+      "stuff_id": "3053660",
+      "url": "https://touch.dofusbook.net/fr/equipement/3053660/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 23,
+          "terre": 29,
+          "eau": 30,
+          "feu": 33,
+          "air": 30
+        },
+        "pdv": 4745,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "enibot"
+    },
+    {
+      "stuff_id": "2977549",
+      "url": "https://touch.dofusbook.net/fr/equipement/2977549/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 29,
+          "eau": 30,
+          "feu": 30,
+          "air": 27
+        },
+        "pdv": 4795,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Noai ava"
+    },
+    {
+      "stuff_id": "3062617",
+      "url": "https://touch.dofusbook.net/fr/equipement/3062617/objets",
+      "element": "feu",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 17,
+          "terre": 27,
+          "eau": 28,
+          "feu": 27,
+          "air": 25
+        },
+        "pdv": 4745,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Padgref DV"
+    },
+    {
+      "stuff_id": "2820216",
+      "url": "https://touch.dofusbook.net/fr/equipement/2820216/objets",
+      "element": "air",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 29,
+          "eau": 29,
+          "feu": 27,
+          "air": 28
+        },
+        "pdv": 4905,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Iop do pou final"
+    },
+    {
+      "stuff_id": "3294074",
+      "url": "https://touch.dofusbook.net/fr/equipement/3294074/objets",
+      "element": "feu",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 29,
+          "eau": 33,
+          "feu": 32,
+          "air": 30
+        },
+        "pdv": 4530,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Eyyttt"
+    },
+    {
+      "stuff_id": "3051737",
+      "url": "https://touch.dofusbook.net/fr/equipement/3051737/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 29,
+          "terre": 30,
+          "eau": 29,
+          "feu": 31,
+          "air": 27
+        },
+        "pdv": 5140,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Enutrof M 200"
+    },
+    {
+      "stuff_id": "3046071",
+      "url": "https://touch.dofusbook.net/fr/equipement/3046071/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 20,
+          "terre": 29,
+          "eau": 29,
+          "feu": 30,
+          "air": 42
+        },
+        "pdv": 5050,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Enutrof M 200"
+    },
+    {
+      "stuff_id": "2842986",
+      "url": "https://touch.dofusbook.net/fr/equipement/2842986/objets",
+      "element": "multi",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 25,
+          "eau": 26,
+          "feu": 28,
+          "air": 36
+        },
+        "pdv": 4745,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "MultiClass M 200"
+    },
+    {
+      "stuff_id": "3303407",
+      "url": "https://touch.dofusbook.net/fr/equipement/3303407/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 28,
+          "eau": 29,
+          "feu": 28,
+          "air": 34
+        },
+        "pdv": 4545,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "Agi crit 11/6 pvm"
+    },
+    {
+      "stuff_id": "3123201",
+      "url": "https://touch.dofusbook.net/fr/equipement/3123201/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 42,
+          "eau": 35,
+          "feu": 25,
+          "air": 26
+        },
+        "pdv": 5040,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "2642647",
+      "url": "https://touch.dofusbook.net/fr/equipement/2642647/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 35,
+          "eau": 33,
+          "feu": 30,
+          "air": 31
+        },
+        "pdv": 4895,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AllClass M 200"
+    },
+    {
+      "stuff_id": "3202559",
+      "url": "https://touch.dofusbook.net/fr/equipement/3202559/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 33,
+          "terre": 29,
+          "eau": 32,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 5000,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Feu eau tonfas"
+    },
+    {
+      "stuff_id": "2708714",
+      "url": "https://touch.dofusbook.net/fr/equipement/2708714/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 37,
+          "eau": 28,
+          "feu": 35,
+          "air": 26
+        },
+        "pdv": 4973,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Sram viral agi"
+    },
+    {
+      "stuff_id": "2457441",
+      "url": "https://touch.dofusbook.net/fr/equipement/2457441/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 31,
+          "eau": 25,
+          "feu": 35,
+          "air": 30
+        },
+        "pdv": 4895,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Steamer Fo GCS - Arco Gwen"
+    },
+    {
+      "stuff_id": "3069966",
+      "url": "https://touch.dofusbook.net/fr/equipement/3069966/objets",
+      "element": "feu",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 19,
+          "terre": 30,
+          "eau": 31,
+          "feu": 27,
+          "air": 29
+        },
+        "pdv": 4745,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Roublard M 200"
+    },
+    {
+      "stuff_id": "2691514",
+      "url": "https://touch.dofusbook.net/fr/equipement/2691514/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 22,
+          "terre": 34,
+          "eau": 38,
+          "feu": 33,
+          "air": 27
+        },
+        "pdv": 4685,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Osamodas M 200"
+    },
+    {
+      "stuff_id": "3119727",
+      "url": "https://touch.dofusbook.net/fr/equipement/3119727/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 42,
+          "eau": 27,
+          "feu": 25,
+          "air": 28
+        },
+        "pdv": 5235,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Crâ M 200"
+    },
+    {
+      "stuff_id": "2285009",
+      "url": "https://touch.dofusbook.net/fr/equipement/2285009/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 6,
+          "terre": 26,
+          "eau": 27,
+          "feu": 38,
+          "air": 25
+        },
+        "pdv": 4953,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "zobal agi"
+    },
+    {
+      "stuff_id": "2719030",
+      "url": "https://touch.dofusbook.net/fr/equipement/2719030/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 33,
+          "eau": 27,
+          "feu": 28,
+          "air": 27
+        },
+        "pdv": 5145,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "dofixes air no crit"
+    },
+    {
+      "stuff_id": "2849848",
+      "url": "https://touch.dofusbook.net/fr/equipement/2849848/objets",
+      "element": "air",
+      "tags": [
+        "docrit"
+      ],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 33,
+          "eau": 31,
+          "feu": 27,
+          "air": 33
+        },
+        "pdv": 4575,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Retry"
+    },
+    {
+      "stuff_id": "2817291",
+      "url": "https://touch.dofusbook.net/fr/equipement/2817291/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 12,
+          "terre": 47,
+          "eau": 32,
+          "feu": 30,
+          "air": 33
+        },
+        "pdv": 5012,
+        "pa": 11,
+        "pm": 5
+      },
+      "title": "AGILIDAD RESISTENCIAS"
+    },
+    {
+      "stuff_id": "2941228",
+      "url": "https://touch.dofusbook.net/fr/equipement/2941228/objets",
+      "element": "multi",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 18,
+          "terre": 28,
+          "eau": 27,
+          "feu": 28,
+          "air": 27
+        },
+        "pdv": 4695,
+        "pa": 12,
+        "pm": 5
+      },
+      "title": "Shuv lumi"
+    },
+    {
+      "stuff_id": "3112970",
+      "url": "https://touch.dofusbook.net/fr/equipement/3112970/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 32,
+          "eau": 32,
+          "feu": 32,
+          "air": 32
+        },
+        "pdv": 5164,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "air croum"
+    },
+    {
+      "stuff_id": "2909792",
+      "url": "https://touch.dofusbook.net/fr/equipement/2909792/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 42,
+          "eau": 27,
+          "feu": 25,
+          "air": 30
+        },
+        "pdv": 5395,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "agi resis"
+    },
+    {
+      "stuff_id": "2312945",
+      "url": "https://touch.dofusbook.net/fr/equipement/2312945/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 42,
+          "eau": 37,
+          "feu": 30,
+          "air": 33
+        },
+        "pdv": 5095,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Ecaflip M 200"
+    },
+    {
+      "stuff_id": "2884506",
+      "url": "https://touch.dofusbook.net/fr/equipement/2884506/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 27,
+          "eau": 27,
+          "feu": 27,
+          "air": 28
+        },
+        "pdv": 4525,
+        "pa": 12,
+        "pm": 6
+      },
+      "title": "Cc wca"
+    },
+    {
+      "stuff_id": "3308225",
+      "url": "https://touch.dofusbook.net/fr/equipement/3308225/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 7,
+          "terre": 42,
+          "eau": 27,
+          "feu": 25,
+          "air": 28
+        },
+        "pdv": 6295,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "AGI"
+    },
+    {
+      "stuff_id": "1415335",
+      "url": "https://touch.dofusbook.net/fr/equipement/1415335/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 35,
+          "terre": 51,
+          "eau": 45,
+          "feu": 45,
+          "air": 44
+        },
+        "pdv": 5345,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Pandawa M 200"
+    },
+    {
+      "stuff_id": "2432758",
+      "url": "https://touch.dofusbook.net/fr/equipement/2432758/objets",
+      "element": "air",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 10,
+          "terre": 27,
+          "eau": 32,
+          "feu": 26,
+          "air": 25
+        },
+        "pdv": 4765,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Kicardo Pou"
+    },
+    {
+      "stuff_id": "3163184",
+      "url": "https://touch.dofusbook.net/fr/equipement/3163184/objets",
+      "element": "air",
+      "tags": [],
+      "display": {
+        "res": {
+          "neutre": 15,
+          "terre": 30,
+          "eau": 29,
+          "feu": 30,
+          "air": 33
+        },
+        "pdv": 4810,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Terre air dopou 3"
+    },
+    {
+      "stuff_id": "2885567",
+      "url": "https://touch.dofusbook.net/fr/equipement/2885567/objets",
+      "element": "air",
+      "tags": [
+        "dopou"
+      ],
+      "display": {
+        "res": {
+          "neutre": 0,
+          "terre": 29,
+          "eau": 34,
+          "feu": 32,
+          "air": 30
+        },
+        "pdv": 4625,
+        "pa": 11,
+        "pm": 6
+      },
+      "title": "Kicardo Pou IV"
+    }
+  ]
+}
