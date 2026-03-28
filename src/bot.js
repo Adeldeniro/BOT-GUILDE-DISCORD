@@ -1783,7 +1783,7 @@ async function main() {
 
       const embed = new EmbedBuilder()
         .setColor(0x3498db)
-        .setTitle('âœï¸ Message modifié')
+        .setTitle('✏️ Message modifié')
         .addFields(
           { name: 'Auteur', value: author, inline: false },
           { name: 'Salon', value: newMessage.channelId ? `<#${newMessage.channelId}>` : '—', inline: true },
