@@ -3798,6 +3798,8 @@ async function main() {
           const cat = interaction.values?.[0];
           const list = metiers.getJobsCatalog();
           const options = list
+            // only top-level for add flow (children picked after selecting group)
+            .filter((j) => !j.parent)
             .filter((j) => (cat === 'forgemagie' ? j.category === 'forgemagie' : j.category !== 'forgemagie'))
             .slice(0, 25)
             .map((j) => ({ label: j.label, value: j.key }));
@@ -3821,8 +3823,49 @@ async function main() {
           const hit = jobs.find((j) => j.key === key);
           const label = hit?.label || key;
 
+          // If group selected (Forgeron / Sculpteur / Sculptemage), ask specialization
+          if (hit?.group) {
+            const children = jobs.filter((j) => j.parent === hit.key);
+            const opts = children.slice(0, 25).map((j) => ({ label: j.label, value: j.key }));
+            const sel = new StringSelectMenuBuilder()
+              .setCustomId(`mj:spec:${hit.key}`)
+              .setPlaceholder(`Spécialité — ${label}`)
+              .addOptions(opts);
+
+            const back = new ButtonBuilder().setCustomId('mj:add').setLabel('⬅️ Retour').setStyle(ButtonStyle.Secondary);
+
+            await interaction.update({
+              content: `Choisis la spécialité pour **${label}** :`,
+              components: [new ActionRowBuilder().addComponents(sel), new ActionRowBuilder().addComponents(back)],
+            }).catch(() => {});
+            return;
+          }
+
           const modal = new ModalBuilder()
             .setCustomId(`mj:add_level:${key}:${label}`)
+            .setTitle(`Niveau — ${label}`);
+
+          const input = new TextInputBuilder()
+            .setCustomId('level')
+            .setLabel('Niveau (1 à 100)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMaxLength(3)
+            .setPlaceholder('ex: 80');
+
+          modal.addComponents(new ActionRowBuilder().addComponents(input));
+          await interaction.showModal(modal).catch(() => {});
+          return;
+        }
+
+        if (interaction.customId.startsWith('mj:spec:')) {
+          const specKey = interaction.values?.[0];
+          const jobs = metiers.getJobsCatalog();
+          const hit = jobs.find((j) => j.key === specKey);
+          const label = hit?.label || specKey;
+
+          const modal = new ModalBuilder()
+            .setCustomId(`mj:add_level:${specKey}:${label}`)
             .setTitle(`Niveau — ${label}`);
 
           const input = new TextInputBuilder()

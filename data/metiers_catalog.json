@@ -44,8 +44,21 @@
     },
     {
       "key": "forgeron",
-      "label": "Forgeron"
+      "label": "Forgeron",
+      "group": true
     },
+    { "key": "forgeron_pelles", "label": "Forgeron de Pelles", "parent": "forgeron" },
+    { "key": "forgeron_haches", "label": "Forgeron de Haches", "parent": "forgeron" },
+    { "key": "forgeron_marteaux", "label": "Forgeron de Marteaux", "parent": "forgeron" },
+    { "key": "forgeron_epees", "label": "Forgeron d’Épées", "parent": "forgeron" },
+    { "key": "forgeron_dagues", "label": "Forgeron de Dagues", "parent": "forgeron" },
+
+    { "key": "sculpteur", "label": "Sculpteur", "group": true },
+    { "key": "sculpteur_batons", "label": "Sculpteur de Bâtons", "parent": "sculpteur" },
+    { "key": "sculpteur_baguettes", "label": "Sculpteur de Baguettes", "parent": "sculpteur" },
+    { "key": "sculpteur_arcs", "label": "Sculpteur d’Arcs", "parent": "sculpteur" },
+
+    { "key": "sculptemage", "label": "Sculptemage", "category": "forgemagie", "group": true },
     {
       "key": "forgemage_dagues",
       "label": "Forgemage de Dagues",
@@ -97,18 +110,21 @@
       "key": "sculptemage_batons",
       "label": "Sculptemage de Bâtons",
       "category": "forgemagie",
+      "parent": "sculptemage",
       "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/50.w191h191.jpg"
     },
     {
       "key": "sculptemage_baguettes",
       "label": "Sculptemage de Baguettes",
       "category": "forgemagie",
+      "parent": "sculptemage",
       "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/49.w191h191.jpg"
     },
     {
       "key": "sculptemage_arcs",
       "label": "Sculptemage d’Arcs",
       "category": "forgemagie",
+      "parent": "sculptemage",
       "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/48.w191h191.jpg"
     },
     {

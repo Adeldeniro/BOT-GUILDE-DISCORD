@@ -65,6 +65,8 @@ function getJobsCatalog() {
       key: String(j.key || ''),
       label: String(j.label || j.key || ''),
       category: j.category ? String(j.category) : null,
+      parent: j.parent ? String(j.parent) : null,
+      group: Boolean(j.group),
       image: j.image ? String(j.image) : null,
       href: j.href ? String(j.href) : null,
     }))
