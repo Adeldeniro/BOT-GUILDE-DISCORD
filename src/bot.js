@@ -2191,7 +2191,7 @@ async function main() {
           // Update public fiche in dedicated channel
           const ch = await interaction.client.channels.fetch(metiers.CHANNEL_FICHES_PUBLIC).catch(() => null);
           if (ch && ch.isTextBased()) {
-            const embed = await metiers.buildUserJobsEmbed(interaction.user, jobs);
+            const embed = await metiers.buildUserJobsEmbed(interaction.user, jobs, { updatedAt: db2.users[interaction.user.id].updatedAt });
             let msg = null;
             if (prev.messageId) {
               msg = await ch.messages.fetch(prev.messageId).catch(() => null);
@@ -3898,7 +3898,7 @@ async function main() {
               if (prev.messageId) {
                 const m = await ch.messages.fetch(prev.messageId).catch(() => null);
                 if (m) {
-                  const embed = await metiers.buildUserJobsEmbed(interaction.user, nextJobs);
+                  const embed = await metiers.buildUserJobsEmbed(interaction.user, nextJobs, { updatedAt: db.users?.[interaction.user.id]?.updatedAt });
                   await m.edit({ embeds: [embed] }).catch(() => {});
                 }
               }
@@ -3949,9 +3949,10 @@ async function main() {
             const prof = users[m.userId] || {};
             const jobs = Array.isArray(prof.jobs) ? prof.jobs : [];
             // eslint-disable-next-line no-await-in-loop
-            embeds.push(await metiers.buildUserJobsEmbed(u, jobs));
+            embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt }));
             components.push(new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${m.userId}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
+              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${m.userId}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary),
+              new ButtonBuilder().setCustomId(`mj:contact:${m.userId}`).setLabel('📩 Contacter').setStyle(ButtonStyle.Secondary)
             ));
           }
 
@@ -4102,7 +4103,7 @@ async function main() {
             if (ch && ch.isTextBased() && messageId) {
               const m = await ch.messages.fetch(messageId).catch(() => null);
               if (m) {
-                const embed = await metiers.buildUserJobsEmbed(interaction.user, []);
+                const embed = await metiers.buildUserJobsEmbed(interaction.user, [], { updatedAt: db.users?.[interaction.user.id]?.updatedAt });
                 await m.edit({ embeds: [embed] }).catch(() => {});
               }
             }
@@ -4145,9 +4146,10 @@ async function main() {
             const prof = users[uid] || {};
             const jobs = Array.isArray(prof.jobs) ? prof.jobs : [];
             // eslint-disable-next-line no-await-in-loop
-            embeds.push(await metiers.buildUserJobsEmbed(u, jobs));
+            embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt }));
             components.push(new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${uid}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
+              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${uid}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary),
+              new ButtonBuilder().setCustomId(`mj:contact:${uid}`).setLabel('📩 Contacter').setStyle(ButtonStyle.Secondary)
             ));
           }
 
@@ -4200,6 +4202,38 @@ async function main() {
           }).catch(() => {});
 
           return interaction.reply({ content: '✅ Demande envoyée.', ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('mj:contact:')) {
+          const parts = interaction.customId.split(':');
+          const targetId = parts[2];
+
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!member || !metiers.hasAnyAllowedRole(member)) {
+            return interaction.reply({ content: 'Réservé aux rôles **Guildeux** ou **Invité**.', ephemeral: true }).catch(() => {});
+          }
+
+          const keyCooldown = `${interaction.user.id}:${targetId}`;
+          const now = Date.now();
+          const last = metiers.craftPingLast.get(keyCooldown) || 0;
+          const wait = metiers.PING_COOLDOWN_MS - (now - last);
+          if (wait > 0) {
+            const sec = Math.ceil(wait / 1000);
+            return interaction.reply({ content: `⏳ Attends encore ${sec}s avant de recontacter <@${targetId}>.`, ephemeral: true }).catch(() => {});
+          }
+          metiers.craftPingLast.set(keyCooldown, now);
+
+          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_PING_REQUESTS).catch(() => null);
+          if (!ch || !ch.isTextBased()) {
+            return interaction.reply({ content: 'Salon de demandes introuvable.', ephemeral: true }).catch(() => {});
+          }
+
+          await ch.send({
+            content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un artisan. Tu es dispo ?`,
+            allowedMentions: { users: [targetId, interaction.user.id] },
+          }).catch(() => {});
+
+          return interaction.reply({ content: '✅ Message envoyé.', ephemeral: true }).catch(() => {});
         }
 
         // Stuff generator button

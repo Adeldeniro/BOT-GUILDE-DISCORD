@@ -99,7 +99,34 @@ function hasAnyAllowedRole(member) {
   return names.some((n) => ALLOWED_PING_ROLE_NAMES.includes(n));
 }
 
-async function buildUserJobsEmbed(user, profileJobs) {
+function prettyDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('fr-FR');
+  } catch {
+    return null;
+  }
+}
+
+function emojiForJobKey(jobKey, emojiMap) {
+  if (emojiMap[jobKey]) return emojiMap[jobKey];
+
+  // Fallbacks: forgeron specializations reuse forgemage emojis
+  if (jobKey.startsWith('forgeron_')) {
+    const k = jobKey.replace(/^forgeron_/, 'forgemage_');
+    if (emojiMap[k]) return emojiMap[k];
+  }
+
+  // Fallbacks: sculpteur specializations reuse sculptemage emojis
+  if (jobKey.startsWith('sculpteur_')) {
+    const k = jobKey.replace(/^sculpteur_/, 'sculptemage_');
+    if (emojiMap[k]) return emojiMap[k];
+  }
+
+  return '';
+}
+
+async function buildUserJobsEmbed(user, profileJobs, { updatedAt } = {}) {
   const emojiDb = readEmojisMap();
   const emojiMap = emojiDb.emojis || {};
 
@@ -108,31 +135,37 @@ async function buildUserJobsEmbed(user, profileJobs) {
   const fmJobs = jobs.filter((j) => j.category === 'forgemagie');
 
   const formatLine = (j) => {
-    const emoji = emojiMap[j.key] || '';
-    return `• ${emoji ? `${emoji} ` : ''}**${j.label}** — niv **${j.level}**`;
+    const emoji = emojiForJobKey(j.key, emojiMap);
+    return `${emoji ? `${emoji} ` : ''}**${j.label}** — niv **${j.level}**`;
   };
 
-  return new EmbedBuilder()
-    .setAuthor({ name: user.username, iconURL: user.displayAvatarURL({ size: 128 }) })
-    .setTitle('🛠️ Fiche métiers')
+  const embed = new EmbedBuilder()
+    .setAuthor({ name: `Artisan: ${user.username}`, iconURL: user.displayAvatarURL({ size: 128 }) })
+    .setTitle('🛠️ Profil artisan')
     .setColor(0x2ecc71)
-    .addFields(
-      {
-        name: 'Métiers',
-        value: normalJobs.length
-          ? normalJobs.slice().sort((a, b) => (b.level || 0) - (a.level || 0)).map(formatLine).join('\n')
-          : '—',
-        inline: false,
-      },
-      {
-        name: 'Forgemagie',
-        value: fmJobs.length
-          ? fmJobs.slice().sort((a, b) => (b.level || 0) - (a.level || 0)).map(formatLine).join('\n')
-          : '—',
-        inline: false,
-      },
-    )
-    .setFooter({ text: 'LaBaguarre — Annuaire métiers' });
+    .setDescription(`Utilisateur: <@${user.id}>`);
+
+  const when = updatedAt ? prettyDate(updatedAt) : null;
+  if (when) embed.setFooter({ text: `Mis à jour: ${when}` });
+
+  embed.addFields(
+    {
+      name: 'Métiers',
+      value: normalJobs.length
+        ? normalJobs.slice().sort((a, b) => (b.level || 0) - (a.level || 0)).map(formatLine).join('\n')
+        : '—',
+      inline: false,
+    },
+    {
+      name: 'Forgemagie',
+      value: fmJobs.length
+        ? fmJobs.slice().sort((a, b) => (b.level || 0) - (a.level || 0)).map(formatLine).join('\n')
+        : '—',
+      inline: false,
+    },
+  );
+
+  return embed;
 }
 
 function buildDashboardEmbed() {
