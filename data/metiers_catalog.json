@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "source": "https://www.dofus-touch.com/fr/mmorpg/encyclopedie/metiers",
+  "jobs": [
+    {
+      "key": "alchimiste",
+      "label": "Alchimiste",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/26.w191h191.jpg"
+    },
+    {
+      "key": "bijoutier",
+      "label": "Bijoutier",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/16.w191h191.jpg"
+    },
+    {
+      "key": "boulanger",
+      "label": "Boulanger",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/25.w191h191.jpg"
+    },
+    {
+      "key": "boucher",
+      "label": "Boucher",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/56.w191h191.jpg"
+    },
+    {
+      "key": "bricoleur",
+      "label": "Bricoleur",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/65.w191h191.jpg"
+    },
+    {
+      "key": "bucheron",
+      "label": "Bûcheron",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/2.w191h191.jpg"
+    },
+    {
+      "key": "cordonnier",
+      "label": "Cordonnier",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/15.w191h191.jpg"
+    },
+    {
+      "key": "faconneur",
+      "label": "Façonneur",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/60.w191h191.jpg"
+    },
+    {
+      "key": "forgeron",
+      "label": "Forgeron"
+    },
+    {
+      "key": "forgemage_dagues",
+      "label": "Forgemage de Dagues",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/43.w191h191.jpg"
+    },
+    {
+      "key": "forgemage_epees",
+      "label": "Forgemage d’Épées",
+      "category": "forgemagie"
+    },
+    {
+      "key": "forgemage_marteaux",
+      "label": "Forgemage de Marteaux",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/45.w191h191.jpg"
+    },
+    {
+      "key": "forgemage_pelles",
+      "label": "Forgemage de Pelles",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/46.w191h191.jpg"
+    },
+    {
+      "key": "forgemage_haches",
+      "label": "Forgemage de Haches",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/47.w191h191.jpg"
+    },
+    {
+      "key": "cordomage",
+      "label": "Cordomage",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/62.w191h191.jpg"
+    },
+    {
+      "key": "costumage",
+      "label": "Costumage",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/64.w191h191.jpg"
+    },
+    {
+      "key": "joaillomage",
+      "label": "Joaillomage",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/63.w191h191.jpg"
+    },
+    {
+      "key": "sculptemage_batons",
+      "label": "Sculptemage de Bâtons",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/50.w191h191.jpg"
+    },
+    {
+      "key": "sculptemage_baguettes",
+      "label": "Sculptemage de Baguettes",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/49.w191h191.jpg"
+    },
+    {
+      "key": "sculptemage_arcs",
+      "label": "Sculptemage d’Arcs",
+      "category": "forgemagie",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/48.w191h191.jpg"
+    },
+    {
+      "key": "mineur",
+      "label": "Mineur",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/24.w191h191.jpg"
+    },
+    {
+      "key": "paysan",
+      "label": "Paysan",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/28.w191h191.jpg"
+    },
+    {
+      "key": "pecheur",
+      "label": "Pêcheur",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/36.w191h191.jpg"
+    },
+    {
+      "key": "tailleur",
+      "label": "Tailleur",
+      "image": "https://static.ankama.com/dofus-touch/www/img/../modules/mmorpg/encyclopedia/jobs/assets/images/27.w191h191.jpg"
+    }
+  ]
+}

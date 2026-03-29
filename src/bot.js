@@ -11,6 +11,7 @@ const profiles = require('./profiles');
 const ev = require('./events');
 const drafts = require('./eventDrafts');
 const stuffGen = require('./stuffGenerator');
+const metiers = require('./metiers');
 
 // Stuff generator (DofusBook Touch)
 const STUFF_GEN_CHANNEL_ID = '1480657603779362963';
@@ -1365,6 +1366,16 @@ async function registerCommands(client) {
       .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages à supprimer (1-100)').setRequired(false)),
 
     new SlashCommandBuilder()
+      .setName('metiers-install')
+      .setDescription('Installer le dashboard métiers (admin only)')
+      .setDMPermission(false),
+
+    new SlashCommandBuilder()
+      .setName('metiers-emojisync')
+      .setDescription('Synchroniser les emojis métiers (admin only)')
+      .setDMPermission(false),
+
+    new SlashCommandBuilder()
       .setName('lock_write')
       .setDescription("Bloquer l'écriture dans ce salon (owner only)")
       .addChannelOption(o => o.setName('salon').setDescription('Salon à verrouiller').addChannelTypes(0,5).setRequired(true))
@@ -2148,6 +2159,54 @@ async function main() {
           } catch {}
 
           return interaction.reply({ content: '✅ Build ajouté au panneau.', ephemeral: true });
+        }
+
+        // Métiers modal
+        if (interaction.customId.startsWith('mj:add_level:')) {
+          const parts = interaction.customId.split(':');
+          const jobKey = parts[2];
+          const jobLabel = parts.slice(3).join(':') || jobKey;
+
+          const lvlRaw = interaction.fields.getTextInputValue('level');
+          const lvl = metiers.clampInt(lvlRaw, 1, 100);
+          if (!lvl) return interaction.reply({ content: 'Niveau invalide (1 à 100).', ephemeral: true });
+
+          const db2 = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          if (!db2.users) db2.users = {};
+          const prev = db2.users[interaction.user.id] || {};
+          const jobs = Array.isArray(prev.jobs) ? prev.jobs : [];
+
+          const catalog = metiers.getJobsCatalog();
+          const hit = catalog.find((j) => j.key === jobKey);
+          const category = hit?.category || null;
+
+          const idx = jobs.findIndex((j) => j.key === jobKey);
+          const next = { key: jobKey, label: jobLabel, level: lvl, category };
+          if (idx >= 0) jobs[idx] = next;
+          else jobs.push(next);
+
+          db2.users[interaction.user.id] = { jobs, messageId: prev.messageId || null, updatedAt: new Date().toISOString() };
+          metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db2);
+
+          // Update public fiche in dedicated channel
+          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_FICHES_PUBLIC).catch(() => null);
+          if (ch && ch.isTextBased()) {
+            const embed = await metiers.buildUserJobsEmbed(interaction.user, jobs);
+            let msg = null;
+            if (prev.messageId) {
+              msg = await ch.messages.fetch(prev.messageId).catch(() => null);
+              if (msg) msg = await msg.edit({ embeds: [embed] }).catch(() => null);
+            }
+            if (!msg) {
+              msg = await ch.send({ embeds: [embed] }).catch(() => null);
+            }
+            if (msg) {
+              db2.users[interaction.user.id].messageId = msg.id;
+              metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db2);
+            }
+          }
+
+          return interaction.reply({ content: `✅ ${jobLabel} niveau ${lvl} enregistré.`, ephemeral: true });
         }
 
         if (interaction.customId.startsWith('ankprof:submit:')) {
@@ -3487,6 +3546,74 @@ async function main() {
           return;
         }
 
+        if (interaction.commandName === 'metiers-install') {
+          if (!interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: 'Commande réservée aux **admins** du serveur.', ephemeral: true });
+          }
+
+          if (interaction.channelId !== metiers.CHANNEL_DASHBOARD_INSTALL) {
+            return interaction.reply({ content: `Installe le dashboard uniquement dans <#${metiers.CHANNEL_DASHBOARD_INSTALL}>.`, ephemeral: true });
+          }
+
+          const embed = metiers.buildDashboardEmbed();
+          const components = metiers.buildDashboardButtons();
+
+          await interaction.reply({ content: '✅ Dashboard métiers posté.', ephemeral: true });
+          const msg = await interaction.channel.send({
+            embeds: [embed],
+            files: [{ attachment: metiers.DASHBOARD_IMAGE_PATH, name: 'metiers_dashboard.png' }],
+            components,
+            allowedMentions: { parse: [] },
+          });
+          try { await msg.pin(); } catch {}
+          return;
+        }
+
+        if (interaction.commandName === 'metiers-emojisync') {
+          if (!interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: 'Commande réservée aux **admins** du serveur.', ephemeral: true });
+          }
+
+          await interaction.reply({ content: '🔄 Upload des emojis métiers…', ephemeral: true });
+
+          const catalog = metiers.getJobsCatalog();
+          const db = metiers.readJsonSafe(metiers.JOBS_EMOJIS_PATH, { version: 1, emojis: {} });
+          if (!db.emojis) db.emojis = {};
+
+          let created = 0;
+          let skipped = 0;
+
+          for (const j of catalog) {
+            if (db.emojis[j.key]) {
+              skipped += 1;
+              continue;
+            }
+
+            const file = path.join(metiers.JOB_ICONS_DIR, `${j.key}.png`);
+            if (!fs.existsSync(file)) {
+              skipped += 1;
+              continue;
+            }
+
+            const emojiName = `m_${j.key}`.slice(0, 32);
+            // eslint-disable-next-line no-await-in-loop
+            const emoji = await interaction.guild.emojis.create({ attachment: file, name: emojiName }).catch(() => null);
+            if (!emoji) {
+              skipped += 1;
+              continue;
+            }
+
+            db.emojis[j.key] = `<:${emoji.name}:${emoji.id}>`;
+            created += 1;
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((r) => setTimeout(r, 900));
+          }
+
+          metiers.writeJsonAtomic(metiers.JOBS_EMOJIS_PATH, db);
+          await interaction.editReply({ content: `✅ Emojis sync terminé. Créés: **${created}**, ignorés: **${skipped}**` }).catch(() => {});
+          return;
+        }
+
         if (interaction.commandName === 'scoreboard_weekly_run') {
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
@@ -3629,6 +3756,157 @@ async function main() {
       }
 
       if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
+        // Métiers selects
+        if (interaction.customId === 'mj:search_cat') {
+          const cat = interaction.values?.[0];
+          const list = metiers.getJobsCatalog();
+          const options = list
+            .filter((j) => (cat === 'forgemagie' ? j.category === 'forgemagie' : j.category !== 'forgemagie'))
+            .slice(0, 25)
+            .map((j) => ({ label: j.label, value: j.key }));
+
+          const sel = new StringSelectMenuBuilder()
+            .setCustomId(`mj:search_job:${cat}`)
+            .setPlaceholder(cat === 'forgemagie' ? 'Choisis un métier de forgemagie' : 'Choisis un métier')
+            .addOptions(options);
+
+          const back = new ButtonBuilder().setCustomId('mj:search').setLabel('⬅️ Retour').setStyle(ButtonStyle.Secondary);
+
+          return interaction.update({
+            content: '🔎 Recherche : choisis un métier',
+            components: [new ActionRowBuilder().addComponents(sel), new ActionRowBuilder().addComponents(back)],
+          }).catch(() => {});
+        }
+
+        if (interaction.customId === 'mj:add_cat') {
+          const cat = interaction.values?.[0];
+          const list = metiers.getJobsCatalog();
+          const options = list
+            .filter((j) => (cat === 'forgemagie' ? j.category === 'forgemagie' : j.category !== 'forgemagie'))
+            .slice(0, 25)
+            .map((j) => ({ label: j.label, value: j.key }));
+
+          const sel = new StringSelectMenuBuilder()
+            .setCustomId(`mj:choose:${cat}`)
+            .setPlaceholder(cat === 'forgemagie' ? 'Choisis un métier de forgemagie' : 'Choisis un métier')
+            .addOptions(options);
+
+          const back = new ButtonBuilder().setCustomId('mj:add').setLabel('⬅️ Retour').setStyle(ButtonStyle.Secondary);
+
+          return interaction.update({
+            content: '➕ Ajouter / modifier : choisis un métier',
+            components: [new ActionRowBuilder().addComponents(sel), new ActionRowBuilder().addComponents(back)],
+          }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('mj:choose:')) {
+          const key = interaction.values?.[0];
+          const jobs = metiers.getJobsCatalog();
+          const hit = jobs.find((j) => j.key === key);
+          const label = hit?.label || key;
+
+          const modal = new ModalBuilder()
+            .setCustomId(`mj:add_level:${key}:${label}`)
+            .setTitle(`Niveau — ${label}`);
+
+          const input = new TextInputBuilder()
+            .setCustomId('level')
+            .setLabel('Niveau (1 à 100)')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMaxLength(3)
+            .setPlaceholder('ex: 80');
+
+          modal.addComponents(new ActionRowBuilder().addComponents(input));
+          await interaction.showModal(modal).catch(() => {});
+          return;
+        }
+
+        if (interaction.customId === 'mj:del_choose') {
+          const key = interaction.values?.[0];
+          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          if (!db.users) db.users = {};
+          const prev = db.users[interaction.user.id] || {};
+          const jobs = Array.isArray(prev.jobs) ? prev.jobs : [];
+          const nextJobs = jobs.filter((j) => j.key !== key);
+          db.users[interaction.user.id] = { jobs: nextJobs, messageId: prev.messageId || null, updatedAt: new Date().toISOString() };
+          metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db);
+
+          // Update public fiche
+          try {
+            const ch = await interaction.client.channels.fetch(metiers.CHANNEL_FICHES_PUBLIC).catch(() => null);
+            if (ch && ch.isTextBased()) {
+              if (prev.messageId) {
+                const m = await ch.messages.fetch(prev.messageId).catch(() => null);
+                if (m) {
+                  const embed = await metiers.buildUserJobsEmbed(interaction.user, nextJobs);
+                  await m.edit({ embeds: [embed] }).catch(() => {});
+                }
+              }
+            }
+          } catch {}
+
+          return interaction.reply({ content: '✅ Métier supprimé et fiche mise à jour.', ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('mj:search_job:')) {
+          const key = interaction.values?.[0];
+          const list = metiers.getJobsCatalog();
+          const hit = list.find((j) => j.key === key);
+          const label = hit?.label || key;
+
+          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const users = db.users || {};
+
+          const matches = [];
+          for (const [userId, profile] of Object.entries(users)) {
+            const jobs = Array.isArray(profile.jobs) ? profile.jobs : [];
+            const j = jobs.find((x) => x.key === key || metiers.normalizeJobName(x.label) === metiers.normalizeJobName(label));
+            if (j) matches.push({ userId, level: j.level || 0 });
+          }
+          matches.sort((a, b) => (b.level || 0) - (a.level || 0));
+
+          await interaction.update({ content: `Résultats pour **${label}** (${matches.length}) :`, components: [] }).catch(() => {});
+          if (!matches.length) {
+            await interaction.followUp({ content: 'Aucun résultat.', ephemeral: true }).catch(() => {});
+            return;
+          }
+
+          const searchId = metiers.newSessionId();
+          metiers.jobSearchSessions.set(searchId, {
+            requesterId: interaction.user.id,
+            jobKey: key,
+            jobLabel: label,
+            userIds: matches.map((m) => m.userId),
+          });
+
+          const slice = matches.slice(0, 3);
+          const embeds = [];
+          const components = [];
+          for (const m of slice) {
+            // eslint-disable-next-line no-await-in-loop
+            const u = await interaction.client.users.fetch(m.userId).catch(() => null);
+            if (!u) continue;
+            const prof = users[m.userId] || {};
+            const jobs = Array.isArray(prof.jobs) ? prof.jobs : [];
+            // eslint-disable-next-line no-await-in-loop
+            embeds.push(await metiers.buildUserJobsEmbed(u, jobs));
+            components.push(new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${m.userId}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
+            ));
+          }
+
+          const pageMax = Math.ceil(matches.length / 3);
+          const nav = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`mj:page:${searchId}:0`).setLabel('⬅️ Précédent').setStyle(ButtonStyle.Secondary).setDisabled(true),
+            new ButtonBuilder().setCustomId(`mj:page:${searchId}:3`).setLabel('Suivant ➡️').setStyle(ButtonStyle.Secondary).setDisabled(pageMax <= 1),
+          );
+          components.push(nav);
+
+          await interaction.followUp({ content: `Page 1/${pageMax} — **${label}**`, embeds, components, ephemeral: true }).catch(() => {});
+          return;
+        }
+
         // Dofusbook panel selects
         if (interaction.customId.startsWith('dbp:class:') || interaction.customId.startsWith('dbp:elem:') || interaction.customId.startsWith('dbp:delpick:')) {
           const parts = interaction.customId.split(':');
@@ -3689,6 +3967,182 @@ async function main() {
       }
 
       if (interaction.isButton()) {
+        // Métiers buttons
+        if (interaction.customId === 'mj:open') {
+          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const profile = (db.users || {})[interaction.user.id] || {};
+          const jobs = Array.isArray(profile.jobs) ? profile.jobs : [];
+          const rows = metiers.buildManagePanelButtons(jobs.length > 0);
+          return interaction.reply({
+            content: [
+              `**Métiers de ${interaction.user.username}**`,
+              jobs.length ? jobs.map((j) => `• ${j.label} — niveau ${j.level}`).join('\n') : 'Aucun métier enregistré.',
+            ].join('\n'),
+            components: rows,
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId === 'mj:add') {
+          const catSel = new StringSelectMenuBuilder()
+            .setCustomId('mj:add_cat')
+            .setPlaceholder('Choisis une catégorie')
+            .addOptions({ label: 'Métier', value: 'metier' }, { label: 'Forgemagie', value: 'forgemagie' });
+          return interaction.reply({
+            content: '➕ Ajouter / modifier : choisis une catégorie',
+            components: [new ActionRowBuilder().addComponents(catSel)],
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId === 'mj:del') {
+          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const profile = (db.users || {})[interaction.user.id] || {};
+          const cur = Array.isArray(profile.jobs) ? profile.jobs : [];
+          if (!cur.length) return interaction.reply({ content: "Tu n'as aucun métier enregistré.", ephemeral: true }).catch(() => {});
+
+          const options = cur.slice(0, 25).map((j) => ({ label: j.label, value: j.key }));
+          const sel = new StringSelectMenuBuilder()
+            .setCustomId('mj:del_choose')
+            .setPlaceholder('Quel métier supprimer ?')
+            .setMinValues(1)
+            .setMaxValues(1)
+            .addOptions(options);
+
+          return interaction.reply({
+            content: 'Sélectionne le métier à supprimer :',
+            components: [new ActionRowBuilder().addComponents(sel)],
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId === 'mj:reset') {
+          const yes = new ButtonBuilder().setCustomId('mj:reset_yes').setLabel('Oui, tout effacer').setStyle(ButtonStyle.Danger);
+          const no = new ButtonBuilder().setCustomId('mj:reset_no').setLabel('Annuler').setStyle(ButtonStyle.Secondary);
+          return interaction.reply({
+            content: 'Confirme: tu veux effacer **tous** tes métiers ? (ta fiche sera mise à jour)',
+            components: [new ActionRowBuilder().addComponents(yes, no)],
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId === 'mj:reset_no') {
+          return interaction.reply({ content: 'OK, annulé.', ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId === 'mj:reset_yes') {
+          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          if (!db.users) db.users = {};
+          const prev = db.users[interaction.user.id] || {};
+          const messageId = prev.messageId || null;
+          db.users[interaction.user.id] = { jobs: [], messageId, updatedAt: new Date().toISOString() };
+          metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db);
+
+          try {
+            const ch = await interaction.client.channels.fetch(metiers.CHANNEL_FICHES_PUBLIC).catch(() => null);
+            if (ch && ch.isTextBased() && messageId) {
+              const m = await ch.messages.fetch(messageId).catch(() => null);
+              if (m) {
+                const embed = await metiers.buildUserJobsEmbed(interaction.user, []);
+                await m.edit({ embeds: [embed] }).catch(() => {});
+              }
+            }
+          } catch {}
+
+          return interaction.reply({ content: '✅ Tous tes métiers ont été effacés.', ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId === 'mj:search') {
+          const catSel = new StringSelectMenuBuilder()
+            .setCustomId('mj:search_cat')
+            .setPlaceholder('Choisis une catégorie')
+            .addOptions({ label: 'Métier', value: 'metier' }, { label: 'Forgemagie', value: 'forgemagie' });
+          return interaction.reply({
+            content: '🔎 Recherche : choisis une catégorie',
+            components: [new ActionRowBuilder().addComponents(catSel)],
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('mj:page:')) {
+          const parts = interaction.customId.split(':');
+          const searchId = parts[2];
+          const offset = Number(parts[3] || 0);
+
+          const sess = metiers.jobSearchSessions.get(searchId);
+          if (!sess) return interaction.reply({ content: 'Session expirée, relance une recherche.', ephemeral: true }).catch(() => {});
+          if (sess.requesterId !== interaction.user.id) return interaction.reply({ content: 'Ce bouton ne t’appartient pas.', ephemeral: true }).catch(() => {});
+
+          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const users = db.users || {};
+          const slice = sess.userIds.slice(offset, offset + 3);
+
+          const embeds = [];
+          const components = [];
+          for (const uid of slice) {
+            // eslint-disable-next-line no-await-in-loop
+            const u = await interaction.client.users.fetch(uid).catch(() => null);
+            if (!u) continue;
+            const prof = users[uid] || {};
+            const jobs = Array.isArray(prof.jobs) ? prof.jobs : [];
+            // eslint-disable-next-line no-await-in-loop
+            embeds.push(await metiers.buildUserJobsEmbed(u, jobs));
+            components.push(new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${uid}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
+            ));
+          }
+
+          const prevDisabled = offset <= 0;
+          const nextDisabled = offset + 3 >= sess.userIds.length;
+          const nav = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`mj:page:${searchId}:${Math.max(0, offset - 3)}`).setLabel('⬅️ Précédent').setStyle(ButtonStyle.Secondary).setDisabled(prevDisabled),
+            new ButtonBuilder().setCustomId(`mj:page:${searchId}:${offset + 3}`).setLabel('Suivant ➡️').setStyle(ButtonStyle.Secondary).setDisabled(nextDisabled),
+          );
+          components.push(nav);
+
+          const page = Math.floor(offset / 3) + 1;
+          const pageMax = Math.ceil(sess.userIds.length / 3);
+
+          return interaction.update({ content: `Page ${page}/${pageMax} — **${sess.jobLabel}**`, embeds, components }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('mj:req:')) {
+          const parts = interaction.customId.split(':');
+          const searchId = parts[2];
+          const targetId = parts[3];
+
+          const sess = metiers.jobSearchSessions.get(searchId);
+          if (!sess) return interaction.reply({ content: 'Session expirée, relance une recherche.', ephemeral: true }).catch(() => {});
+          if (sess.requesterId !== interaction.user.id) return interaction.reply({ content: 'Ce bouton ne t’appartient pas.', ephemeral: true }).catch(() => {});
+
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!member || !metiers.hasAnyAllowedRole(member)) {
+            return interaction.reply({ content: 'Réservé aux rôles **Guildeux** ou **Invité**.', ephemeral: true }).catch(() => {});
+          }
+
+          const keyCooldown = `${interaction.user.id}:${targetId}`;
+          const now = Date.now();
+          const last = metiers.craftPingLast.get(keyCooldown) || 0;
+          const wait = metiers.PING_COOLDOWN_MS - (now - last);
+          if (wait > 0) {
+            const sec = Math.ceil(wait / 1000);
+            return interaction.reply({ content: `⏳ Attends encore ${sec}s avant de recontacter <@${targetId}>.`, ephemeral: true }).catch(() => {});
+          }
+          metiers.craftPingLast.set(keyCooldown, now);
+
+          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_PING_REQUESTS).catch(() => null);
+          if (!ch || !ch.isTextBased()) {
+            return interaction.reply({ content: 'Salon de demandes introuvable.', ephemeral: true }).catch(() => {});
+          }
+
+          await ch.send({
+            content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un craft : **${sess.jobLabel}**. Tu es dispo ?`,
+            allowedMentions: { users: [targetId, interaction.user.id] },
+          }).catch(() => {});
+
+          return interaction.reply({ content: '✅ Demande envoyée.', ephemeral: true }).catch(() => {});
+        }
+
         // Stuff generator button
         if (interaction.customId.startsWith('gs:regen:')) {
           try {
