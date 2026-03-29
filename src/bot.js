@@ -2195,10 +2195,10 @@ async function main() {
             let msg = null;
             if (prev.messageId) {
               msg = await ch.messages.fetch(prev.messageId).catch(() => null);
-              if (msg) msg = await msg.edit({ embeds: [embed] }).catch(() => null);
+              if (msg) msg = await msg.edit({ embeds: [embed], components: metiers.buildPublicFicheButtons(interaction.user.id) }).catch(() => null);
             }
             if (!msg) {
-              msg = await ch.send({ embeds: [embed] }).catch(() => null);
+              msg = await ch.send({ embeds: [embed], components: metiers.buildPublicFicheButtons(interaction.user.id) }).catch(() => null);
             }
             if (msg) {
               db2.users[interaction.user.id].messageId = msg.id;
@@ -3951,8 +3951,7 @@ async function main() {
             // eslint-disable-next-line no-await-in-loop
             embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt }));
             components.push(new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${m.userId}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary),
-              new ButtonBuilder().setCustomId(`mj:contact:${m.userId}`).setLabel('📩 Contacter').setStyle(ButtonStyle.Secondary)
+              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${m.userId}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
             ));
           }
 
@@ -4148,8 +4147,7 @@ async function main() {
             // eslint-disable-next-line no-await-in-loop
             embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt }));
             components.push(new ActionRowBuilder().addComponents(
-              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${uid}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary),
-              new ButtonBuilder().setCustomId(`mj:contact:${uid}`).setLabel('📩 Contacter').setStyle(ButtonStyle.Secondary)
+              new ButtonBuilder().setCustomId(`mj:req:${searchId}:${uid}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
             ));
           }
 
@@ -4204,7 +4202,7 @@ async function main() {
           return interaction.reply({ content: '✅ Demande envoyée.', ephemeral: true }).catch(() => {});
         }
 
-        if (interaction.customId.startsWith('mj:contact:')) {
+        if (interaction.customId.startsWith('mj:pubreq:')) {
           const parts = interaction.customId.split(':');
           const targetId = parts[2];
 
@@ -4229,11 +4227,11 @@ async function main() {
           }
 
           await ch.send({
-            content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un artisan. Tu es dispo ?`,
+            content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un craft. Tu es dispo ?`,
             allowedMentions: { users: [targetId, interaction.user.id] },
           }).catch(() => {});
 
-          return interaction.reply({ content: '✅ Message envoyé.', ephemeral: true }).catch(() => {});
+          return interaction.reply({ content: '✅ Demande envoyée.', ephemeral: true }).catch(() => {});
         }
 
         // Stuff generator button

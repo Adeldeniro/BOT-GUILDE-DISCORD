@@ -202,6 +202,14 @@ function buildManagePanelButtons(hasJobs) {
   return [new ActionRowBuilder().addComponents(addBtn, delBtn, resetBtn)];
 }
 
+function buildPublicFicheButtons(artisanId) {
+  const pingBtn = new ButtonBuilder()
+    .setCustomId(`mj:pubreq:${artisanId}`)
+    .setLabel('📣 Demander un craft')
+    .setStyle(ButtonStyle.Primary);
+  return [new ActionRowBuilder().addComponents(pingBtn)];
+}
+
 module.exports = {
   // constants
   CHANNEL_DASHBOARD_INSTALL,
@@ -227,6 +235,7 @@ module.exports = {
   buildDashboardEmbed,
   buildDashboardButtons,
   buildManagePanelButtons,
+  buildPublicFicheButtons,
 
   // paths
   JOBS_USERS_PATH,
