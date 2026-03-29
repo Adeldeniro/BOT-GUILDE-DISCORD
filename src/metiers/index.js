@@ -19,7 +19,9 @@ const CHANNEL_FICHES_PUBLIC = '1480657603779362966';
 const CHANNEL_PING_REQUESTS = '1480657603196616847';
 
 // Roles allowed to ping artisans
-const ALLOWED_PING_ROLE_NAMES = ['guildeux', 'invité', 'invite'];
+// Prefer role IDs (stable) over names (can change)
+const ALLOWED_PING_ROLE_IDS = ['1480657602382790902']; // GTO
+const ALLOWED_PING_ROLE_NAMES = ['invité', 'invite'];
 
 // Paths
 const DATA_DIR = path.join(__dirname, '..', '..', 'data');
@@ -95,7 +97,15 @@ function newSessionId() {
 }
 
 function hasAnyAllowedRole(member) {
-  const names = member?.roles?.cache?.map((r) => norm(r.name)) || [];
+  const roles = member?.roles?.cache;
+  if (!roles) return false;
+
+  // Check IDs first
+  const ids = roles.map((r) => String(r.id));
+  if (ids.some((id) => ALLOWED_PING_ROLE_IDS.includes(id))) return true;
+
+  // Fallback to names
+  const names = roles.map((r) => norm(r.name));
   return names.some((n) => ALLOWED_PING_ROLE_NAMES.includes(n));
 }
 
