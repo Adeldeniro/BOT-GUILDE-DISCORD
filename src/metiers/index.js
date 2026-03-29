@@ -16,7 +16,8 @@ const {
 // Channels (as requested)
 const CHANNEL_DASHBOARD_INSTALL = '1480657603779362961';
 const CHANNEL_FICHES_PUBLIC = '1480657603779362966';
-const CHANNEL_PING_REQUESTS = '1480657603196616847';
+// NOTE: use the parent text channel (threads can auto-archive)
+const CHANNEL_PING_REQUESTS = '1480657602906947663';
 
 // Roles allowed to ping artisans
 const ALLOWED_PING_ROLE_NAMES = ['guildeux', 'invité', 'invite'];
