@@ -4241,17 +4241,41 @@ ${info}`.slice(0, 1900),
             const sec = Math.ceil(wait / 1000);
             return interaction.reply({ content: `⏳ Attends encore ${sec}s avant de recontacter <@${targetId}>.`, ephemeral: true }).catch(() => {});
           }
-          metiers.craftPingLast.set(keyCooldown, now);
 
-          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_PING_REQUESTS).catch(() => null);
+          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_PING_REQUESTS).catch((e) => {
+            console.error('[metiers] fetch ping channel failed:', e);
+            return null;
+          });
           if (!ch || !ch.isTextBased()) {
-            return interaction.reply({ content: 'Salon de demandes introuvable.', ephemeral: true }).catch(() => {});
+            return interaction.reply({ content: 'Salon de demandes introuvable (ou inaccessible).', ephemeral: true }).catch(() => {});
           }
 
-          await ch.send({
+          // If ping target is a thread, ensure it's usable (threads can auto-archive)
+          const isThread = typeof ch.isThread === 'function' ? ch.isThread() : false;
+          if (isThread && ch.archived) {
+            await ch.setArchived(false).catch((e) => console.error('[metiers] failed to unarchive thread:', e));
+          }
+          if (isThread && typeof ch.join === 'function') {
+            await ch.join().catch(() => {});
+          }
+
+          const sent = await ch.send({
             content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un craft : **${sess.jobLabel}**. Tu es dispo ?`,
             allowedMentions: { users: [targetId, interaction.user.id] },
-          }).catch(() => {});
+          }).catch((e) => {
+            console.error('[metiers] failed to send ping request:', e);
+            return null;
+          });
+
+          if (!sent) {
+            return interaction.reply({
+              content: '❌ Impossible d’envoyer la demande dans le salon dédié (permissions manquantes ?).',
+              ephemeral: true,
+            }).catch(() => {});
+          }
+
+          // only start cooldown if message was sent
+          metiers.craftPingLast.set(keyCooldown, now);
 
           return interaction.reply({ content: '✅ Demande envoyée.', ephemeral: true }).catch(() => {});
         }
@@ -4279,6 +4303,15 @@ ${info}`.slice(0, 1900),
           });
           if (!ch || !ch.isTextBased()) {
             return interaction.reply({ content: 'Salon de demandes introuvable (ou inaccessible).', ephemeral: true }).catch(() => {});
+          }
+
+          // If ping target is a thread, ensure it's usable (threads can auto-archive)
+          const isThread = typeof ch.isThread === 'function' ? ch.isThread() : false;
+          if (isThread && ch.archived) {
+            await ch.setArchived(false).catch((e) => console.error('[metiers] failed to unarchive thread:', e));
+          }
+          if (isThread && typeof ch.join === 'function') {
+            await ch.join().catch(() => {});
           }
 
           const sent = await ch.send({
