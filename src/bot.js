@@ -4250,22 +4250,33 @@ ${info}`.slice(0, 1900),
             return interaction.reply({ content: 'Salon de demandes introuvable (ou inaccessible).', ephemeral: true }).catch(() => {});
           }
 
-          // If ping target is a thread, ensure it's usable (threads can auto-archive)
           const isThread = typeof ch.isThread === 'function' ? ch.isThread() : false;
-          if (isThread && ch.archived) {
-            await ch.setArchived(false).catch((e) => console.error('[metiers] failed to unarchive thread:', e));
-          }
           if (isThread && typeof ch.join === 'function') {
             await ch.join().catch(() => {});
           }
 
-          const sent = await ch.send({
+          let sent = await ch.send({
             content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un craft : **${sess.jobLabel}**. Tu es dispo ?`,
             allowedMentions: { users: [targetId, interaction.user.id] },
           }).catch((e) => {
             console.error('[metiers] failed to send ping request:', e);
             return null;
           });
+
+          // If the thread was archived, try to unarchive then send again.
+          if (!sent && isThread) {
+            const canUnarchive = Boolean(ch.archived);
+            if (canUnarchive) {
+              await ch.setArchived(false).catch((e) => console.error('[metiers] failed to unarchive thread:', e));
+              sent = await ch.send({
+                content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un craft : **${sess.jobLabel}**. Tu es dispo ?`,
+                allowedMentions: { users: [targetId, interaction.user.id] },
+              }).catch((e) => {
+                console.error('[metiers] failed to send ping request (after unarchive):', e);
+                return null;
+              });
+            }
+          }
 
           if (!sent) {
             return interaction.reply({
@@ -4305,22 +4316,33 @@ ${info}`.slice(0, 1900),
             return interaction.reply({ content: 'Salon de demandes introuvable (ou inaccessible).', ephemeral: true }).catch(() => {});
           }
 
-          // If ping target is a thread, ensure it's usable (threads can auto-archive)
           const isThread = typeof ch.isThread === 'function' ? ch.isThread() : false;
-          if (isThread && ch.archived) {
-            await ch.setArchived(false).catch((e) => console.error('[metiers] failed to unarchive thread:', e));
-          }
           if (isThread && typeof ch.join === 'function') {
             await ch.join().catch(() => {});
           }
 
-          const sent = await ch.send({
+          let sent = await ch.send({
             content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un craft. Tu es dispo ?`,
             allowedMentions: { users: [targetId, interaction.user.id] },
           }).catch((e) => {
             console.error('[metiers] failed to send ping request:', e);
             return null;
           });
+
+          // If the thread was archived, try to unarchive then send again.
+          if (!sent && isThread) {
+            const canUnarchive = Boolean(ch.archived);
+            if (canUnarchive) {
+              await ch.setArchived(false).catch((e) => console.error('[metiers] failed to unarchive thread:', e));
+              sent = await ch.send({
+                content: `📣 <@${targetId}> — <@${interaction.user.id}> cherche un craft. Tu es dispo ?`,
+                allowedMentions: { users: [targetId, interaction.user.id] },
+              }).catch((e) => {
+                console.error('[metiers] failed to send ping request (after unarchive):', e);
+                return null;
+              });
+            }
+          }
 
           if (!sent) {
             return interaction.reply({
