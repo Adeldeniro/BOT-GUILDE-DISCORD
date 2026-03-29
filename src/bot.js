@@ -3574,43 +3574,59 @@ async function main() {
             return interaction.reply({ content: 'Commande réservée aux **admins** du serveur.', ephemeral: true });
           }
 
-          await interaction.reply({ content: '🔄 Upload des emojis métiers…', ephemeral: true });
+          await interaction.reply({ content: '🔄 Sync des emojis métiers…', ephemeral: true });
 
           const catalog = metiers.getJobsCatalog();
           const db = metiers.readJsonSafe(metiers.JOBS_EMOJIS_PATH, { version: 1, emojis: {} });
           if (!db.emojis) db.emojis = {};
 
+          // Build existing emoji map by name
+          const existing = new Map();
+          for (const e of interaction.guild.emojis.cache.values()) {
+            existing.set(e.name, e);
+          }
+
           let created = 0;
-          let skipped = 0;
+          let reused = 0;
+          let missingFile = 0;
+          let failed = 0;
 
           for (const j of catalog) {
-            if (db.emojis[j.key]) {
-              skipped += 1;
+            const emojiName = `m_${j.key}`.slice(0, 32);
+
+            // If emoji already exists on this guild, reuse it (and refresh mapping)
+            const ex = existing.get(emojiName);
+            if (ex) {
+              db.emojis[j.key] = `<:${ex.name}:${ex.id}>`;
+              reused += 1;
               continue;
             }
 
             const file = path.join(metiers.JOB_ICONS_DIR, `${j.key}.png`);
             if (!fs.existsSync(file)) {
-              skipped += 1;
+              missingFile += 1;
               continue;
             }
 
-            const emojiName = `m_${j.key}`.slice(0, 32);
             // eslint-disable-next-line no-await-in-loop
             const emoji = await interaction.guild.emojis.create({ attachment: file, name: emojiName }).catch(() => null);
             if (!emoji) {
-              skipped += 1;
+              failed += 1;
               continue;
             }
 
             db.emojis[j.key] = `<:${emoji.name}:${emoji.id}>`;
+            existing.set(emoji.name, emoji);
             created += 1;
+
             // eslint-disable-next-line no-await-in-loop
             await new Promise((r) => setTimeout(r, 900));
           }
 
           metiers.writeJsonAtomic(metiers.JOBS_EMOJIS_PATH, db);
-          await interaction.editReply({ content: `✅ Emojis sync terminé. Créés: **${created}**, ignorés: **${skipped}**` }).catch(() => {});
+          await interaction.editReply({
+            content: `✅ Emojis sync terminé. Créés: **${created}** • Réutilisés: **${reused}** • Fichiers manquants: **${missingFile}** • Échecs: **${failed}**`,
+          }).catch(() => {});
           return;
         }
 

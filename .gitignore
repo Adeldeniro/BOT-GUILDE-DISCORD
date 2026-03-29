@@ -23,6 +23,10 @@ data.sqlite
 data.sqlite-wal
 data.sqlite-shm
 
+# metiers runtime data (server-specific)
+data/metiers_users.json
+data/metiers_emojis.json
+
 # OS
 .DS_Store
 Thumbs.db
