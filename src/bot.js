@@ -1376,6 +1376,11 @@ async function registerCommands(client) {
       .setDMPermission(false),
 
     new SlashCommandBuilder()
+      .setName('metiers-testpingchannel')
+      .setDescription('DEBUG: tester envoi dans le salon de demandes métiers')
+      .setDMPermission(false),
+
+    new SlashCommandBuilder()
       .setName('lock_write')
       .setDescription("Bloquer l'écriture dans ce salon (owner only)")
       .addChannelOption(o => o.setName('salon').setDescription('Salon à verrouiller').addChannelTypes(0,5).setRequired(true))
@@ -3628,6 +3633,55 @@ async function main() {
             content: `✅ Emojis sync terminé. Créés: **${created}** • Réutilisés: **${reused}** • Fichiers manquants: **${missingFile}** • Échecs: **${failed}**`,
           }).catch(() => {});
           return;
+        }
+
+        if (interaction.commandName === 'metiers-testpingchannel') {
+          if (!interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)) {
+            return interaction.reply({ content: 'Admins uniquement.', ephemeral: true });
+          }
+
+          const pingId = metiers.CHANNEL_PING_REQUESTS;
+          const ch = await interaction.client.channels.fetch(pingId).catch((e) => {
+            console.error('[debug] fetch channel failed', e);
+            return null;
+          });
+
+          if (!ch) {
+            return interaction.reply({ content: `❌ Impossible de fetch le salon ${pingId}`, ephemeral: true });
+          }
+
+          const info = [
+            `id=${ch.id}`,
+            `name=${ch.name || '(no name)'}`,
+            `type=${ch.type}`,
+            `isTextBased=${typeof ch.isTextBased === 'function' ? ch.isTextBased() : 'n/a'}`,
+            `isThread=${Boolean(ch.isThread)}`,
+            `parentId=${ch.parentId || '—'}`,
+            // thread props
+            `archived=${ch.archived ?? '—'}`,
+            `locked=${ch.locked ?? '—'}`,
+          ].join('\n');
+
+          const sent = await ch.send({ content: `✅ DEBUG: message test depuis ${interaction.user.tag}` }).catch((e) => {
+            console.error('[debug] send failed', e);
+            return null;
+          });
+
+          if (!sent) {
+            return interaction.reply({
+              content: `❌ Send FAILED.\n\nInfos salon:\n\
+\
+${info}`.slice(0, 1900),
+              ephemeral: true,
+            });
+          }
+
+          return interaction.reply({
+            content: `✅ Send OK (msgId=${sent.id}).\n\nInfos salon:\n\
+\
+${info}`.slice(0, 1900),
+            ephemeral: true,
+          });
         }
 
         if (interaction.commandName === 'scoreboard_weekly_run') {
