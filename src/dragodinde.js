@@ -11,6 +11,9 @@ const {
   ButtonStyle,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   EmbedBuilder,
   AttachmentBuilder,
   PermissionsBitField,
@@ -998,8 +1001,17 @@ function cancelIaLaunchRows(userId) {
   )];
 }
 
+function getSelectableTextChannels(guild) {
+  return [...guild.channels.cache.values()]
+    .filter((ch) => ch.type === ChannelType.GuildText)
+    .sort((a, b) => {
+      if (a.rawPosition !== b.rawPosition) return a.rawPosition - b.rawPosition;
+      return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+    });
+}
+
 function channelSelectRow(guild, customId, placeholder) {
-  const textChannels = guild.channels.cache.filter((ch) => ch.type === ChannelType.GuildText).first(25);
+  const textChannels = getSelectableTextChannels(guild).slice(0, 25);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(customId)
     .setPlaceholder(placeholder)
@@ -1007,6 +1019,15 @@ function channelSelectRow(guild, customId, placeholder) {
     .setMaxValues(1)
     .addOptions(textChannels.map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name).setValue(ch.id)));
   return new ActionRowBuilder().addComponents(menu);
+}
+
+function channelSearchButtonRow(type) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`config:search:${type}`)
+      .setLabel(type === 'logs' ? '🔎 Rechercher salon logs' : '🔎 Rechercher salon dashboard')
+      .setStyle(ButtonStyle.Secondary)
+  );
 }
 
 function roleSelectRow(guild, customId, placeholder, maxValues = 1) {
@@ -1022,11 +1043,12 @@ function roleSelectRow(guild, customId, placeholder, maxValues = 1) {
 
 function configRows(guild) {
   return [
-    channelSelectRow(guild, 'config:logs_channel', 'Salon des logs (suivi des gains)'),
-    channelSelectRow(guild, 'config:dashboard_channel', 'Salon du dashboard'),
+    channelSelectRow(guild, 'config:logs_channel', 'Salon des logs (liste rapide)'),
+    channelSearchButtonRow('logs'),
     roleSelectRow(guild, 'config:admin_role', 'Rôle admin (valider les paiements)', 1),
     roleSelectRow(guild, 'config:allowed_roles', 'Rôle autorisé à jouer (sert aussi pour les notifications)', 1),
     new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('config:search:dashboard').setLabel('🧭 Chercher salon dashboard').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId('config:validate').setLabel('✅ Valider la configuration').setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId('config:cancel').setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary)
     ),
@@ -2228,6 +2250,56 @@ async function handleConfigSelect(interaction) {
   return false;
 }
 
+async function showChannelSearchModal(interaction, type) {
+  const label = type === 'logs' ? 'logs' : 'dashboard';
+  const modal = new ModalBuilder()
+    .setCustomId(`config:searchmodal:${label}`)
+    .setTitle(`Recherche salon ${label}`);
+
+  const input = new TextInputBuilder()
+    .setCustomId('query')
+    .setLabel('Nom du salon à rechercher')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder(type === 'logs' ? 'ex: logs, gains, pmu...' : 'ex: dashboard, course, suivi...');
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+  await interaction.showModal(modal);
+  return true;
+}
+
+async function handleChannelSearchModal(interaction) {
+  const [, , type] = interaction.customId.split(':');
+  const draft = getConfigDraft(interaction.user.id);
+  const query = String(interaction.fields.getTextInputValue('query') || '').trim().toLowerCase();
+  if (!query) {
+    await interaction.reply({ content: 'Recherche vide.', flags: MessageFlags.Ephemeral });
+    return true;
+  }
+
+  const channels = getSelectableTextChannels(interaction.guild)
+    .filter((ch) => ch.name.toLowerCase().includes(query))
+    .slice(0, 10);
+
+  if (!channels.length) {
+    await interaction.reply({ content: `Aucun salon trouvé pour **${query}**.`, flags: MessageFlags.Ephemeral });
+    return true;
+  }
+
+  const selected = channels[0];
+  if (type === 'logs') draft.logs_channel_id = selected.id;
+  if (type === 'dashboard') draft.dashboard_channel_id = selected.id;
+
+  const others = channels.slice(1).map((ch) => `• <#${ch.id}>`).join('\n');
+  await interaction.reply({
+    content:
+      `${type === 'logs' ? 'Salon des logs' : 'Salon du dashboard'} sélectionné automatiquement : <#${selected.id}>` +
+      (others ? `\nAutres correspondances :\n${others}` : ''),
+    flags: MessageFlags.Ephemeral,
+  });
+  return true;
+}
+
 async function handleButtonInteraction(interaction) {
   const { customId } = interaction;
 
@@ -2253,6 +2325,9 @@ async function handleButtonInteraction(interaction) {
     setupInProgressByUser.delete(interaction.user.id);
     return interaction.reply({ content: 'Configuration brouillon annulée.', flags: MessageFlags.Ephemeral });
   }
+
+  if (customId === 'config:search:logs') return showChannelSearchModal(interaction, 'logs');
+  if (customId === 'config:search:dashboard') return showChannelSearchModal(interaction, 'dashboard');
 
   if (customId === 'join:main') {
     const [allowed, reason] = canUserPlay(interaction.member);
@@ -2779,6 +2854,7 @@ async function onInteraction(interaction) {
       }
     }
 
+    if (interaction.isModalSubmit()) return handleChannelSearchModal(interaction);
     if (interaction.isStringSelectMenu()) return handleConfigSelect(interaction);
     if (interaction.isButton()) return handleButtonInteraction(interaction);
     return false;
