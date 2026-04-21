@@ -1639,7 +1639,11 @@ async function updateMainMessage(channel, timer = null) {
   const components = joinButtonRow();
 
   if (!mainMessage) {
-    const payload = { content, components };
+    const payload = {
+      content,
+      components,
+      embeds: [new EmbedBuilder().setColor(0xF1C40F).setImage(fs.existsSync(IMAGE_FILENAME) ? 'attachment://dragodinde.png' : IMAGE_URL)],
+    };
     if (fs.existsSync(IMAGE_FILENAME)) payload.files = [new AttachmentBuilder(IMAGE_FILENAME, { name: 'dragodinde.png' })];
     mainMessage = await safeSend(channel, payload);
     try {
