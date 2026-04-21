@@ -1076,19 +1076,32 @@ function getConfigDraft(userId) {
 // =========================================================
 
 function getMainMessageContent(timer = null) {
-  let content = '**🐎 PMU de la GUILDE , Mise sur ta Dragodinde ! 🐎💰**\n\n';
-  content += 'Bienvenue dans **le PMU de la guilde !**\n\n';
-  content += `🏆 **Mode joueurs :** ${REAL_BET.toLocaleString('fr-FR')} kamas réellement mis en jeu par participant humain\n`;
-  content += `🔒 **Blocage dette :** au-delà de ${DEBT_LIMIT.toLocaleString('fr-FR')} kamas\n\n`;
-  content += '**Formules contre l\'IA :**\n';
-  content += '• 💰 **Double ta mise** , gain potentiel **100 000 kamas**\n';
-  content += '• 💎 **Triple ta mise** , gain potentiel **300 000 kamas**\n';
-  content += '• 👑 **Jackpot 2M** , gain potentiel **2 000 000 kamas**\n\n';
-  content += '**Comment jouer ?**\n';
+  let content = '**🐎 PMU de la Guilde , mise sur ta Dragodinde ! 🐎💰**\n\n';
+  content += 'Bienvenue au **PMU de la Guilde**.\n';
+  content += 'Ici, on ne vient pas caresser la piste. On vient poser sa mise, serrer les dents, et espérer que sa Dragodinde ait plus de cœur que son propriétaire.\n\n';
+  content += '**💸 Mises et règles**\n';
+  content += `• **Course entre joueurs** : entrée à **${ENTRY_FEE.toLocaleString('fr-FR')} kamas**\n`;
+  content += `• **Somme réellement mise en jeu** : **${REAL_BET.toLocaleString('fr-FR')} kamas** par joueur\n`;
+  content += `• **Blocage dette** : au-delà de **${DEBT_LIMIT.toLocaleString('fr-FR')} kamas** de dette, le PMU te coupe le sifflet\n\n`;
+  content += '**🎯 Défis contre l\'IA**\n';
+  content += `• **💰 Double ta mise** , mise **${ENTRY_FEE.toLocaleString('fr-FR')} kamas** , gain final **100 000 kamas**\n`;
+  content += '• **💎 Triple ta mise** , mise **105 000 kamas** , gain final **300 000 kamas**\n';
+  content += '• **👑 Jackpot 2M** , mise **220 000 kamas** , gain final **2 000 000 kamas**\n\n';
+  content += '**🏁 Comment jouer ?**\n';
   content += '• Clique sur **Participer**\n';
-  content += '• Choisis le mode, puis la formule ou le nombre d\'adversaires, puis ta dragodinde\n';
-  content += '• En mode joueurs, les places manquantes sont comblées par l\'IA à la fin du délai\n';
-  content += '• En mode IA, tu affrontes toujours 3 IA avec un gain potentiel fixe selon la formule choisie\n\n';
+  content += '• Choisis ton mode\n';
+  content += '• Sélectionne ta formule ou ton défi\n';
+  content += '• Choisis ta Dragodinde\n';
+  content += '• Puis regarde si tu repars avec des kamas... ou juste avec la honte\n\n';
+  content += '**📌 À savoir**\n';
+  content += '• En **course entre joueurs**, si la grille n’est pas complète, l’IA prend les places libres au départ\n';
+  content += '• En **mode IA**, le gain est **fixe** selon la formule choisie\n';
+  content += '• Les gains, dettes et paiements sont suivis automatiquement par le PMU\n\n';
+  content += '**💀 Dettes & recouvrement**\n';
+  content += '• Le récupérateur officiel des dettes, c’est **Tonymerguez**\n';
+  content += '• Tant que tu paies, tout va bien, on reste entre gens civilisés\n';
+  content += '• Si tu commences à faire le mort, à gratter du temps ou à oublier ton ardoise, ça finit rarement dans la tendresse\n';
+  content += '• En clair, joue si tu veux, fanfaronne si tu gagnes, mais **si tu paies pas, ça va puer la merde pour toi**\n\n';
 
   if (reservationIsActive() && !waitingForPlayers && !raceInProgress && !cooldown) {
     const remaining = Math.max(0, Math.floor((currentReservation.expires_at - Date.now()) / 1000));
