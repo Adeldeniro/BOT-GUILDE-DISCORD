@@ -12,6 +12,7 @@ const ev = require('./events');
 const drafts = require('./eventDrafts');
 const stuffGen = require('./stuffGenerator');
 const metiers = require('./metiers');
+const dragodinde = require('./dragodinde');
 
 // Stuff generator (DofusBook Touch)
 const STUFF_GEN_CHANNEL_ID = '1480657603779362963';
@@ -1422,8 +1423,9 @@ async function registerCommands(client) {
       .addChannelOption(o => o.setName('validation').setDescription('Salon staff de validation').addChannelTypes(0,5).setRequired(true))
       .addChannelOption(o => o.setName('classement').setDescription('Salon du classement all-time').addChannelTypes(0,5).setRequired(true))
       .addChannelOption(o => o.setName('screens').setDescription('Salon où poster les screens OFFICIELS (optionnel)').addChannelTypes(0,5).setRequired(false))
-      .addChannelOption(o => o.setName('panneau').setDescription('Salon où placer la box de soumission (optionnel)').addChannelTypes(0,5).setRequired(false)),  
-  ].map(c => c.toJSON());
+      .addChannelOption(o => o.setName('panneau').setDescription('Salon où placer la box de soumission (optionnel)').addChannelTypes(0,5).setRequired(false)),
+    ...dragodinde.buildCommands(),
+  ].map(c => c.toJSON ? c.toJSON() : c);
 
   const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -1461,6 +1463,7 @@ async function main() {
   client.once('ready', async () => {
     try {
       await registerCommands(client);
+      await dragodinde.onReady(client).catch((error) => console.error('[dragodinde] ready failed', error));
 
       const guild = config.guildId ? await client.guilds.fetch(config.guildId) : null;
 
@@ -1980,6 +1983,8 @@ async function main() {
 
   client.on('interactionCreate', async (interaction) => {
     try {
+      const handledByDragodinde = await dragodinde.onInteraction(interaction);
+      if (handledByDragodinde) return;
       // Message context menu: DeepL translation (ephemeral)
       if (interaction.isMessageContextMenuCommand && interaction.isMessageContextMenuCommand()) {
         const name = interaction.commandName;
@@ -5675,5 +5680,6 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
 
 
