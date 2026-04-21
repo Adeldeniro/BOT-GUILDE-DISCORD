@@ -270,9 +270,9 @@ let client = null;
 
 let HORSES = [
   { name: 'Tonnerre', emoji: HORSE_EMOJIS[0] },
-  { name: '├ëclair', emoji: HORSE_EMOJIS[1] },
+  { name: 'Éclair', emoji: HORSE_EMOJIS[1] },
   { name: 'Foudre', emoji: HORSE_EMOJIS[2] },
-  { name: 'Temp├¬te', emoji: HORSE_EMOJIS[3] },
+  { name: 'Tempête', emoji: HORSE_EMOJIS[3] },
 ];
 
 // =========================================================
@@ -349,9 +349,9 @@ function autoDeleteFollowUp(interaction, message, delayMs = 8000) {
 function refreshHorsesFromEmojis() {
   HORSES = [
     { name: 'Tonnerre', emoji: HORSE_EMOJIS[0] },
-    { name: '├ëclair', emoji: HORSE_EMOJIS[1] },
+    { name: 'Éclair', emoji: HORSE_EMOJIS[1] },
     { name: 'Foudre', emoji: HORSE_EMOJIS[2] },
-    { name: 'Temp├¬te', emoji: HORSE_EMOJIS[3] },
+    { name: 'Tempête', emoji: HORSE_EMOJIS[3] },
   ];
 }
 
@@ -937,14 +937,14 @@ function reservationOwnedBy(userId, token) {
 
 function joinButtonRow() {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('join:main').setLabel('­ƒÉÄ Participer').setStyle(ButtonStyle.Success).setDisabled(!canJoinButtonBeEnabled())
+    new ButtonBuilder().setCustomId('join:main').setLabel('🐎 Participer').setStyle(ButtonStyle.Success).setDisabled(!canJoinButtonBeEnabled())
   )];
 }
 
 function modeChoiceRows(userId, token) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`mode:ia:${userId}:${token}`).setLabel("­ƒñû Contre l'IA").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`mode:players:${userId}:${token}`).setLabel("­ƒÆ░ Contre d'autres joueurs").setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`mode:ia:${userId}:${token}`).setLabel("🤖 Contre l'IA").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`mode:players:${userId}:${token}`).setLabel("⚔️ Contre d'autres joueurs").setStyle(ButtonStyle.Success)
   )];
 }
 
@@ -966,8 +966,8 @@ function countChoiceRows(userId, token, selectedMode) {
 
 function iaJackpotConfirmRows(userId, token) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`iaconfirm:220k:2000k:${userId}:${token}`).setLabel('Ô£à Oui, je mise 220 000').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`iaback:${userId}:${token}`).setLabel('Ôå®´©Å Retour').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(`iaconfirm:220k:2000k:${userId}:${token}`).setLabel('✅ Oui, je mise 220 000').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`iaback:${userId}:${token}`).setLabel('↩️ Retour').setStyle(ButtonStyle.Secondary)
   )];
 }
 
@@ -991,13 +991,13 @@ function horseChoiceRows(userId, contextMode, selectedMode, selectedCount, token
 
 function cancelParticipationRows(userId) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`cancel:${userId}`).setLabel('ÔØî Annuler ma participation').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId(`cancel:${userId}`).setLabel('❌ Annuler ma participation').setStyle(ButtonStyle.Danger)
   )];
 }
 
 function cancelIaLaunchRows(userId) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`cancelia:${userId}`).setLabel('ÔØî Annuler cette course IA').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId(`cancelia:${userId}`).setLabel('❌ Annuler cette course IA').setStyle(ButtonStyle.Danger)
   )];
 }
 
@@ -1048,8 +1048,8 @@ function configRows(guild) {
     roleSelectRow(guild, 'config:admin_role', 'R├┤le admin (valider les paiements)', 1),
     roleSelectRow(guild, 'config:allowed_roles', 'R├┤le autoris├® ├á jouer (sert aussi pour les notifications)', 1),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('config:validate').setLabel('Ô£à Valider la configuration').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('config:cancel').setLabel('ÔØî Annuler').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('config:validate').setLabel('✅ Valider la configuration').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('config:cancel').setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary)
     ),
   ];
 }
@@ -1255,7 +1255,7 @@ async function createDebtRecord(userId, horseIndex, amount = ENTRY_FEE, meta = {
     .setTimestamp(utcnow());
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`debtpay:${recordId}`).setLabel('Ô£à Valider le paiement').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`debtpay:${recordId}`).setLabel('✅ Valider le paiement').setStyle(ButtonStyle.Success)
   );
 
   try {
@@ -1329,7 +1329,7 @@ async function createPayoutRecord(userId, horseIndex, grossAmount, refundedStake
     .setTimestamp(utcnow());
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`payoutpay:${recordId}`).setLabel('Ô£à Valider le gain').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`payoutpay:${recordId}`).setLabel('✅ Valider le gain').setStyle(ButtonStyle.Success)
   );
 
   try {
@@ -2180,9 +2180,9 @@ const slashCommands = [
   new SlashCommandBuilder().setName('dragodinde_config').setDescription('Modifier la configuration dragodinde'),
   new SlashCommandBuilder().setName('set_emojis_dragodinde').setDescription('D├®finir les 4 emojis des dragodindes')
     .addStringOption((o) => o.setName('emoji1').setDescription('Tonnerre').setRequired(true))
-    .addStringOption((o) => o.setName('emoji2').setDescription('├ëclair').setRequired(true))
+    .addStringOption((o) => o.setName('emoji2').setDescription('Éclair').setRequired(true))
     .addStringOption((o) => o.setName('emoji3').setDescription('Foudre').setRequired(true))
-    .addStringOption((o) => o.setName('emoji4').setDescription('Temp├¬te').setRequired(true)),
+    .addStringOption((o) => o.setName('emoji4').setDescription('Tempête').setRequired(true)),
   new SlashCommandBuilder().setName('setup_dashboard_dragodinde').setDescription('Cr├®e ou met ├á jour le tableau de bord dragodinde')
     .addChannelOption((o) => o.setName('salon').setDescription('Salon du dashboard').setRequired(true).addChannelTypes(ChannelType.GuildText)),
   new SlashCommandBuilder().setName('debt_report_dragodinde').setDescription('Rapport d├®taill├® des dettes dragodinde'),
@@ -2303,14 +2303,12 @@ async function handleChannelSearchModal(interaction) {
   }
 
   const selected = channels[0];
-  if (type === 'logs') draft.logs_channel_id = selected.id;
-  if (type === 'dashboard') draft.dashboard_channel_id = selected.id;
+  if (type == 'logs') draft.logs_channel_id = selected.id;
+  if (type == 'dashboard') draft.dashboard_channel_id = selected.id;
 
   const others = channels.slice(1).map((ch) => `• <#${ch.id}>`).join('\n');
   await interaction.reply({
-    content:
-      `${type === 'logs' ? 'Salon des logs' : 'Salon du dashboard'} sélectionné automatiquement : <#${selected.id}>` +
-      (others ? `\nAutres correspondances :\n${others}` : ''),
+    content: `${type == 'logs' ? 'Salon des logs' : 'Salon du dashboard'} sélectionné automatiquement : <#${selected.id}>` + (others ? `\nAutres correspondances :\n${others}` : ''),
     flags: MessageFlags.Ephemeral,
   });
   return true;
@@ -2375,7 +2373,7 @@ async function handleButtonInteraction(interaction) {
   if (customId.startsWith('mode:')) {
     const [, mode, userId, token] = customId.split(':');
     if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({ content: `Mode choisi : ${mode === 'ia' ? "Contre l'IA" : "Contre d'autres joueurs"}`, components: [] });
     autoDeleteInteractionReply(interaction, 4000);
@@ -2398,7 +2396,7 @@ async function handleButtonInteraction(interaction) {
     if (selectedMode === 'ia') {
       const [, , stakeCode, prizeCode, userId, token] = parts;
       if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
-      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
       const iaFormula = parseIaFormula(`${stakeCode}|${prizeCode}`);
       if (!iaFormula) return interaction.reply({ content: 'Formule IA invalide.', flags: MessageFlags.Ephemeral });
@@ -2436,7 +2434,7 @@ async function handleButtonInteraction(interaction) {
 
     const [, , count, userId, token] = parts;
     if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({ content: `Nombre choisi : ${count}`, components: [] });
     autoDeleteInteractionReply(interaction, 4000);
@@ -2453,7 +2451,7 @@ async function handleButtonInteraction(interaction) {
   if (customId.startsWith('iaconfirm:')) {
     const [, stakeCode, prizeCode, userId, token] = customId.split(':');
     if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({ content: 'Confirmation prise en compte.', components: [] });
     autoDeleteInteractionReply(interaction, 4000);
@@ -2470,7 +2468,7 @@ async function handleButtonInteraction(interaction) {
   if (customId.startsWith('iaback:')) {
     const [, userId, token] = customId.split(':');
     if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({
       content: 'Choisis ta formule IA : ­ƒÆ░ Double ta mise, ­ƒÆÄ Triple ta mise, ou ­ƒææ Jackpot 2M',
@@ -2489,7 +2487,7 @@ async function handleButtonInteraction(interaction) {
     if (!allowed) return interaction.reply({ content: reason, flags: MessageFlags.Ephemeral });
 
     if (contextMode === 'new_match') {
-      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
       if (!canJoinButtonBeEnabled() && !waitingForPlayers) return interaction.reply({ content: 'Le jeu n\'est pas disponible pour le moment.', flags: MessageFlags.Ephemeral });
     }
 
@@ -2638,8 +2636,8 @@ async function handleButtonInteraction(interaction) {
     let allowed = false;
     if (interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) allowed = true;
     else if (ADMIN_ROLE_ID && interaction.member.roles.cache.has(ADMIN_ROLE_ID)) allowed = true;
-    if (!allowed) return interaction.reply({ content: 'R├┤le admin requis.', flags: MessageFlags.Ephemeral });
-    if (record.status === 'paid') return interaction.reply({ content: 'Ce gain est d├®j├á valid├®.', flags: MessageFlags.Ephemeral });
+    if (!allowed) return interaction.reply({ content: 'Rôle admin requis.', flags: MessageFlags.Ephemeral });
+    if (record.status === 'paid') return interaction.reply({ content: 'Ce gain est déjà validé.', flags: MessageFlags.Ephemeral });
 
     record.status = 'paid';
     record.paid_at = nowIso();
@@ -2664,9 +2662,9 @@ async function handleButtonInteraction(interaction) {
     let allowed = false;
     if (interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) allowed = true;
     else if (ADMIN_ROLE_ID && interaction.member.roles.cache.has(ADMIN_ROLE_ID)) allowed = true;
-    if (!allowed) return interaction.reply({ content: 'R├┤le admin requis.', flags: MessageFlags.Ephemeral });
-    if (record.status === 'paid') return interaction.reply({ content: 'Ce paiement est d├®j├á valid├®.', flags: MessageFlags.Ephemeral });
-    if (record.status === 'cancelled') return interaction.reply({ content: 'Cet engagement a d├®j├á ├®t├® annul├®.', flags: MessageFlags.Ephemeral });
+    if (!allowed) return interaction.reply({ content: 'Rôle admin requis.', flags: MessageFlags.Ephemeral });
+    if (record.status === 'paid') return interaction.reply({ content: 'Ce paiement est déjà validé.', flags: MessageFlags.Ephemeral });
+    if (record.status === 'cancelled') return interaction.reply({ content: 'Cet engagement a déjà été annulé.', flags: MessageFlags.Ephemeral });
 
     record.status = 'paid';
     record.paid_at = nowIso();
@@ -2675,7 +2673,7 @@ async function handleButtonInteraction(interaction) {
     applyUserPayment(record.user_id, record.amount);
 
     const existingEmbed = interaction.message.embeds?.[0];
-    const embed = EmbedBuilder.from(existingEmbed).setColor(0x00FF00).setDescription((existingEmbed?.description || '').replace('ÔÅ│ En attente de paiement', 'Ô£à Pay├®')).setFooter({ text: `Valid├® par ${interaction.user.displayName} le ${new Date().toLocaleString('fr-FR')}` });
+    const embed = EmbedBuilder.from(existingEmbed).setColor(0x00FF00).setDescription((existingEmbed?.description || '').replace('ÔÅ│ En attente de paiement', 'Ô£à Pay├®')).setFooter({ text: `Validé par ${interaction.user.displayName} le ${new Date().toLocaleString('fr-FR')}` });
     await interaction.update({ embeds: [embed], components: [] });
     await updateDashboard();
     return true;
@@ -2691,7 +2689,7 @@ async function onInteraction(interaction) {
       const guild = interaction.guild;
 
       if (interaction.commandName === 'dragodinde_setup') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         setupInProgressByUser.add(interaction.user.id);
         configDrafts.set(interaction.user.id, {
           logs_channel_id: null,
@@ -2701,14 +2699,14 @@ async function onInteraction(interaction) {
           allowed_role_ids: [],
         });
         return interaction.reply({
-          content: '### ­ƒÅç Bienvenue dans la configuration du jeu\nChoisis tous les ├®l├®ments, puis valide ├á la fin. Rien ne sera cr├®├® avant validation.',
+          content: '### ­ƒÅç Bienvenue dans la configuration du jeu\nChoisis tous les éléments, puis valide à la fin. Rien ne sera créé avant validation.',
           components: configRows(guild),
           flags: MessageFlags.Ephemeral,
         });
       }
 
       if (interaction.commandName === 'dragodinde_config') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         setupInProgressByUser.add(interaction.user.id);
         configDrafts.set(interaction.user.id, {
           logs_channel_id: config.logs_channel_id || null,
@@ -2717,11 +2715,11 @@ async function onInteraction(interaction) {
           notification_role_id: config.notification_role_id || null,
           allowed_role_ids: [...(config.allowed_role_ids || [])],
         });
-        return interaction.reply({ content: 'Modification de la configuration. Rien ne sera appliqu├® avant validation :', components: configRows(guild), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Modification de la configuration. Rien ne sera appliqué avant validation :', components: configRows(guild), flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.commandName === 'set_emojis_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const emoji1 = interaction.options.getString('emoji1', true).trim();
@@ -2748,26 +2746,26 @@ async function onInteraction(interaction) {
         }
 
         await interaction.editReply({
-          content: `Emojis mis ├á jour !\nTonnerre: ${HORSE_EMOJIS[0]}\n├ëclair: ${HORSE_EMOJIS[1]}\nFoudre: ${HORSE_EMOJIS[2]}\nTemp├¬te: ${HORSE_EMOJIS[3]}`
+          content: `Emojis mis à jour !\nTonnerre: ${HORSE_EMOJIS[0]}\nÉclair: ${HORSE_EMOJIS[1]}\nFoudre: ${HORSE_EMOJIS[2]}\nTempête: ${HORSE_EMOJIS[3]}`
         });
         return true;
       }
 
       if (interaction.commandName === 'setup_dashboard_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         const salon = interaction.options.getChannel('salon', true);
         config.dashboard_channel_id = salon.id;
         config.dashboard_message_id = null;
         saveConfig();
         DASHBOARD_CHANNEL_ID = salon.id;
         DASHBOARD_MESSAGE_ID = null;
-        await interaction.reply({ content: `Salon du dashboard d├®fini sur ${salon}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `Salon du dashboard défini sur ${salon}`, flags: MessageFlags.Ephemeral });
         await updateDashboard();
         return true;
       }
 
       if (interaction.commandName === 'debt_report_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         const debtRows = Object.entries(finance)
           .filter(([, data]) => Number(data?.total_debt || 0) > 0)
           .map(([uid, data]) => [uid, Number(data.total_debt || 0), Number(data.bets_count || 0), Number(data.payments_count || 0)])
@@ -2786,14 +2784,14 @@ async function onInteraction(interaction) {
           .setTimestamp(utcnow())
           .addFields(
             { name: 'Dette totale', value: `${totalOutstandingDebt().toLocaleString('fr-FR')} kamas`, inline: true },
-            { name: 'Joueurs endett├®s', value: String(indebtedPlayersCount()), inline: true }
+            { name: 'Joueurs endettés', value: String(indebtedPlayersCount()), inline: true }
           );
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.commandName === 'reset_total_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         await interaction.reply({ content: 'Reset total en cours...', flags: MessageFlags.Ephemeral });
 
         stopMatchmakingTimers();
@@ -2860,7 +2858,7 @@ async function onInteraction(interaction) {
         clearIaPendingLaunch();
 
         return interaction.followUp({
-          content: `Reset total termin├®.\nSalon de logs pr├®c├®dent : ${previousLogsChannelId ? `<#${previousLogsChannelId}>` : 'aucun'}.\nRelance \`/dragodinde_setup\` pour repartir sur une base propre.`,
+          content: `Reset total terminé.\nSalon de logs précédent : ${previousLogsChannelId ? `<#${previousLogsChannelId}>` : 'aucun'}.\nRelance \`/dragodinde_setup\` pour repartir sur une base propre.`,
           flags: MessageFlags.Ephemeral
         });
       }
