@@ -130,7 +130,7 @@ function defaultConfig() {
     main_channel_id: null,
     main_message_id: null,
     allowed_role_ids: [],
-    horse_emojis: ['🐎', '⚡', '🌩️', '🌊'],
+    horse_emojis: ['­ƒÉÄ', 'ÔÜí', '­ƒî®´©Å', '­ƒîè'],
   };
 }
 
@@ -212,7 +212,7 @@ function saveFinance() { saveJson(FINANCE_FILE, finance); }
 function savePayoutRecords() { saveJson(path.join(DATA_DIR, 'payouts.json'), payoutRecords); }
 
 // =========================================================
-// CONFIG EN MÉMOIRE
+// CONFIG EN M├ëMOIRE
 // =========================================================
 
 let LOGS_CHANNEL_ID = config.logs_channel_id;
@@ -223,10 +223,10 @@ let NOTIF_ROLE_ID = config.notification_role_id;
 let MAIN_CHANNEL_ID = config.main_channel_id;
 let MAIN_MESSAGE_ID = config.main_message_id;
 let ALLOWED_ROLE_IDS = config.allowed_role_ids || [];
-let HORSE_EMOJIS = config.horse_emojis || ['🐎', '⚡', '🌩️', '🌊'];
+let HORSE_EMOJIS = config.horse_emojis || ['­ƒÉÄ', 'ÔÜí', '­ƒî®´©Å', '­ƒîè'];
 
 // =========================================================
-// ÉTATS GLOBAUX
+// ├ëTATS GLOBAUX
 // =========================================================
 
 let raceInProgress = false;
@@ -270,9 +270,9 @@ let client = null;
 
 let HORSES = [
   { name: 'Tonnerre', emoji: HORSE_EMOJIS[0] },
-  { name: 'Éclair', emoji: HORSE_EMOJIS[1] },
+  { name: '├ëclair', emoji: HORSE_EMOJIS[1] },
   { name: 'Foudre', emoji: HORSE_EMOJIS[2] },
-  { name: 'Tempête', emoji: HORSE_EMOJIS[3] },
+  { name: 'Temp├¬te', emoji: HORSE_EMOJIS[3] },
 ];
 
 // =========================================================
@@ -349,9 +349,9 @@ function autoDeleteFollowUp(interaction, message, delayMs = 8000) {
 function refreshHorsesFromEmojis() {
   HORSES = [
     { name: 'Tonnerre', emoji: HORSE_EMOJIS[0] },
-    { name: 'Éclair', emoji: HORSE_EMOJIS[1] },
+    { name: '├ëclair', emoji: HORSE_EMOJIS[1] },
     { name: 'Foudre', emoji: HORSE_EMOJIS[2] },
-    { name: 'Tempête', emoji: HORSE_EMOJIS[3] },
+    { name: 'Temp├¬te', emoji: HORSE_EMOJIS[3] },
   ];
 }
 
@@ -377,41 +377,41 @@ function formatListMentions(userIds) {
 
 function getSearchRoleNotification(userId, nbAdversaires) {
   return pickRandom([
-    `Les écuries tremblent déjà, <@${userId}> cherche **${nbAdversaires} adversaire(s)** assez téméraires pour venir se faire humilier avec panache.`,
-    `Un pari vient d’être lancé et <@${userId}> réclame **${nbAdversaires} adversaire(s)**. Qui veut signer son propre arrêt de style ?`,
-    ` <@${userId}> ouvre la danse et cherche **${nbAdversaires} adversaire(s)**. La piste accepte tout le monde, même les futurs regrets.`,
-    `Avis aux volontaires, <@${userId}> veut **${nbAdversaires} adversaire(s)**. Oui, même ceux qui confondent vitesse et bonne volonté.`,
+    `Les ├®curies tremblent d├®j├á, <@${userId}> cherche **${nbAdversaires} adversaire(s)** assez t├®m├®raires pour venir se faire humilier avec panache.`,
+    `Un pari vient dÔÇÖ├¬tre lanc├® et <@${userId}> r├®clame **${nbAdversaires} adversaire(s)**. Qui veut signer son propre arr├¬t de style ?`,
+    ` <@${userId}> ouvre la danse et cherche **${nbAdversaires} adversaire(s)**. La piste accepte tout le monde, m├¬me les futurs regrets.`,
+    `Avis aux volontaires, <@${userId}> veut **${nbAdversaires} adversaire(s)**. Oui, m├¬me ceux qui confondent vitesse et bonne volont├®.`,
   ]);
 }
 
 function getIaStartRoleNotification(userId, formulaLabel, prizeAmount) {
   const prizeText = Number(prizeAmount || 0).toLocaleString('fr-FR');
   return pickRandom([
-    `<@${userId}> vient de tenter la formule **${formulaLabel}** pour arracher **${prizeText} kamas** au PMU. Une confiance comme ça mérite presque le respect. Presque.`,
-    `<@${userId}> se présente avec la formule **${formulaLabel}** et rêve déjà de repartir avec **${prizeText} kamas**. La piste adore ce genre d'arrogance.`,
-    `Coup de folie au PMU, <@${userId}> active **${formulaLabel}** pour viser **${prizeText} kamas**. Soit ça brille, soit ça fera une superbe humiliation publique.`,
-    `<@${userId}> ose la formule **${formulaLabel}** avec **${prizeText} kamas** en ligne de mire. Les IA regardent ça avec le calme insolent des gens qui savent déjà courir.`,
-    `<@${userId}> sort les ambitions trop grandes pour la piste et choisit **${formulaLabel}**. Objectif affiché, **${prizeText} kamas**. Objectif réel, éviter le ridicule.`,
-    `Le PMU note un excès de confiance, <@${userId}> part sur **${formulaLabel}** avec **${prizeText} kamas** en vue. Les IA, elles, appellent ça une livraison.`,
-    `<@${userId}> force la porte avec **${formulaLabel}** et un rêve à **${prizeText} kamas**. Très belle énergie. Voyons si elle survit jusqu’à l’arrivée.`,
-    `On signale au comptoir que <@${userId}> a choisi **${formulaLabel}** pour tenter **${prizeText} kamas**. Une décision courageuse, ou décorative, selon les 30 prochaines secondes.`,
+    `<@${userId}> vient de tenter la formule **${formulaLabel}** pour arracher **${prizeText} kamas** au PMU. Une confiance comme ├ºa m├®rite presque le respect. Presque.`,
+    `<@${userId}> se pr├®sente avec la formule **${formulaLabel}** et r├¬ve d├®j├á de repartir avec **${prizeText} kamas**. La piste adore ce genre d'arrogance.`,
+    `Coup de folie au PMU, <@${userId}> active **${formulaLabel}** pour viser **${prizeText} kamas**. Soit ├ºa brille, soit ├ºa fera une superbe humiliation publique.`,
+    `<@${userId}> ose la formule **${formulaLabel}** avec **${prizeText} kamas** en ligne de mire. Les IA regardent ├ºa avec le calme insolent des gens qui savent d├®j├á courir.`,
+    `<@${userId}> sort les ambitions trop grandes pour la piste et choisit **${formulaLabel}**. Objectif affich├®, **${prizeText} kamas**. Objectif r├®el, ├®viter le ridicule.`,
+    `Le PMU note un exc├¿s de confiance, <@${userId}> part sur **${formulaLabel}** avec **${prizeText} kamas** en vue. Les IA, elles, appellent ├ºa une livraison.`,
+    `<@${userId}> force la porte avec **${formulaLabel}** et un r├¬ve ├á **${prizeText} kamas**. Tr├¿s belle ├®nergie. Voyons si elle survit jusquÔÇÖ├á lÔÇÖarriv├®e.`,
+    `On signale au comptoir que <@${userId}> a choisi **${formulaLabel}** pour tenter **${prizeText} kamas**. Une d├®cision courageuse, ou d├®corative, selon les 30 prochaines secondes.`,
   ]);
 }
 
 function getPlayersStartRoleNotification(humans) {
   const list = formatListMentions(humans);
   return pickRandom([
-    `Les sabots frappent la piste, la course démarre entre ${list}. Il va bien falloir qu’un seul mérite vraiment de fanfaronner.`,
-    `Départ brutal entre ${list}. Certains viennent pour gagner, d’autres pour servir d’exemple.`,
-    `Les portes claquent et la poussière monte, ${list} se jettent dans l’arène. La dignité, elle, attend au bord de la piste.`,
-    `La course commence entre ${list}. Il n’y aura qu’un vainqueur, et plusieurs belles excuses.`,
+    `Les sabots frappent la piste, la course d├®marre entre ${list}. Il va bien falloir quÔÇÖun seul m├®rite vraiment de fanfaronner.`,
+    `D├®part brutal entre ${list}. Certains viennent pour gagner, dÔÇÖautres pour servir dÔÇÖexemple.`,
+    `Les portes claquent et la poussi├¿re monte, ${list} se jettent dans lÔÇÖar├¿ne. La dignit├®, elle, attend au bord de la piste.`,
+    `La course commence entre ${list}. Il nÔÇÖy aura quÔÇÖun vainqueur, et plusieurs belles excuses.`,
   ]);
 }
 
 function getHumanVictoryEmbedText(winnerHorseEmoji, winnerName, winnerId, totalPool, options = {}) {
   const totalText = totalPool.toLocaleString('fr-FR');
   const refundedStake = Number(options.refundedStake || 0);
-  const refundedText = refundedStake > 0 ? ` et récupère sa mise jouée de **${refundedStake.toLocaleString('fr-FR')} kamas**` : '';
+  const refundedText = refundedStake > 0 ? ` et r├®cup├¿re sa mise jou├®e de **${refundedStake.toLocaleString('fr-FR')} kamas**` : '';
   const formulaLabel = options.formulaLabel || null;
 
   if (formulaLabel === 'Double ta mise') {
@@ -419,26 +419,26 @@ function getHumanVictoryEmbedText(winnerHorseEmoji, winnerName, winnerId, totalP
       {
         title: 'Le petit billet qui fait fanfaronner',
         description:
-          `${winnerHorseEmoji} **${winnerName}** arrache la ligne d’arrivée avec juste ce qu’il faut d’insolence pour agacer tout le monde.\n\n` +
-          `<@${winnerId}> plie la formule **Double ta mise** et repart avec **${totalText} kamas**. Pas mal pour quelqu’un qu’on croyait venu décorer la piste.`
+          `${winnerHorseEmoji} **${winnerName}** arrache la ligne dÔÇÖarriv├®e avec juste ce quÔÇÖil faut dÔÇÖinsolence pour agacer tout le monde.\n\n` +
+          `<@${winnerId}> plie la formule **Double ta mise** et repart avec **${totalText} kamas**. Pas mal pour quelquÔÇÖun quÔÇÖon croyait venu d├®corer la piste.`
       },
       {
-        title: 'Le PMU lâche quelques billets',
+        title: 'Le PMU l├óche quelques billets',
         description:
-          `${winnerHorseEmoji} **${winnerName}** passe devant au bon moment, avec cette élégance agaçante des gens qui ont raison sans prévenir.\n\n` +
-          `<@${winnerId}> valide **Double ta mise** et encaisse **${totalText} kamas**. Ce n’est pas le hold-up du siècle, mais c’est déjà assez pour bomber le torse.`
+          `${winnerHorseEmoji} **${winnerName}** passe devant au bon moment, avec cette ├®l├®gance aga├ºante des gens qui ont raison sans pr├®venir.\n\n` +
+          `<@${winnerId}> valide **Double ta mise** et encaisse **${totalText} kamas**. Ce nÔÇÖest pas le hold-up du si├¿cle, mais cÔÇÖest d├®j├á assez pour bomber le torse.`
       },
       {
         title: 'Le pari discret fait du bruit',
         description:
-          `${winnerHorseEmoji} **${winnerName}** glisse devant la meute avec l’air insolent de quelqu’un qui savait déjà comment ça finirait.\n\n` +
-          `<@${winnerId}> transforme **Double ta mise** en petite humiliation élégante et repart avec **${totalText} kamas**.`
+          `${winnerHorseEmoji} **${winnerName}** glisse devant la meute avec lÔÇÖair insolent de quelquÔÇÖun qui savait d├®j├á comment ├ºa finirait.\n\n` +
+          `<@${winnerId}> transforme **Double ta mise** en petite humiliation ├®l├®gante et repart avec **${totalText} kamas**.`
       },
       {
         title: 'Une mise modeste, un ego qui gonfle',
         description:
-          `${winnerHorseEmoji} **${winnerName}** ferme le débat sans trembler et laisse les IA regarder passer le panache.\n\n` +
-          `<@${winnerId}> touche **${totalText} kamas** sur **Double ta mise**. Ce n’est pas énorme, mais c’est largement suffisant pour devenir insupportable au comptoir.`
+          `${winnerHorseEmoji} **${winnerName}** ferme le d├®bat sans trembler et laisse les IA regarder passer le panache.\n\n` +
+          `<@${winnerId}> touche **${totalText} kamas** sur **Double ta mise**. Ce nÔÇÖest pas ├®norme, mais cÔÇÖest largement suffisant pour devenir insupportable au comptoir.`
       },
     ]);
   }
@@ -446,28 +446,28 @@ function getHumanVictoryEmbedText(winnerHorseEmoji, winnerName, winnerId, totalP
   if (formulaLabel === 'Triple ta mise') {
     return pickRandom([
       {
-        title: 'Le PMU commence à grimacer',
+        title: 'Le PMU commence ├á grimacer',
         description:
-          `${winnerHorseEmoji} **${winnerName}** envoie tout le monde respirer la poussière avec une facilité franchement irritante.\n\n` +
-          `<@${winnerId}> fait sauter la formule **Triple ta mise** et empoche **${totalText} kamas**. Là, on commence à parler d’un vrai manque de savoir-vivre envers l’organisation.`
+          `${winnerHorseEmoji} **${winnerName}** envoie tout le monde respirer la poussi├¿re avec une facilit├® franchement irritante.\n\n` +
+          `<@${winnerId}> fait sauter la formule **Triple ta mise** et empoche **${totalText} kamas**. L├á, on commence ├á parler dÔÇÖun vrai manque de savoir-vivre envers lÔÇÖorganisation.`
       },
       {
-        title: 'Une arrivée qui coûte cher au comptoir',
+        title: 'Une arriv├®e qui co├╗te cher au comptoir',
         description:
-          `${winnerHorseEmoji} **${winnerName}** traverse la piste comme si le résultat était écrit depuis le départ.\n\n` +
-          `<@${winnerId}> rafle **${totalText} kamas** avec **Triple ta mise**. À ce niveau-là, ce n’est plus un pari, c’est une gifle bien habillée.`
+          `${winnerHorseEmoji} **${winnerName}** traverse la piste comme si le r├®sultat ├®tait ├®crit depuis le d├®part.\n\n` +
+          `<@${winnerId}> rafle **${totalText} kamas** avec **Triple ta mise**. ├Ç ce niveau-l├á, ce nÔÇÖest plus un pari, cÔÇÖest une gifle bien habill├®e.`
       },
       {
         title: 'Le comptoir serre un peu les dents',
         description:
-          `${winnerHorseEmoji} **${winnerName}** prend la tête avec une insolence qui frôle l’indécence.\n\n` +
-          `<@${winnerId}> retourne **Triple ta mise** contre le PMU et s’offre **${totalText} kamas**. Il y a des victoires qu’on applaudit, et d’autres qu’on digère mal.`
+          `${winnerHorseEmoji} **${winnerName}** prend la t├¬te avec une insolence qui fr├┤le lÔÇÖind├®cence.\n\n` +
+          `<@${winnerId}> retourne **Triple ta mise** contre le PMU et sÔÇÖoffre **${totalText} kamas**. Il y a des victoires quÔÇÖon applaudit, et dÔÇÖautres quÔÇÖon dig├¿re mal.`
       },
       {
-        title: 'Le pari nerveux passe crème',
+        title: 'Le pari nerveux passe cr├¿me',
         description:
-          `${winnerHorseEmoji} **${winnerName}** tend une embuscade parfaite à la piste et sort au bon moment, comme dans les histoires qu’on déteste entendre quand ce n’est pas nous.\n\n` +
-          `<@${winnerId}> encaisse **${totalText} kamas** sur **Triple ta mise**. C’est propre, net, et légèrement vexant pour tout le monde.`
+          `${winnerHorseEmoji} **${winnerName}** tend une embuscade parfaite ├á la piste et sort au bon moment, comme dans les histoires quÔÇÖon d├®teste entendre quand ce nÔÇÖest pas nous.\n\n` +
+          `<@${winnerId}> encaisse **${totalText} kamas** sur **Triple ta mise**. CÔÇÖest propre, net, et l├®g├¿rement vexant pour tout le monde.`
       },
     ]);
   }
@@ -475,28 +475,28 @@ function getHumanVictoryEmbedText(winnerHorseEmoji, winnerName, winnerId, totalP
   if (formulaLabel === 'Jackpot 2M') {
     return pickRandom([
       {
-        title: 'Le casse du PMU est réussi',
+        title: 'Le casse du PMU est r├®ussi',
         description:
-          `${winnerHorseEmoji} **${winnerName}** vient de faire taire toute la piste dans un fracas de sabots et d’ego froissé.\n\n` +
-          `<@${winnerId}> arrache le **Jackpot 2M** et repart avec **${totalText} kamas**. Oui, ça pique pour l’organisation, et c’est bien ça qui est insupportable.`
+          `${winnerHorseEmoji} **${winnerName}** vient de faire taire toute la piste dans un fracas de sabots et dÔÇÖego froiss├®.\n\n` +
+          `<@${winnerId}> arrache le **Jackpot 2M** et repart avec **${totalText} kamas**. Oui, ├ºa pique pour lÔÇÖorganisation, et cÔÇÖest bien ├ºa qui est insupportable.`
       },
       {
         title: 'Le comptoir va en parler toute la semaine',
         description:
-          `${winnerHorseEmoji} **${winnerName}** signe une arrivée insolente, presque obscène de facilité.\n\n` +
-          `<@${winnerId}> fait sauter le **Jackpot 2M** et encaisse **${totalText} kamas**. À ce niveau-là, ce n’est plus une victoire, c’est une provocation.`
+          `${winnerHorseEmoji} **${winnerName}** signe une arriv├®e insolente, presque obsc├¿ne de facilit├®.\n\n` +
+          `<@${winnerId}> fait sauter le **Jackpot 2M** et encaisse **${totalText} kamas**. ├Ç ce niveau-l├á, ce nÔÇÖest plus une victoire, cÔÇÖest une provocation.`
       },
       {
         title: 'Le braquage se fait en plein jour',
         description:
-          `${winnerHorseEmoji} **${winnerName}** déboule sur la ligne finale comme si le PMU lui appartenait déjà.\n\n` +
-          `<@${winnerId}> renverse le **Jackpot 2M** et repart avec **${totalText} kamas**. Il y a des paris audacieux, et puis il y a ça.`
+          `${winnerHorseEmoji} **${winnerName}** d├®boule sur la ligne finale comme si le PMU lui appartenait d├®j├á.\n\n` +
+          `<@${winnerId}> renverse le **Jackpot 2M** et repart avec **${totalText} kamas**. Il y a des paris audacieux, et puis il y a ├ºa.`
       },
       {
         title: 'Le comptoir encaisse en silence',
         description:
-          `${winnerHorseEmoji} **${winnerName}** transforme la dernière ligne droite en scène de crime parfaitement exécutée.\n\n` +
-          `<@${winnerId}> vide le **Jackpot 2M** et prend **${totalText} kamas**. Même les murs du PMU vont avoir besoin d’un moment pour s’en remettre.`
+          `${winnerHorseEmoji} **${winnerName}** transforme la derni├¿re ligne droite en sc├¿ne de crime parfaitement ex├®cut├®e.\n\n` +
+          `<@${winnerId}> vide le **Jackpot 2M** et prend **${totalText} kamas**. M├¬me les murs du PMU vont avoir besoin dÔÇÖun moment pour sÔÇÖen remettre.`
       },
     ]);
   }
@@ -505,14 +505,14 @@ function getHumanVictoryEmbedText(winnerHorseEmoji, winnerName, winnerId, totalP
     {
       title: 'Le verdict claque comme un fouet',
       description:
-        `Dans un vacarme de sabots, ${winnerHorseEmoji} **${winnerName}** traverse la poussière et plante tout le monde sur place.\n\n` +
+        `Dans un vacarme de sabots, ${winnerHorseEmoji} **${winnerName}** traverse la poussi├¿re et plante tout le monde sur place.\n\n` +
         `<@${winnerId}> remporte **${totalText} kamas**${refundedText}.`
     },
     {
-      title: 'Une arrivée qui pique l’orgueil',
+      title: 'Une arriv├®e qui pique lÔÇÖorgueil',
       description:
-        `${winnerHorseEmoji} **${winnerName}** déchire la dernière ligne droite avec une insolence presque artistique.\n\n` +
-        `<@${winnerId}> s’impose et gagne **${totalText} kamas**${refundedText}. Les autres peuvent toujours applaudir, c’est gratuit.`
+        `${winnerHorseEmoji} **${winnerName}** d├®chire la derni├¿re ligne droite avec une insolence presque artistique.\n\n` +
+        `<@${winnerId}> sÔÇÖimpose et gagne **${totalText} kamas**${refundedText}. Les autres peuvent toujours applaudir, cÔÇÖest gratuit.`
     },
   ]);
 }
@@ -525,26 +525,26 @@ function getAiVictoryEmbedText(winnerHorseEmoji, winnerName, totalPool, options 
       {
         title: 'Le PMU garde la monnaie',
         description:
-          `${winnerHorseEmoji} **${winnerName}** casse le petit rêve avant même qu’il prenne trop de place.\n\n` +
-          `L’IA stoppe net **Double ta mise**. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent au chaud, et l’ambition humaine repart avec ses chaussures pleines de poussière.`
+          `${winnerHorseEmoji} **${winnerName}** casse le petit r├¬ve avant m├¬me quÔÇÖil prenne trop de place.\n\n` +
+          `LÔÇÖIA stoppe net **Double ta mise**. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent au chaud, et lÔÇÖambition humaine repart avec ses chaussures pleines de poussi├¿re.`
       },
       {
         title: 'Le billet retourne au comptoir',
         description:
-          `${winnerHorseEmoji} **${winnerName}** règle l’affaire proprement, sans même faire semblant de douter.\n\n` +
-          `La formule **Double ta mise** s’éteint ici. Ce n’est pas dramatique, juste légèrement humiliant.`
+          `${winnerHorseEmoji} **${winnerName}** r├¿gle lÔÇÖaffaire proprement, sans m├¬me faire semblant de douter.\n\n` +
+          `La formule **Double ta mise** sÔÇÖ├®teint ici. Ce nÔÇÖest pas dramatique, juste l├®g├¿rement humiliant.`
       },
       {
-        title: 'Le petit rêve prend une claque',
+        title: 'Le petit r├¬ve prend une claque',
         description:
-          `${winnerHorseEmoji} **${winnerName}** remet les ambitions à leur place avec une froideur presque vexante.\n\n` +
+          `${winnerHorseEmoji} **${winnerName}** remet les ambitions ├á leur place avec une froideur presque vexante.\n\n` +
           `**Double ta mise** se termine au guichet des regrets. Rien de tragique, juste un petit rappel que la piste ne distribue pas les sourires.`
       },
       {
         title: 'Le comptoir reprend son souffle',
         description:
-          `${winnerHorseEmoji} **${winnerName}** ferme le dossier avec la sérénité d’un patron qui sait déjà où finit l’argent.\n\n` +
-          `L’IA garde la main sur **Double ta mise**. C’était tenté, c’était mignon, et c’est déjà fini.`
+          `${winnerHorseEmoji} **${winnerName}** ferme le dossier avec la s├®r├®nit├® dÔÇÖun patron qui sait d├®j├á o├╣ finit lÔÇÖargent.\n\n` +
+          `LÔÇÖIA garde la main sur **Double ta mise**. CÔÇÖ├®tait tent├®, cÔÇÖ├®tait mignon, et cÔÇÖest d├®j├á fini.`
       },
     ]);
   }
@@ -554,26 +554,26 @@ function getAiVictoryEmbedText(winnerHorseEmoji, winnerName, totalPool, options 
       {
         title: 'Le comptoir respire mieux',
         description:
-          `${winnerHorseEmoji} **${winnerName}** écrase les illusions avec l’assurance d’un vieux patron qui connaît déjà la fin de l’histoire.\n\n` +
-          `L’IA enterre **Triple ta mise** sans trembler. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent à l’abri, et c’est probablement plus sage comme ça.`
+          `${winnerHorseEmoji} **${winnerName}** ├®crase les illusions avec lÔÇÖassurance dÔÇÖun vieux patron qui conna├«t d├®j├á la fin de lÔÇÖhistoire.\n\n` +
+          `LÔÇÖIA enterre **Triple ta mise** sans trembler. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent ├á lÔÇÖabri, et cÔÇÖest probablement plus sage comme ├ºa.`
       },
       {
-        title: 'Le pari gonflé retombe d’un coup',
+        title: 'Le pari gonfl├® retombe dÔÇÖun coup',
         description:
-          `${winnerHorseEmoji} **${winnerName}** passe devant au moment exact où l’espoir humain commençait à devenir gênant.\n\n` +
+          `${winnerHorseEmoji} **${winnerName}** passe devant au moment exact o├╣ lÔÇÖespoir humain commen├ºait ├á devenir g├¬nant.\n\n` +
           `La formule **Triple ta mise** finit au tapis. Il fallait oser, il faudra maintenant encaisser.`
       },
       {
         title: 'Le PMU ferme le robinet',
         description:
-          `${winnerHorseEmoji} **${winnerName}** coupe court aux rêves d’ascension avec un sens du timing assez odieux.\n\n` +
-          `**Triple ta mise** s’arrête ici. L’orgueil humain voulait faire du bruit, l’IA a préféré faire le ménage.`
+          `${winnerHorseEmoji} **${winnerName}** coupe court aux r├¬ves dÔÇÖascension avec un sens du timing assez odieux.\n\n` +
+          `**Triple ta mise** sÔÇÖarr├¬te ici. LÔÇÖorgueil humain voulait faire du bruit, lÔÇÖIA a pr├®f├®r├® faire le m├®nage.`
       },
       {
-        title: 'La piste remet les pendules à l’heure',
+        title: 'La piste remet les pendules ├á lÔÇÖheure',
         description:
-          `${winnerHorseEmoji} **${winnerName}** déroule sa course avec une autorité qui sent très fort la leçon publique.\n\n` +
-          `La formule **Triple ta mise** est avalée net. Ça avait de l’allure au départ, beaucoup moins à l’arrivée.`
+          `${winnerHorseEmoji} **${winnerName}** d├®roule sa course avec une autorit├® qui sent tr├¿s fort la le├ºon publique.\n\n` +
+          `La formule **Triple ta mise** est aval├®e net. ├ça avait de lÔÇÖallure au d├®part, beaucoup moins ├á lÔÇÖarriv├®e.`
       },
     ]);
   }
@@ -581,59 +581,59 @@ function getAiVictoryEmbedText(winnerHorseEmoji, winnerName, totalPool, options 
   if (formulaLabel === 'Jackpot 2M') {
     return pickRandom([
       {
-        title: 'Le PMU reprend son dû',
+        title: 'Le PMU reprend son d├╗',
         description:
-          `${winnerHorseEmoji} **${winnerName}** broie les espoirs sur la dernière ligne droite avec le calme glacial d’une machine venue humilier.\n\n` +
-          `Le **Jackpot 2M** ne bougera pas aujourd’hui. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent bien au chaud, pendant que l’audace humaine retourne s’asseoir au comptoir.`
+          `${winnerHorseEmoji} **${winnerName}** broie les espoirs sur la derni├¿re ligne droite avec le calme glacial dÔÇÖune machine venue humilier.\n\n` +
+          `Le **Jackpot 2M** ne bougera pas aujourdÔÇÖhui. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent bien au chaud, pendant que lÔÇÖaudace humaine retourne sÔÇÖasseoir au comptoir.`
       },
       {
         title: 'Le gros coup attendra',
         description:
-          `${winnerHorseEmoji} **${winnerName}** ferme la porte au nez des rêveurs avec une élégance presque vexante.\n\n` +
-          `L’IA garde la main sur le **Jackpot 2M**. Ce n’était pas idiot d’essayer, juste un peu naïf.`
+          `${winnerHorseEmoji} **${winnerName}** ferme la porte au nez des r├¬veurs avec une ├®l├®gance presque vexante.\n\n` +
+          `LÔÇÖIA garde la main sur le **Jackpot 2M**. Ce nÔÇÖ├®tait pas idiot dÔÇÖessayer, juste un peu na├»f.`
       },
       {
-        title: 'Le coffre reste fermé',
+        title: 'Le coffre reste ferm├®',
         description:
-          `${winnerHorseEmoji} **${winnerName}** referme la piste comme on referme un coffre-fort, sans émotion et sans laisser de témoin heureux.\n\n` +
-          `Le **Jackpot 2M** reste au comptoir. Il faudra revenir avec autre chose que de l’audace et un beau discours.`
+          `${winnerHorseEmoji} **${winnerName}** referme la piste comme on referme un coffre-fort, sans ├®motion et sans laisser de t├®moin heureux.\n\n` +
+          `Le **Jackpot 2M** reste au comptoir. Il faudra revenir avec autre chose que de lÔÇÖaudace et un beau discours.`
       },
       {
-        title: 'Le rêve finit au guichet des regrets',
+        title: 'Le r├¬ve finit au guichet des regrets',
         description:
-          `${winnerHorseEmoji} **${winnerName}** transforme la dernière ligne droite en leçon publique pour tous ceux qui pensaient faire plier le PMU.\n\n` +
-          `Le **Jackpot 2M** ne tombera pas aujourd’hui. Les rêves de braquage retournent s’asseoir, un peu moins fiers qu’en entrant.`
+          `${winnerHorseEmoji} **${winnerName}** transforme la derni├¿re ligne droite en le├ºon publique pour tous ceux qui pensaient faire plier le PMU.\n\n` +
+          `Le **Jackpot 2M** ne tombera pas aujourdÔÇÖhui. Les r├¬ves de braquage retournent sÔÇÖasseoir, un peu moins fiers quÔÇÖen entrant.`
       },
     ]);
   }
 
   return pickRandom([
     {
-      title: 'La machine ferme le débat',
+      title: 'La machine ferme le d├®bat',
       description:
-        `${winnerHorseEmoji} **${winnerName}** dévore la dernière ligne droite sans le moindre état d’âme.\n\n` +
-        `L’IA s’impose, la cagnotte de **${totalPool.toLocaleString('fr-FR')} kamas** reste à l’organisation, et les humains repartent avec leur fierté cabossée.`
+        `${winnerHorseEmoji} **${winnerName}** d├®vore la derni├¿re ligne droite sans le moindre ├®tat dÔÇÖ├óme.\n\n` +
+        `LÔÇÖIA sÔÇÖimpose, la cagnotte de **${totalPool.toLocaleString('fr-FR')} kamas** reste ├á lÔÇÖorganisation, et les humains repartent avec leur fiert├® caboss├®e.`
     },
     {
       title: 'La piste rit en binaire',
       description:
-        `${winnerHorseEmoji} **${winnerName}** surgit devant tout le monde avec l’élégance froide d’un couperet.\n\n` +
-        `L’IA gagne. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent au chaud, pendant que les mortels révisent leur confiance.`
+        `${winnerHorseEmoji} **${winnerName}** surgit devant tout le monde avec lÔÇÖ├®l├®gance froide dÔÇÖun couperet.\n\n` +
+        `LÔÇÖIA gagne. Les **${totalPool.toLocaleString('fr-FR')} kamas** restent au chaud, pendant que les mortels r├®visent leur confiance.`
     },
   ]);
 }
 
 function getHumanVictoryRoleNotification(winnerId, winnerName) {
   return pickRandom([
-    `La piste a parlé, et elle n’a pas été tendre, <@${winnerId}> s’impose avec **${winnerName}**. Les autres pourront toujours invoquer le vent.`,
-    `<@${winnerId}> cloue le bec à la concurrence avec **${winnerName}**. Une victoire propre, ce qui rend l’échec des autres encore plus décoratif.`,
+    `La piste a parl├®, et elle nÔÇÖa pas ├®t├® tendre, <@${winnerId}> sÔÇÖimpose avec **${winnerName}**. Les autres pourront toujours invoquer le vent.`,
+    `<@${winnerId}> cloue le bec ├á la concurrence avec **${winnerName}**. Une victoire propre, ce qui rend lÔÇÖ├®chec des autres encore plus d├®coratif.`,
   ]);
 }
 
 function getAiVictoryRoleNotification(winnerName) {
   return pickRandom([
-    `L’IA s’impose avec **${winnerName}**. Être battu par une machine n’a jamais eu autant d’allure, enfin presque.`,
-    `**${winnerName}** offre la victoire à l’IA. Les humains ont tenté quelque chose, c’est déjà une forme de poésie.`,
+    `LÔÇÖIA sÔÇÖimpose avec **${winnerName}**. ├ètre battu par une machine nÔÇÖa jamais eu autant dÔÇÖallure, enfin presque.`,
+    `**${winnerName}** offre la victoire ├á lÔÇÖIA. Les humains ont tent├® quelque chose, cÔÇÖest d├®j├á une forme de po├®sie.`,
   ]);
 }
 
@@ -712,13 +712,13 @@ function memberHasAllowedRole(member) {
 
 function canUserPlay(member) {
   if (!memberHasAllowedRole(member)) {
-    const rolesText = ALLOWED_ROLE_IDS.length ? `\nRôles autorisés : ${ALLOWED_ROLE_IDS.map((rid) => `<@&${rid}>`).join(', ')}` : '';
-    return [false, `Tu n'as pas accès à ce jeu.${rolesText}`];
+    const rolesText = ALLOWED_ROLE_IDS.length ? `\nR├┤les autoris├®s : ${ALLOWED_ROLE_IDS.map((rid) => `<@&${rid}>`).join(', ')}` : '';
+    return [false, `Tu n'as pas acc├¿s ├á ce jeu.${rolesText}`];
   }
   const debt = getUserDebt(member.id);
   if (debt > DEBT_LIMIT) {
     const amountToClear = debt - DEBT_LIMIT;
-    return [false, `Accès bloqué.\nTa dette actuelle est de **${debt.toLocaleString('fr-FR')} kamas**.\nTu dois régler au moins **${amountToClear.toLocaleString('fr-FR')} kamas** pour repasser sous la limite autorisée.`];
+    return [false, `Acc├¿s bloqu├®.\nTa dette actuelle est de **${debt.toLocaleString('fr-FR')} kamas**.\nTu dois r├®gler au moins **${amountToClear.toLocaleString('fr-FR')} kamas** pour repasser sous la limite autoris├®e.`];
   }
   return [true, null];
 }
@@ -858,13 +858,13 @@ async function cancelDebtRecord(recordId, cancelledByUserId = null) {
       const fallbackDescription =
         `**Joueur :** <@${record.user_id}>\n` +
         `**Montant :** ${Number(record.amount || 0).toLocaleString('fr-FR')} kamas\n` +
-        `**Statut :** Participation annulée avant le départ`;
+        `**Statut :** Participation annul├®e avant le d├®part`;
 
       const embed = existingEmbed
         ? EmbedBuilder.from(existingEmbed)
             .setColor(0x95A5A6)
-            .setDescription((existingEmbed?.description || '').replace('En attente de paiement', 'Participation annulée avant le départ'))
-            .setFooter({ text: `Annulé le ${new Date().toLocaleString('fr-FR')}` })
+            .setDescription((existingEmbed?.description || '').replace('En attente de paiement', 'Participation annul├®e avant le d├®part'))
+            .setFooter({ text: `Annul├® le ${new Date().toLocaleString('fr-FR')}` })
         : new EmbedBuilder()
             .setTitle('Engagement de participation')
             .setDescription(fallbackDescription)
@@ -889,7 +889,7 @@ async function cancelUserParticipationDebt(userId) {
 }
 
 // =========================================================
-// RÉSERVATION TEMPORAIRE
+// R├ëSERVATION TEMPORAIRE
 // =========================================================
 
 function reservationIsActive() {
@@ -937,23 +937,23 @@ function reservationOwnedBy(userId, token) {
 
 function joinButtonRow() {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('join:main').setLabel('🐎 Participer').setStyle(ButtonStyle.Success).setDisabled(!canJoinButtonBeEnabled())
+    new ButtonBuilder().setCustomId('join:main').setLabel('­ƒÉÄ Participer').setStyle(ButtonStyle.Success).setDisabled(!canJoinButtonBeEnabled())
   )];
 }
 
 function modeChoiceRows(userId, token) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`mode:ia:${userId}:${token}`).setLabel("🤖 Contre l'IA").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`mode:players:${userId}:${token}`).setLabel("💰 Contre d'autres joueurs").setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`mode:ia:${userId}:${token}`).setLabel("­ƒñû Contre l'IA").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`mode:players:${userId}:${token}`).setLabel("­ƒÆ░ Contre d'autres joueurs").setStyle(ButtonStyle.Success)
   )];
 }
 
 function countChoiceRows(userId, token, selectedMode) {
   if (selectedMode === 'ia') {
     return [new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`count:${selectedMode}:55k:100k:${userId}:${token}`).setLabel('💰 Double ta mise').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`count:${selectedMode}:110k:300k:${userId}:${token}`).setLabel('💎 Triple ta mise').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`count:${selectedMode}:220k:2000k:${userId}:${token}`).setLabel('👑 Jackpot 2M').setStyle(ButtonStyle.Danger)
+      new ButtonBuilder().setCustomId(`count:${selectedMode}:55k:100k:${userId}:${token}`).setLabel('­ƒÆ░ Double ta mise').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`count:${selectedMode}:110k:300k:${userId}:${token}`).setLabel('­ƒÆÄ Triple ta mise').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`count:${selectedMode}:220k:2000k:${userId}:${token}`).setLabel('­ƒææ Jackpot 2M').setStyle(ButtonStyle.Danger)
     )];
   }
 
@@ -966,8 +966,8 @@ function countChoiceRows(userId, token, selectedMode) {
 
 function iaJackpotConfirmRows(userId, token) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`iaconfirm:220k:2000k:${userId}:${token}`).setLabel('✅ Oui, je mise 220 000').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`iaback:${userId}:${token}`).setLabel('↩️ Retour').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(`iaconfirm:220k:2000k:${userId}:${token}`).setLabel('Ô£à Oui, je mise 220 000').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`iaback:${userId}:${token}`).setLabel('Ôå®´©Å Retour').setStyle(ButtonStyle.Secondary)
   )];
 }
 
@@ -991,13 +991,13 @@ function horseChoiceRows(userId, contextMode, selectedMode, selectedCount, token
 
 function cancelParticipationRows(userId) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`cancel:${userId}`).setLabel('❌ Annuler ma participation').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId(`cancel:${userId}`).setLabel('ÔØî Annuler ma participation').setStyle(ButtonStyle.Danger)
   )];
 }
 
 function cancelIaLaunchRows(userId) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`cancelia:${userId}`).setLabel('❌ Annuler cette course IA').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId(`cancelia:${userId}`).setLabel('ÔØî Annuler cette course IA').setStyle(ButtonStyle.Danger)
   )];
 }
 
@@ -1043,14 +1043,13 @@ function roleSelectRow(guild, customId, placeholder, maxValues = 1) {
 
 function configRows(guild) {
   return [
-    channelSelectRow(guild, 'config:logs_channel', 'Salon des logs (liste rapide)'),
-    channelSearchButtonRow('logs'),
-    roleSelectRow(guild, 'config:admin_role', 'Rôle admin (valider les paiements)', 1),
-    roleSelectRow(guild, 'config:allowed_roles', 'Rôle autorisé à jouer (sert aussi pour les notifications)', 1),
+    channelSelectRow(guild, 'config:logs_channel', 'Salon des logs (suivi des gains)'),
+    channelSelectRow(guild, 'config:dashboard_channel', 'Salon du dashboard'),
+    roleSelectRow(guild, 'config:admin_role', 'R├┤le admin (valider les paiements)', 1),
+    roleSelectRow(guild, 'config:allowed_roles', 'R├┤le autoris├® ├á jouer (sert aussi pour les notifications)', 1),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('config:search:dashboard').setLabel('🧭 Chercher salon dashboard').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('config:validate').setLabel('✅ Valider la configuration').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('config:cancel').setLabel('❌ Annuler').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('config:validate').setLabel('Ô£à Valider la configuration').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('config:cancel').setLabel('ÔØî Annuler').setStyle(ButtonStyle.Secondary)
     ),
   ];
 }
@@ -1105,42 +1104,42 @@ function getMainMessageContent(timer = null) {
 
   if (reservationIsActive() && !waitingForPlayers && !raceInProgress && !cooldown) {
     const remaining = Math.max(0, Math.floor((currentReservation.expires_at - Date.now()) / 1000));
-    content += `⏳ **Réservation en cours** pour <@${currentReservation.user_id}> pendant encore **${remaining} sec**\n\n`;
+    content += `ÔÅ│ **R├®servation en cours** pour <@${currentReservation.user_id}> pendant encore **${remaining} sec**\n\n`;
   }
 
   if (iaPendingLaunch && iaPendingUserId) {
-    content += `🤖 **Départ contre l'IA en préparation** pour <@${iaPendingUserId}>\n`;
-    content += `🤖 IA prévues : **${iaPendingCount}**\n`;
-    content += `❌ Annulation possible pendant **${IA_CANCEL_WINDOW_SECONDS} secondes**\n`;
-    content += `🏁 Départ automatique au bout de **${IA_PRESTART_SECONDS} secondes**\n\n`;
+    content += `­ƒñû **D├®part contre l'IA en pr├®paration** pour <@${iaPendingUserId}>\n`;
+    content += `­ƒñû IA pr├®vues : **${iaPendingCount}**\n`;
+    content += `ÔØî Annulation possible pendant **${IA_CANCEL_WINDOW_SECONDS} secondes**\n`;
+    content += `­ƒÅü D├®part automatique au bout de **${IA_PRESTART_SECONDS} secondes**\n\n`;
   }
 
   if (timer !== null && timer > 0) {
-    content += `⏱️ **Prochaine course disponible dans : ${timer} secondes**\n\n`;
+    content += `ÔÅ▒´©Å **Prochaine course disponible dans : ${timer} secondes**\n\n`;
   } else if (cooldown) {
     const remaining = Math.max(0, Math.floor((cooldownEndTime - Date.now()) / 1000));
-    content += `⏱️ **Prochaine course disponible dans : ${remaining} secondes**\n\n`;
+    content += `ÔÅ▒´©Å **Prochaine course disponible dans : ${remaining} secondes**\n\n`;
   }
 
   if (waitingForPlayers) {
-    content += `👥 **Recherche d'adversaires en cours** : ${currentPlayers.length}/${expectedHumans}\n`;
-    content += `⏱️ **Départ dans :** ${getMatchmakingRemainingSeconds()} sec\n`;
-    content += `🔒 **Inscriptions :** ${isJoinWindowLocked() ? 'fermées' : 'ouvertes'}\n`;
-    content += `❌ **Annulation possible :** ${canCancelParticipationNow() ? 'oui' : 'non'}\n\n`;
+    content += `­ƒæÑ **Recherche d'adversaires en cours** : ${currentPlayers.length}/${expectedHumans}\n`;
+    content += `ÔÅ▒´©Å **D├®part dans :** ${getMatchmakingRemainingSeconds()} sec\n`;
+    content += `­ƒöÆ **Inscriptions :** ${isJoinWindowLocked() ? 'ferm├®es' : 'ouvertes'}\n`;
+    content += `ÔØî **Annulation possible :** ${canCancelParticipationNow() ? 'oui' : 'non'}\n\n`;
   }
 
-  content += '**💰 Participants actuels :**\n';
+  content += '**­ƒÆ░ Participants actuels :**\n';
   if (currentPlayers.length) {
     for (const uid of currentPlayers) {
       const hidx = playerHorses[uid];
-      const horseStr = hidx !== undefined ? `${HORSES[hidx].emoji} ${HORSES[hidx].name}` : '❓';
-      content += `• <@${uid}> , ${horseStr}\n`;
+      const horseStr = hidx !== undefined ? `${HORSES[hidx].emoji} ${HORSES[hidx].name}` : 'ÔØô';
+      content += `ÔÇó <@${uid}> , ${horseStr}\n`;
     }
   } else {
     content += 'Aucun participant pour l\'instant.\n';
   }
 
-  content += `\n*Capacité max : ${MAX_PLAYERS} joueurs humains*`;
+  content += `\n*Capacit├® max : ${MAX_PLAYERS} joueurs humains*`;
   return content;
 }
 
@@ -1154,7 +1153,7 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], aiCount = 
   };
 
   const embed = new EmbedBuilder()
-    .setTitle('🏇 Course Dragodinde')
+    .setTitle('­ƒÅç Course Dragodinde')
     .setColor(colorMap[phase] ?? 0x3498DB)
     .setTimestamp(utcnow());
 
@@ -1165,44 +1164,44 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], aiCount = 
       .setImage(RACE_BANNER_URL)
       .setDescription(`**<@${creatorId}>** cherche des adversaires.\nInscrits : **${humans.length}/${expectedHumans}**\nPlaces restantes : **${Math.max(0, expectedHumans - humans.length)}**`)
       .addFields(
-        { name: '💰 Joueurs engagés', value: humanHorseLines(humans, horsesSnapshot), inline: false },
-        { name: '🏆 Cagnotte actuelle', value: `${(REAL_BET * humans.length).toLocaleString('fr-FR')} kamas`, inline: false },
-        { name: '⏱️ Départ dans', value: `${remaining} sec`, inline: true },
-        { name: '🔒 Inscriptions', value: joinLocked ? 'Fermées' : 'Ouvertes', inline: true },
-        { name: '❌ Désistement', value: canCancelParticipationNow() ? 'Autorisé' : 'Verrouillé', inline: true }
+        { name: '­ƒÆ░ Joueurs engag├®s', value: humanHorseLines(humans, horsesSnapshot), inline: false },
+        { name: '­ƒÅå Cagnotte actuelle', value: `${(REAL_BET * humans.length).toLocaleString('fr-FR')} kamas`, inline: false },
+        { name: 'ÔÅ▒´©Å D├®part dans', value: `${remaining} sec`, inline: true },
+        { name: '­ƒöÆ Inscriptions', value: joinLocked ? 'Ferm├®es' : 'Ouvertes', inline: true },
+        { name: 'ÔØî D├®sistement', value: canCancelParticipationNow() ? 'Autoris├®' : 'Verrouill├®', inline: true }
       );
   } else if (phase === 'launching') {
     embed
       .setImage(RACE_BANNER_URL)
-      .setDescription('La grille s\'ouvre, les sabots frappent le sol, la course se prépare...')
+      .setDescription('La grille s\'ouvre, les sabots frappent le sol, la course se pr├®pare...')
       .addFields(
-        { name: '💰 Joueurs humains', value: humanHorseLines(humans, horsesSnapshot), inline: false },
-        { name: '🤖 IA ajoutées', value: String(aiCount), inline: true },
-        { name: '💰 Cagnotte', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: true }
+        { name: '­ƒÆ░ Joueurs humains', value: humanHorseLines(humans, horsesSnapshot), inline: false },
+        { name: '­ƒñû IA ajout├®es', value: String(aiCount), inline: true },
+        { name: '­ƒÆ░ Cagnotte', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: true }
       );
   } else if (phase === 'running') {
     embed
       .setImage(RACE_BANNER_URL)
-      .setDescription('La course est lancée ! Les dragodindes sont sur la piste.')
+      .setDescription('La course est lanc├®e ! Les dragodindes sont sur la piste.')
       .addFields(
         { name: 'Participants', value: humanHorseLines(humans, horsesSnapshot), inline: false },
-        { name: '🤖 IA en piste', value: String(aiCount), inline: true },
-        { name: '💰 Cagnotte', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: true }
+        { name: '­ƒñû IA en piste', value: String(aiCount), inline: true },
+        { name: '­ƒÆ░ Cagnotte', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: true }
       );
   } else if (phase === 'finished') {
     const winnerDisplay = winnerId && winnerId !== '0' ? `<@${winnerId}>` : 'IA';
     embed
       .setImage(RESULT_IMAGE_URL)
-      .setDescription('La poussière retombe. La piste a rendu son verdict.')
+      .setDescription('La poussi├¿re retombe. La piste a rendu son verdict.')
       .addFields(
-        { name: '🏆 Vainqueur', value: `${winnerDisplay} (${winnerName || ''})`, inline: false },
-        { name: '💰 Montant', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false }
+        { name: '­ƒÅå Vainqueur', value: `${winnerDisplay} (${winnerName || ''})`, inline: false },
+        { name: '­ƒÆ░ Montant', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false }
       );
     if (humans.length) {
-      embed.addFields({ name: '💰 Participants', value: humanHorseLines(humans, horsesSnapshot), inline: false });
+      embed.addFields({ name: '­ƒÆ░ Participants', value: humanHorseLines(humans, horsesSnapshot), inline: false });
     }
   } else if (phase === 'cancelled') {
-    embed.setDescription(reason || 'La recherche d’adversaires a été interrompue.');
+    embed.setDescription(reason || 'La recherche dÔÇÖadversaires a ├®t├® interrompue.');
   }
 
   return embed;
@@ -1217,13 +1216,13 @@ async function upsertRaceAnnouncement(channel, embed) {
   }
 }
 
-async function updateRaceWatchMessage(channel, thread, label = '🔗 Regarder la course') {
+async function updateRaceWatchMessage(channel, thread, label = '­ƒöù Regarder la course') {
   try {
     const button = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(`https://discord.com/channels/${channel.guild.id}/${thread.id}`)
     );
-    if (!raceWatchMessage) raceWatchMessage = await safeSend(channel, { content: '🎯 La course est prête.', components: [button] });
-    else await safeEditMessage(raceWatchMessage, { content: '🎯 La course est prête.', components: [button] });
+    if (!raceWatchMessage) raceWatchMessage = await safeSend(channel, { content: '­ƒÄ» La course est pr├¬te.', components: [button] });
+    else await safeEditMessage(raceWatchMessage, { content: '­ƒÄ» La course est pr├¬te.', components: [button] });
   } catch (error) {
     logException('updateRaceWatchMessage', error);
   }
@@ -1243,20 +1242,20 @@ async function createDebtRecord(userId, horseIndex, amount = ENTRY_FEE, meta = {
   const formulaText = meta.formula_label ? `**Formule :** ${meta.formula_label}\n` : '';
 
   const embed = new EmbedBuilder()
-    .setTitle('💰 Engagement de participation')
+    .setTitle('­ƒÆ░ Engagement de participation')
     .setDescription(
       `**Joueur :** <@${userId}>\n` +
       `**Montant :** ${safeAmount.toLocaleString('fr-FR')} kamas\n` +
       formulaText +
       `**Cheval :** ${HORSES[horseIndex].emoji} ${HORSES[horseIndex].name}\n` +
-      `**Dette totale après inscription :** ${futureTotal.toLocaleString('fr-FR')} kamas\n` +
-      `**Statut :** ⏳ En attente de paiement`
+      `**Dette totale apr├¿s inscription :** ${futureTotal.toLocaleString('fr-FR')} kamas\n` +
+      `**Statut :** ÔÅ│ En attente de paiement`
     )
     .setColor(0xFFA500)
     .setTimestamp(utcnow());
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`debtpay:${recordId}`).setLabel('✅ Valider le paiement').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`debtpay:${recordId}`).setLabel('Ô£à Valider le paiement').setStyle(ButtonStyle.Success)
   );
 
   try {
@@ -1298,7 +1297,7 @@ async function ensureDashboardMessage() {
   if (!channel || !channel.isTextBased()) return null;
 
   const msg = await safeSend(channel, {
-    embeds: [new EmbedBuilder().setTitle('📊 TABLEAU DE BORD DES COURSES').setDescription('Vue synthétique de l’activité, des dettes et de la rentabilité du jeu.').setColor(0x00AAFF).setTimestamp(utcnow())],
+    embeds: [new EmbedBuilder().setTitle('­ƒôè TABLEAU DE BORD DES COURSES').setDescription('Vue synth├®tique de lÔÇÖactivit├®, des dettes et de la rentabilit├® du jeu.').setColor(0x00AAFF).setTimestamp(utcnow())],
   });
 
   DASHBOARD_MESSAGE_ID = msg.id;
@@ -1315,22 +1314,22 @@ async function createPayoutRecord(userId, horseIndex, grossAmount, refundedStake
   const participantsText = participantsSnapshot.map((uid) => `<@${uid}>`).join(', ') || 'Aucun';
 
   const embed = new EmbedBuilder()
-    .setTitle('🏆 Gain à remettre')
+    .setTitle('­ƒÅå Gain ├á remettre')
     .setDescription(
       `**Gagnant :** <@${userId}>\n` +
       `**Cheval :** ${HORSES[horseIndex].emoji} ${HORSES[horseIndex].name}\n` +
       `**Nom de la dragodinde :** ${winnerName}\n` +
       `**Gain course :** ${Number(grossAmount).toLocaleString('fr-FR')} kamas\n` +
       `**Mise rendue :** ${Number(refundedStake).toLocaleString('fr-FR')} kamas\n` +
-      `**Total à remettre :** ${Number(totalAmount).toLocaleString('fr-FR')} kamas\n` +
+      `**Total ├á remettre :** ${Number(totalAmount).toLocaleString('fr-FR')} kamas\n` +
       `**Participants :** ${participantsText}\n` +
-      `**Statut :** ⏳ En attente de remise`
+      `**Statut :** ÔÅ│ En attente de remise`
     )
     .setColor(0x2ECC71)
     .setTimestamp(utcnow());
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`payoutpay:${recordId}`).setLabel('✅ Valider le gain').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`payoutpay:${recordId}`).setLabel('Ô£à Valider le gain').setStyle(ButtonStyle.Success)
   );
 
   try {
@@ -1366,19 +1365,19 @@ async function logRaceResult(participantsSnapshot, horsesSnapshot, winnerId, win
 
   const participantsLines = participantsSnapshot.map((uid) => {
     const horseIdx = horsesSnapshot[uid];
-    if (horseIdx === undefined || horseIdx === null) return `• <@${uid}> , Cheval inconnu`;
-    return `• <@${uid}> , ${HORSES[horseIdx].emoji} ${HORSES[horseIdx].name}`;
+    if (horseIdx === undefined || horseIdx === null) return `ÔÇó <@${uid}> , Cheval inconnu`;
+    return `ÔÇó <@${uid}> , ${HORSES[horseIdx].emoji} ${HORSES[horseIdx].name}`;
   });
 
   const winnerDisplay = winnerId !== 0 && winnerId !== '0' ? `<@${winnerId}>` : 'IA';
 
   const embed = new EmbedBuilder()
-    .setTitle('🏁 Résultat de course')
+    .setTitle('­ƒÅü R├®sultat de course')
     .setImage(RESULT_IMAGE_URL)
-    .setFooter({ text: 'Mise sur ta Dragodinde , Résultat officiel' })
+    .setFooter({ text: 'Mise sur ta Dragodinde , R├®sultat officiel' })
     .setDescription(
       `**Vainqueur :** ${winnerDisplay} (${winnerName})\n` +
-      `**Cagnotte distribuée :** ${totalPool.toLocaleString('fr-FR')} kamas\n\n` +
+      `**Cagnotte distribu├®e :** ${totalPool.toLocaleString('fr-FR')} kamas\n\n` +
       `**Participants :**\n${participantsLines.join('\n')}`
     )
     .setColor(0x00FF00)
@@ -1424,22 +1423,22 @@ async function updateDashboard() {
     : 'Aucune dette';
 
   const embed = new EmbedBuilder()
-    .setTitle('📊 TABLEAU DE BORD DES COURSES')
-    .setDescription('Vue synthétique de l’activité, des dettes et de la rentabilité du jeu.')
+    .setTitle('­ƒôè TABLEAU DE BORD DES COURSES')
+    .setDescription('Vue synth├®tique de lÔÇÖactivit├®, des dettes et de la rentabilit├® du jeu.')
     .setColor(0x00AAFF)
     .setTimestamp(utcnow())
     .addFields(
-      { name: '🏁 Courses réalisées', value: String(stats.total_races || 0), inline: true },
-      { name: '💰 Mises totales', value: `${Number(stats.total_bets || 0).toLocaleString('fr-FR')} kamas`, inline: true },
-      { name: '🏆 Gains distribués', value: `${Number(stats.total_gains || 0).toLocaleString('fr-FR')} kamas`, inline: true },
-      { name: '💸 Bénéfice brut', value: `${grossProfit().toLocaleString('fr-FR')} kamas`, inline: true },
-      { name: '💳 Dette totale à encaisser', value: `${totalOutstandingDebt().toLocaleString('fr-FR')} kamas`, inline: true },
-      { name: '💸 Gains à remettre', value: `${totalOutstandingPayouts().toLocaleString('fr-FR')} kamas`, inline: true },
-      { name: '🤖 Winrate IA', value: `${aiWinrate()}%`, inline: true },
-      { name: '📌 Dettes impayées', value: String(pending), inline: true },
-      { name: '🎁 Gains en attente', value: String(pendingPayoutsCount()), inline: true },
-      { name: '🏆 Top gagnants', value: topText, inline: false },
-      { name: '💳 Top dettes', value: debtText, inline: false }
+      { name: '­ƒÅü Courses r├®alis├®es', value: String(stats.total_races || 0), inline: true },
+      { name: '­ƒÆ░ Mises totales', value: `${Number(stats.total_bets || 0).toLocaleString('fr-FR')} kamas`, inline: true },
+      { name: '­ƒÅå Gains distribu├®s', value: `${Number(stats.total_gains || 0).toLocaleString('fr-FR')} kamas`, inline: true },
+      { name: '­ƒÆ© B├®n├®fice brut', value: `${grossProfit().toLocaleString('fr-FR')} kamas`, inline: true },
+      { name: '­ƒÆ│ Dette totale ├á encaisser', value: `${totalOutstandingDebt().toLocaleString('fr-FR')} kamas`, inline: true },
+      { name: '­ƒÆ© Gains ├á remettre', value: `${totalOutstandingPayouts().toLocaleString('fr-FR')} kamas`, inline: true },
+      { name: '­ƒñû Winrate IA', value: `${aiWinrate()}%`, inline: true },
+      { name: '­ƒôî Dettes impay├®es', value: String(pending), inline: true },
+      { name: '­ƒÄü Gains en attente', value: String(pendingPayoutsCount()), inline: true },
+      { name: '­ƒÅå Top gagnants', value: topText, inline: false },
+      { name: '­ƒÆ│ Top dettes', value: debtText, inline: false }
     );
 
   const last = stats.last_race || {};
@@ -1447,12 +1446,12 @@ async function updateDashboard() {
     const participantsText = Array.isArray(last.participants) && last.participants.length ? last.participants.map((uid) => `<@${uid}>`).join(', ') : 'Aucun';
     const winnerDisplay = Number(last.winner_id) !== 0 ? `<@${last.winner_id}>` : 'IA';
     embed.addFields({
-      name: '🎯 Dernière course',
+      name: '­ƒÄ» Derni├¿re course',
       value: `Gagnant : ${winnerDisplay} (${last.winner_name || ''})\nGains : ${Number(last.gains || 0).toLocaleString('fr-FR')} kamas\nParticipants : ${participantsText}`,
       inline: false,
     });
   } else {
-    embed.addFields({ name: '🎯 Dernière course', value: 'Aucune', inline: false });
+    embed.addFields({ name: '­ƒÄ» Derni├¿re course', value: 'Aucune', inline: false });
   }
 
   try { await safeEditMessage(msg, { embeds: [embed] }); } catch (error) { logException('updateDashboard', error); }
@@ -1485,15 +1484,15 @@ function generateTrack(positions, activeHorseIndexes = null) {
 
   raceData.sort((a, b) => b.pos - a.pos);
 
-  const rankIcons = ['🥇', '🥈', '🥉'];
+  const rankIcons = ['­ƒÑç', '­ƒÑê', '­ƒÑë'];
 
   return raceData
     .map((entry, rank) => {
       const medal = rankIcons[rank] || `${rank + 1}e`;
       const slot = Math.max(0, Math.min(TRACK_LENGTH - 1, Math.floor((entry.pos / 100) * (TRACK_LENGTH - 1))));
-      const before = '─'.repeat(slot);
-      const after = '─'.repeat(Math.max(0, TRACK_LENGTH - slot - 1));
-      return `${medal} ${entry.horse.emoji} ${entry.horse.name} 🏁${before}${entry.horse.emoji}${after}🏁 ${entry.pos}%`;
+      const before = 'ÔöÇ'.repeat(slot);
+      const after = 'ÔöÇ'.repeat(Math.max(0, TRACK_LENGTH - slot - 1));
+      return `${medal} ${entry.horse.emoji} ${entry.horse.name} ­ƒÅü${before}${entry.horse.emoji}${after}­ƒÅü ${entry.pos}%`;
     })
     .join('\n');
 }
@@ -1504,12 +1503,12 @@ function randomRaceEvent(contestantsMap, horseIndex) {
   const horse = HORSES[horseIndex];
   const prefix = typ === 'human' && uid ? `${horse.emoji} <@${uid}> avec **${horse.name}**` : `${horse.emoji} **${horse.name}** (IA)`;
   const events = [
-    `${prefix} arrache un mètre de plus avec une arrogance délicieuse !`,
-    `${prefix} relance au bon moment, pendant que les autres négocient avec leur destin !`,
-    `${prefix} déboîte un rival sans même lui laisser le temps d’y croire !`,
-    `${prefix} glisse, se rattrape, et humilie quand même la concurrence !`,
+    `${prefix} arrache un m├¿tre de plus avec une arrogance d├®licieuse !`,
+    `${prefix} relance au bon moment, pendant que les autres n├®gocient avec leur destin !`,
+    `${prefix} d├®bo├«te un rival sans m├¬me lui laisser le temps dÔÇÖy croire !`,
+    `${prefix} glisse, se rattrape, et humilie quand m├¬me la concurrence !`,
     `${prefix} serre la trajectoire comme si la piste lui appartenait !`,
-    `${prefix} retrouve du souffle, ce qui n’arrange personne derrière !`,
+    `${prefix} retrouve du souffle, ce qui nÔÇÖarrange personne derri├¿re !`,
   ];
   return pickRandom(events);
 }
@@ -1556,15 +1555,15 @@ function computeRaceAdvance(positions, horseIndex, horseToContestant, activeHors
   return advance;
 }
 
-async function runCountdown(thread, seconds, label = 'Départ dans') {
+async function runCountdown(thread, seconds, label = 'D├®part dans') {
   const msg = await safeSend(thread, {
-    embeds: [new EmbedBuilder().setTitle('⏱️ Pré-départ').setDescription(`${label} **${seconds}** secondes...`).setColor(0x3498DB).setImage(RACE_BANNER_URL).setTimestamp(utcnow())],
+    embeds: [new EmbedBuilder().setTitle('ÔÅ▒´©Å Pr├®-d├®part').setDescription(`${label} **${seconds}** secondes...`).setColor(0x3498DB).setImage(RACE_BANNER_URL).setTimestamp(utcnow())],
   });
   for (let s = seconds - 1; s >= 1; s--) {
     await new Promise((r) => setTimeout(r, 1000));
     try {
       await safeEditMessage(msg, {
-        embeds: [new EmbedBuilder().setTitle('⏱️ Pré-départ').setDescription(`${label} **${s}** secondes...`).setColor(0x3498DB).setImage(RACE_BANNER_URL).setTimestamp(utcnow())],
+        embeds: [new EmbedBuilder().setTitle('ÔÅ▒´©Å Pr├®-d├®part').setDescription(`${label} **${s}** secondes...`).setColor(0x3498DB).setImage(RACE_BANNER_URL).setTimestamp(utcnow())],
       });
     } catch {}
   }
@@ -1587,10 +1586,10 @@ async function runRaceWithRandomBonus(thread, contestants, raceOptions = {}) {
     logInfo(`Contestant: type=${typ}, uid=${uid}, horse=${HORSES[h].name}`);
   }
 
-  await runCountdown(thread, 5, 'La course démarre dans');
+  await runCountdown(thread, 5, 'La course d├®marre dans');
 
   const animMsg = await safeSend(thread, {
-    content: `🏇 **Départ** 🏇\n${generateTrack(positions, activeHorseIndexes)}`
+    content: `­ƒÅç **D├®part** ­ƒÅç\n${generateTrack(positions, activeHorseIndexes)}`
   });
   await new Promise((r) => setTimeout(r, 1000));
 
@@ -1620,13 +1619,13 @@ async function runRaceWithRandomBonus(thread, contestants, raceOptions = {}) {
     }
 
     await safeEditMessage(animMsg, {
-      content: `🏇 **Course en cours** 🏇\n${generateTrack(positions, activeHorseIndexes)}`
+      content: `­ƒÅç **Course en cours** ­ƒÅç\n${generateTrack(positions, activeHorseIndexes)}`
     });
     await new Promise((r) => setTimeout(r, 1450));
   }
 
   const winnerEntry = horseToContestant[winnerHorse];
-  if (!winnerEntry) throw new Error(`Aucun contestant trouvé pour le cheval gagnant index=${winnerHorse}`);
+  if (!winnerEntry) throw new Error(`Aucun contestant trouv├® pour le cheval gagnant index=${winnerHorse}`);
   const [typ, uid] = winnerEntry;
   logInfo(`===== COURSE END ===== winner_type=${typ}, winner_uid=${uid}, winner_horse=${HORSES[winnerHorse].name}`);
   return [typ, uid, winnerHorse, HORSES[winnerHorse].name];
@@ -1683,8 +1682,8 @@ async function updateTimerLoop(channel) {
     const remaining = Math.floor((cooldownEndTime - Date.now()) / 1000);
     if (remaining <= 0) break;
     try {
-      if (!timerMessage) timerMessage = await safeSend(channel, { content: `⏱️ Prochaine course dans **${remaining}** secondes...` });
-      else await safeEditMessage(timerMessage, { content: `⏱️ Prochaine course dans **${remaining}** secondes...` });
+      if (!timerMessage) timerMessage = await safeSend(channel, { content: `ÔÅ▒´©Å Prochaine course dans **${remaining}** secondes...` });
+      else await safeEditMessage(timerMessage, { content: `ÔÅ▒´©Å Prochaine course dans **${remaining}** secondes...` });
     } catch {}
     await new Promise((r) => setTimeout(r, 1000));
   }
@@ -1731,7 +1730,7 @@ async function finishRace(channel) {
 }
 
 async function createRaceThread(channel, prefix) {
-  const starter = await safeSend(channel, { content: '🏇' });
+  const starter = await safeSend(channel, { content: '­ƒÅç' });
   const thread = await starter.startThread({
     name: `${prefix}-${Math.floor(Date.now() / 1000)}`,
     autoArchiveDuration: ThreadAutoArchiveDuration.OneHour,
@@ -1756,7 +1755,7 @@ function parseIaFormula(selection) {
 
 async function startIaRace(userId, channel, formula) {
   if (raceInProgress || waitingForPlayers || iaPendingLaunch) {
-    const msg = await safeSend(channel, { content: '❌ Une course est déjà en cours.' });
+    const msg = await safeSend(channel, { content: 'ÔØî Une course est d├®j├á en cours.' });
     setTimeout(() => safeDeleteMessage(msg), 5000);
     return;
   }
@@ -1773,10 +1772,10 @@ async function startIaRace(userId, channel, formula) {
   iaCountdownMessage = await safeSend(channel, {
     embeds: [
       new EmbedBuilder()
-        .setTitle('⏱️ Course IA programmée')
+        .setTitle('ÔÅ▒´©Å Course IA programm├®e')
         .setDescription(
           `La course de <@${userId}> en formule **${formula.label}** contre **${formula.aiCount} IA** commencera dans **${IA_PRESTART_SECONDS} secondes**.\n` +
-          `🎯 Gain potentiel : **${formula.prize.toLocaleString('fr-FR')} kamas**\n` +
+          `­ƒÄ» Gain potentiel : **${formula.prize.toLocaleString('fr-FR')} kamas**\n` +
           `Annulation possible pendant **${IA_CANCEL_WINDOW_SECONDS} secondes**.`
         )
         .setColor(0xF1C40F)
@@ -1821,11 +1820,11 @@ async function startIaRace(userId, channel, formula) {
         await safeEditMessage(iaCountdownMessage, {
           embeds: [
             new EmbedBuilder()
-              .setTitle('⏱️ Course IA programmée')
+              .setTitle('ÔÅ▒´©Å Course IA programm├®e')
               .setDescription(
                 `La course de <@${userId}> en formule **${formula.label}** contre **${formula.aiCount} IA** commencera dans **${remaining} secondes**.\n` +
-                `🎯 Gain potentiel : **${formula.prize.toLocaleString('fr-FR')} kamas**\n` +
-                `Annulation ${cancelRemaining > 0 ? `possible pendant encore **${cancelRemaining} secondes**` : '**fermée**'}.`
+                `­ƒÄ» Gain potentiel : **${formula.prize.toLocaleString('fr-FR')} kamas**\n` +
+                `Annulation ${cancelRemaining > 0 ? `possible pendant encore **${cancelRemaining} secondes**` : '**ferm├®e**'}.`
               )
               .setColor(cancelRemaining > 0 ? 0xF1C40F : 0xE67E22)
               .setImage(RACE_BANNER_URL)
@@ -1855,7 +1854,7 @@ async function startIaRace(userId, channel, formula) {
       const horsesSnapshot = { ...playerHorses };
       const humanHorseIdx = horsesSnapshot[userId];
       const humanHorseName = humanHorseIdx !== undefined ? HORSES[humanHorseIdx].name : 'Cheval inconnu';
-      const humanHorseEmoji = humanHorseIdx !== undefined ? HORSES[humanHorseIdx].emoji : '🐎';
+      const humanHorseEmoji = humanHorseIdx !== undefined ? HORSES[humanHorseIdx].emoji : '­ƒÉÄ';
 
       await upsertRaceAnnouncement(channel, buildRaceStatusEmbed('launching', {
         humans: [userId], aiCount: formula.aiCount, pot: totalPool, horsesSnapshot,
@@ -1867,11 +1866,11 @@ async function startIaRace(userId, channel, formula) {
         const made = await createRaceThread(channel, 'course-ia');
         starter = made.starter;
         thread = made.thread;
-        await updateRaceWatchMessage(channel, thread, '🔗 Regarder la course');
+        await updateRaceWatchMessage(channel, thread, '­ƒöù Regarder la course');
 
         await safeSend(thread, {
           embeds: [new EmbedBuilder()
-            .setTitle('🏇 Course contre l\'IA')
+            .setTitle('­ƒÅç Course contre l\'IA')
             .setDescription(`Humain : ${humanHorseEmoji} <@${userId}> avec **${humanHorseName}**\nFormule : ${formula.label}\nIA adverses : ${formula.aiCount}\nGain final : ${totalPool.toLocaleString('fr-FR')} kamas`)
             .setColor(0x3498DB)
             .setImage(RACE_BANNER_URL)
@@ -1909,7 +1908,7 @@ async function startIaRace(userId, channel, formula) {
               .setImage(RESULT_IMAGE_URL)
               .setTimestamp(utcnow())]
           });
-          await safeSend(thread, { content: `🏆 <@${winnerId}>, tu remportes **${totalPayout.toLocaleString('fr-FR')} kamas** au total avec la formule **${formula.label}**. Contacte **Tonymerguez** en message privé pour récupérer tes gains.` });
+          await safeSend(thread, { content: `­ƒÅå <@${winnerId}>, tu remportes **${totalPayout.toLocaleString('fr-FR')} kamas** au total avec la formule **${formula.label}**. Contacte **Tonymerguez** en message priv├® pour r├®cup├®rer tes gains.` });
           await createPayoutRecord(winnerId, winnerHorseIdx, totalPool, 0, totalPayout, participantsSnapshot, winnerName);
           await logRaceResult(participantsSnapshot, horsesSnapshot, winnerId, winnerName, totalPayout);
           await updateStatsAfterRace(participantsSnapshot, winnerId, winnerName, totalPool);
@@ -1931,11 +1930,11 @@ async function startIaRace(userId, channel, formula) {
           await sendRoleNotification(channel, getAiVictoryRoleNotification(winnerName), [], ROLE_NOTIFICATION_DELETE_AFTER_SECONDS, false);
         }
 
-        await safeSend(thread, { content: `🗑️ Ce thread sera supprimé dans ${THREAD_LIFETIME} secondes.` });
+        await safeSend(thread, { content: `­ƒùæ´©Å Ce thread sera supprim├® dans ${THREAD_LIFETIME} secondes.` });
         await new Promise((r) => setTimeout(r, THREAD_LIFETIME * 1000));
       } catch (error) {
         logException('startIaRace.inner', error);
-        try { await safeSend(channel, { content: '❌ Impossible de lancer la course IA. Consulte les logs du bot.' }); } catch {}
+        try { await safeSend(channel, { content: 'ÔØî Impossible de lancer la course IA. Consulte les logs du bot.' }); } catch {}
       } finally {
         if (thread) {
           try { await thread.delete(); } catch {}
@@ -1982,11 +1981,11 @@ async function startPlayersWait(userId, channel, nbAdversaires) {
     try {
       if (!waitingForPlayers || currentMatchSessionId !== sessionId) return;
       if (!currentPlayers.length) {
-        await cancelMatchmakingSession(channel, 'La file d’attente a été annulée, tous les joueurs se sont retirés.');
+        await cancelMatchmakingSession(channel, 'La file dÔÇÖattente a ├®t├® annul├®e, tous les joueurs se sont retir├®s.');
         return;
       }
       if (currentMatchCreatorId && !currentPlayers.includes(currentMatchCreatorId)) {
-        await cancelMatchmakingSession(channel, 'Le créateur du pari a annulé sa participation, la file est donc fermée.');
+        await cancelMatchmakingSession(channel, 'Le cr├®ateur du pari a annul├® sa participation, la file est donc ferm├®e.');
         return;
       }
 
@@ -2028,11 +2027,11 @@ async function waitForPlayers(channel, sessionId = null) {
   let thread = null;
   try {
     if (!currentPlayers.length) {
-      await cancelMatchmakingSession(channel, 'La recherche d’adversaires a été annulée car tous les joueurs ont quitté la file.');
+      await cancelMatchmakingSession(channel, 'La recherche dÔÇÖadversaires a ├®t├® annul├®e car tous les joueurs ont quitt├® la file.');
       return;
     }
     if (!currentMatchCreatorId || !currentPlayers.includes(currentMatchCreatorId)) {
-      await cancelMatchmakingSession(channel, 'Le créateur n’est plus présent, la file est fermée.');
+      await cancelMatchmakingSession(channel, 'Le cr├®ateur nÔÇÖest plus pr├®sent, la file est ferm├®e.');
       return;
     }
 
@@ -2069,12 +2068,12 @@ async function waitForPlayers(channel, sessionId = null) {
     const made = await createRaceThread(channel, 'course-joueurs');
     starter = made.starter;
     thread = made.thread;
-    await updateRaceWatchMessage(channel, thread, '🔗 Regarder la course');
+    await updateRaceWatchMessage(channel, thread, '­ƒöù Regarder la course');
 
     await safeSend(thread, {
       embeds: [new EmbedBuilder()
-        .setTitle('🏇 Course entre joueurs')
-        .setDescription(`Participants :\n${humanHorseLines(humans, horsesSnapshot)}\nIA complémentaires : ${nbIaNeeded}\nCagnotte : ${totalPool.toLocaleString('fr-FR')} kamas`)
+        .setTitle('­ƒÅç Course entre joueurs')
+        .setDescription(`Participants :\n${humanHorseLines(humans, horsesSnapshot)}\nIA compl├®mentaires : ${nbIaNeeded}\nCagnotte : ${totalPool.toLocaleString('fr-FR')} kamas`)
         .setColor(0x3498DB)
         .setImage(RACE_BANNER_URL)
         .setTimestamp(utcnow())],
@@ -2099,7 +2098,7 @@ async function waitForPlayers(channel, sessionId = null) {
           .setImage(RESULT_IMAGE_URL)
           .setTimestamp(utcnow())]
       });
-      await safeSend(thread, { content: `🏆 <@${winnerId}>, tu remportes **${totalPool.toLocaleString('fr-FR')} kamas**. Cela comprend ta mise jouée et celles de tes adversaires humains. Contacte **Tonymerguez** en message privé pour récupérer tes gains.` });
+      await safeSend(thread, { content: `­ƒÅå <@${winnerId}>, tu remportes **${totalPool.toLocaleString('fr-FR')} kamas**. Cela comprend ta mise jou├®e et celles de tes adversaires humains. Contacte **Tonymerguez** en message priv├® pour r├®cup├®rer tes gains.` });
       await createPayoutRecord(winnerId, winnerHorseIdx, totalPool, 0, totalPayout, participantsSnapshot, winnerName);
       await logRaceResult(participantsSnapshot, horsesSnapshot, winnerId, winnerName, totalPayout);
       await updateStatsAfterRace(participantsSnapshot, winnerId, winnerName, totalPool);
@@ -2125,11 +2124,11 @@ async function waitForPlayers(channel, sessionId = null) {
       await sendRoleNotification(channel, getAiVictoryRoleNotification(winnerName), [], ROLE_NOTIFICATION_DELETE_AFTER_SECONDS, false);
     }
 
-    await safeSend(thread, { content: `🗑️ Ce thread sera supprimé dans ${THREAD_LIFETIME} secondes.` });
+    await safeSend(thread, { content: `­ƒùæ´©Å Ce thread sera supprim├® dans ${THREAD_LIFETIME} secondes.` });
     await new Promise((r) => setTimeout(r, THREAD_LIFETIME * 1000));
   } catch (error) {
     logException('waitForPlayers', error);
-    try { await safeSend(channel, { content: '❌ Erreur pendant la course joueurs. Consulte les logs du bot.' }); } catch {}
+    try { await safeSend(channel, { content: 'ÔØî Erreur pendant la course joueurs. Consulte les logs du bot.' }); } catch {}
   } finally {
     if (thread) {
       try { await thread.delete(); } catch {}
@@ -2177,18 +2176,18 @@ async function cancelMatchmakingSession(channel, reason = null) {
 }
 
 const slashCommands = [
-  new SlashCommandBuilder().setName('dragodinde_setup').setDescription('Configure le jeu et crée l\'annonce épinglée'),
+  new SlashCommandBuilder().setName('dragodinde_setup').setDescription('Configure le jeu et cr├®e l\'annonce ├®pingl├®e'),
   new SlashCommandBuilder().setName('dragodinde_config').setDescription('Modifier la configuration dragodinde'),
-  new SlashCommandBuilder().setName('set_emojis_dragodinde').setDescription('Définir les 4 emojis des dragodindes')
+  new SlashCommandBuilder().setName('set_emojis_dragodinde').setDescription('D├®finir les 4 emojis des dragodindes')
     .addStringOption((o) => o.setName('emoji1').setDescription('Tonnerre').setRequired(true))
-    .addStringOption((o) => o.setName('emoji2').setDescription('Éclair').setRequired(true))
+    .addStringOption((o) => o.setName('emoji2').setDescription('├ëclair').setRequired(true))
     .addStringOption((o) => o.setName('emoji3').setDescription('Foudre').setRequired(true))
-    .addStringOption((o) => o.setName('emoji4').setDescription('Tempête').setRequired(true)),
-  new SlashCommandBuilder().setName('setup_dashboard_dragodinde').setDescription('Crée ou met à jour le tableau de bord dragodinde')
+    .addStringOption((o) => o.setName('emoji4').setDescription('Temp├¬te').setRequired(true)),
+  new SlashCommandBuilder().setName('setup_dashboard_dragodinde').setDescription('Cr├®e ou met ├á jour le tableau de bord dragodinde')
     .addChannelOption((o) => o.setName('salon').setDescription('Salon du dashboard').setRequired(true).addChannelTypes(ChannelType.GuildText)),
-  new SlashCommandBuilder().setName('debt_report_dragodinde').setDescription('Rapport détaillé des dettes dragodinde'),
-  new SlashCommandBuilder().setName('reset_total_dragodinde').setDescription('Supprime les messages du jeu et remet tout à zéro'),
-  new SlashCommandBuilder().setName('ping_dragodinde').setDescription('Vérifier la latence du module dragodinde'),
+  new SlashCommandBuilder().setName('debt_report_dragodinde').setDescription('Rapport d├®taill├® des dettes dragodinde'),
+  new SlashCommandBuilder().setName('reset_total_dragodinde').setDescription('Supprime les messages du jeu et remet tout ├á z├®ro'),
+  new SlashCommandBuilder().setName('ping_dragodinde').setDescription('V├®rifier la latence du module dragodinde'),
 ].map((c) => c.toJSON());
 
 function buildCommands() {
@@ -2241,27 +2240,27 @@ async function handleConfigSelect(interaction) {
 
   if (interaction.customId === 'config:logs_channel') {
     draft.logs_channel_id = interaction.values[0] || null;
-    await interaction.reply({ content: `Salon des logs sélectionné : <#${interaction.values[0]}>`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: `Salon des logs s├®lectionn├® : <#${interaction.values[0]}>`, flags: MessageFlags.Ephemeral });
     return true;
   }
 
   if (interaction.customId === 'config:dashboard_channel') {
     draft.dashboard_channel_id = interaction.values[0] || null;
-    await interaction.reply({ content: `Salon du dashboard sélectionné : <#${interaction.values[0]}>`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: `Salon du dashboard s├®lectionn├® : <#${interaction.values[0]}>`, flags: MessageFlags.Ephemeral });
     return true;
   }
 
   if (interaction.customId === 'config:admin_role') {
     draft.admin_role_id = interaction.values[0] || null;
-    await interaction.reply({ content: `Rôle admin : ${draft.admin_role_id ? `<@&${draft.admin_role_id}>` : 'Aucun'}`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: `R├┤le admin : ${draft.admin_role_id ? `<@&${draft.admin_role_id}>` : 'Aucun'}`, flags: MessageFlags.Ephemeral });
     return true;
   }
 
   if (interaction.customId === 'config:allowed_roles') {
     draft.allowed_role_ids = [...interaction.values];
     draft.notification_role_id = draft.allowed_role_ids[0] || null;
-    const txt = draft.allowed_role_ids.length ? draft.allowed_role_ids.map((rid) => `<@&${rid}>`).join(', ') : 'Aucun filtre de rôle';
-    await interaction.reply({ content: `Rôle autorisé et notification : ${txt}`, flags: MessageFlags.Ephemeral });
+    const txt = draft.allowed_role_ids.length ? draft.allowed_role_ids.map((rid) => `<@&${rid}>`).join(', ') : 'Aucun filtre de r├┤le';
+    await interaction.reply({ content: `R├┤le autoris├® et notification : ${txt}`, flags: MessageFlags.Ephemeral });
     return true;
   }
   return false;
@@ -2320,9 +2319,12 @@ async function handleChannelSearchModal(interaction) {
 async function handleButtonInteraction(interaction) {
   const { customId } = interaction;
 
+  if (customId === 'config:search:logs') return showChannelSearchModal(interaction, 'logs');
+  if (customId === 'config:search:dashboard') return showChannelSearchModal(interaction, 'dashboard');
+
   if (customId === 'config:validate') {
     if (!setupInProgressByUser.has(interaction.user.id)) {
-      return interaction.reply({ content: 'Aucune configuration en cours à valider.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Aucune configuration en cours ├á valider.', flags: MessageFlags.Ephemeral });
     }
     const draft = getConfigDraft(interaction.user.id);
     if (!draft.logs_channel_id) {
@@ -2331,31 +2333,28 @@ async function handleButtonInteraction(interaction) {
 
     const applied = await maybeApplyDraftConfig(interaction, draft);
     if (!applied) {
-      return interaction.reply({ content: 'Impossible d’appliquer la configuration.', flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: 'Impossible dÔÇÖappliquer la configuration.', flags: MessageFlags.Ephemeral });
     }
 
-    return interaction.reply({ content: 'Configuration Dragodinde validée et appliquée.', flags: MessageFlags.Ephemeral });
+    return interaction.reply({ content: 'Configuration Dragodinde valid├®e et appliqu├®e.', flags: MessageFlags.Ephemeral });
   }
 
   if (customId === 'config:cancel') {
     configDrafts.delete(interaction.user.id);
     setupInProgressByUser.delete(interaction.user.id);
-    return interaction.reply({ content: 'Configuration brouillon annulée.', flags: MessageFlags.Ephemeral });
+    return interaction.reply({ content: 'Configuration brouillon annul├®e.', flags: MessageFlags.Ephemeral });
   }
-
-  if (customId === 'config:search:logs') return showChannelSearchModal(interaction, 'logs');
-  if (customId === 'config:search:dashboard') return showChannelSearchModal(interaction, 'dashboard');
 
   if (customId === 'join:main') {
     const [allowed, reason] = canUserPlay(interaction.member);
     if (!allowed) return interaction.reply({ content: reason, flags: MessageFlags.Ephemeral });
     if (cooldown) return interaction.reply({ content: 'Une course vient de se terminer, patiente quelques secondes.', flags: MessageFlags.Ephemeral });
-    if (raceInProgress || iaPendingLaunch) return interaction.reply({ content: 'Une course est déjà en cours ou en préparation, reviens dans un instant.', flags: MessageFlags.Ephemeral });
-    if (currentPlayers.includes(interaction.user.id)) return interaction.reply({ content: 'Tu es déjà inscrit pour cette course.', flags: MessageFlags.Ephemeral });
+    if (raceInProgress || iaPendingLaunch) return interaction.reply({ content: 'Une course est d├®j├á en cours ou en pr├®paration, reviens dans un instant.', flags: MessageFlags.Ephemeral });
+    if (currentPlayers.includes(interaction.user.id)) return interaction.reply({ content: 'Tu es d├®j├á inscrit pour cette course.', flags: MessageFlags.Ephemeral });
 
     if (waitingForPlayers) {
-      if (currentPlayers.length >= expectedHumans) return interaction.reply({ content: 'Toutes les places sont déjà prises.', flags: MessageFlags.Ephemeral });
-      if (isJoinWindowLocked()) return interaction.reply({ content: 'Les inscriptions sont fermées durant les 30 dernières secondes avant le départ.', flags: MessageFlags.Ephemeral });
+      if (currentPlayers.length >= expectedHumans) return interaction.reply({ content: 'Toutes les places sont d├®j├á prises.', flags: MessageFlags.Ephemeral });
+      if (isJoinWindowLocked()) return interaction.reply({ content: 'Les inscriptions sont ferm├®es durant les 30 derni├¿res secondes avant le d├®part.', flags: MessageFlags.Ephemeral });
       return interaction.reply({
         content: 'Choisis ta dragodinde pour rejoindre la course en attente :',
         components: horseChoiceRows(interaction.user.id, 'join_waiting', 'players', null),
@@ -2365,7 +2364,7 @@ async function handleButtonInteraction(interaction) {
 
     if (reservationIsActive() && currentReservation.user_id !== interaction.user.id) {
       const remaining = Math.max(0, Math.floor((currentReservation.expires_at - Date.now()) / 1000));
-      return interaction.reply({ content: `Une autre personne est en train de finaliser son inscription.\nPriorité à <@${currentReservation.user_id}> pendant encore **${remaining} sec**.`, flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: `Une autre personne est en train de finaliser son inscription.\nPriorit├® ├á <@${currentReservation.user_id}> pendant encore **${remaining} sec**.`, flags: MessageFlags.Ephemeral });
     }
 
     const token = createReservation(interaction.user.id);
@@ -2375,14 +2374,14 @@ async function handleButtonInteraction(interaction) {
 
   if (customId.startsWith('mode:')) {
     const [, mode, userId, token] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({ content: `Mode choisi : ${mode === 'ia' ? "Contre l'IA" : "Contre d'autres joueurs"}`, components: [] });
     autoDeleteInteractionReply(interaction, 4000);
     const follow = await interaction.followUp({
       content: mode === 'ia'
-        ? 'Choisis ta formule IA : 💰 Double ta mise, 💎 Triple ta mise, ou 👑 Jackpot 2M'
+        ? 'Choisis ta formule IA : ­ƒÆ░ Double ta mise, ­ƒÆÄ Triple ta mise, ou ­ƒææ Jackpot 2M'
         : 'Combien d\'adversaires humains veux-tu ? (1, 2 ou 3)',
       components: countChoiceRows(userId, token, mode),
       flags: MessageFlags.Ephemeral,
@@ -2398,22 +2397,22 @@ async function handleButtonInteraction(interaction) {
 
     if (selectedMode === 'ia') {
       const [, , stakeCode, prizeCode, userId, token] = parts;
-      if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
-      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+      if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
+      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
       const iaFormula = parseIaFormula(`${stakeCode}|${prizeCode}`);
       if (!iaFormula) return interaction.reply({ content: 'Formule IA invalide.', flags: MessageFlags.Ephemeral });
 
       if (`${stakeCode}|${prizeCode}` === '220k|2000k') {
         await interaction.update({
-          content: `👑 **LE GROS COUP DU PMU** 👑\n\nTu es à deux doigts de tenter le pari que les gens racontent encore au comptoir quand ça tourne bien... ou quand ça finit très mal.\n\n💰 **Mise demandée : 220 000 kamas**\n🏆 **Gain potentiel : 2 000 000 kamas**\n🤖 **Adversaires : 3 IA**\n⏳ **Temps pour décider : ${JACKPOT_CONFIRM_WINDOW_SECONDS} secondes**\n\nSi tu valides, tu entres dans la catégorie des gens très confiants, ou très mal conseillés.\n\nConfirme que tu veux bien engager cette mise avant de choisir ta dragodinde.`,
+          content: `­ƒææ **LE GROS COUP DU PMU** ­ƒææ\n\nTu es ├á deux doigts de tenter le pari que les gens racontent encore au comptoir quand ├ºa tourne bien... ou quand ├ºa finit tr├¿s mal.\n\n­ƒÆ░ **Mise demand├®e : 220 000 kamas**\n­ƒÅå **Gain potentiel : 2 000 000 kamas**\n­ƒñû **Adversaires : 3 IA**\nÔÅ│ **Temps pour d├®cider : ${JACKPOT_CONFIRM_WINDOW_SECONDS} secondes**\n\nSi tu valides, tu entres dans la cat├®gorie des gens tr├¿s confiants, ou tr├¿s mal conseill├®s.\n\nConfirme que tu veux bien engager cette mise avant de choisir ta dragodinde.`,
           components: iaJackpotConfirmRows(userId, token)
         });
         setTimeout(async () => {
           try {
             if (!reservationOwnedBy(userId, token)) return;
             await interaction.editReply({
-              content: '⏳ Temps écoulé. La demande de course jackpot a été annulée, il faudra recommencer.',
+              content: 'ÔÅ│ Temps ├®coul├®. La demande de course jackpot a ├®t├® annul├®e, il faudra recommencer.',
               components: []
             }).catch(() => {});
             clearReservation();
@@ -2436,8 +2435,8 @@ async function handleButtonInteraction(interaction) {
     }
 
     const [, , count, userId, token] = parts;
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({ content: `Nombre choisi : ${count}`, components: [] });
     autoDeleteInteractionReply(interaction, 4000);
@@ -2453,8 +2452,8 @@ async function handleButtonInteraction(interaction) {
 
   if (customId.startsWith('iaconfirm:')) {
     const [, stakeCode, prizeCode, userId, token] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({ content: 'Confirmation prise en compte.', components: [] });
     autoDeleteInteractionReply(interaction, 4000);
@@ -2470,11 +2469,11 @@ async function handleButtonInteraction(interaction) {
 
   if (customId.startsWith('iaback:')) {
     const [, userId, token] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
-    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
+    if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
 
     await interaction.update({
-      content: 'Choisis ta formule IA : 💰 Double ta mise, 💎 Triple ta mise, ou 👑 Jackpot 2M',
+      content: 'Choisis ta formule IA : ­ƒÆ░ Double ta mise, ­ƒÆÄ Triple ta mise, ou ­ƒææ Jackpot 2M',
       components: countChoiceRows(userId, token, 'ia')
     });
     return true;
@@ -2485,20 +2484,20 @@ async function handleButtonInteraction(interaction) {
     const selectedCount = selectedCountRaw === 'null' ? null : Number(selectedCountRaw);
     const horseIndex = Number(horseIndexRaw);
 
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
+    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
     const [allowed, reason] = canUserPlay(interaction.member);
     if (!allowed) return interaction.reply({ content: reason, flags: MessageFlags.Ephemeral });
 
     if (contextMode === 'new_match') {
-      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
+      if (!reservationOwnedBy(userId, token)) return interaction.reply({ content: 'Cette tentative a expir├®. Recommence en cliquant sur Participer.', flags: MessageFlags.Ephemeral });
       if (!canJoinButtonBeEnabled() && !waitingForPlayers) return interaction.reply({ content: 'Le jeu n\'est pas disponible pour le moment.', flags: MessageFlags.Ephemeral });
     }
 
-    if (currentPlayers.includes(interaction.user.id)) return interaction.reply({ content: 'Tu es déjà inscrit.', flags: MessageFlags.Ephemeral });
+    if (currentPlayers.includes(interaction.user.id)) return interaction.reply({ content: 'Tu es d├®j├á inscrit.', flags: MessageFlags.Ephemeral });
 
     if (contextMode === 'join_waiting') {
       const takenHorses = new Set(currentPlayers.map((uid) => playerHorses[uid]).filter((v) => v !== undefined));
-      if (takenHorses.has(horseIndex)) return interaction.reply({ content: 'Cette dragodinde est déjà prise par un autre joueur. Choisis-en une autre.', flags: MessageFlags.Ephemeral });
+      if (takenHorses.has(horseIndex)) return interaction.reply({ content: 'Cette dragodinde est d├®j├á prise par un autre joueur. Choisis-en une autre.', flags: MessageFlags.Ephemeral });
     }
 
     await interaction.update({ content: `Dragodinde choisie : ${HORSES[horseIndex].emoji} ${HORSES[horseIndex].name}`, components: [] });
@@ -2516,7 +2515,7 @@ async function handleButtonInteraction(interaction) {
     }
 
     const recordId = await createDebtRecord(userId, horseIndex, debtAmount, debtMeta);
-    if (!recordId) return interaction.followUp({ content: 'Impossible de créer l\'engagement de paiement. Vérifie le salon des logs.', flags: MessageFlags.Ephemeral });
+    if (!recordId) return interaction.followUp({ content: 'Impossible de cr├®er l\'engagement de paiement. V├®rifie le salon des logs.', flags: MessageFlags.Ephemeral });
 
     currentPlayers.push(userId);
     playerHorses[userId] = horseIndex;
@@ -2524,8 +2523,8 @@ async function handleButtonInteraction(interaction) {
 
     const debtMsg = await interaction.followUp({
       content: selectedMode === 'ia' && iaFormula
-        ? `Participation validée pour **${iaFormula.label}**. Gain potentiel : **${iaFormula.prize.toLocaleString('fr-FR')} kamas**.`
-        : 'Participation validée.',
+        ? `Participation valid├®e pour **${iaFormula.label}**. Gain potentiel : **${iaFormula.prize.toLocaleString('fr-FR')} kamas**.`
+        : 'Participation valid├®e.',
       flags: MessageFlags.Ephemeral,
       withResponse: true
     });
@@ -2546,7 +2545,7 @@ async function handleButtonInteraction(interaction) {
 
     clearReservation();
     const confirm = await interaction.followUp({
-      content: `Inscription validée ! Cheval : ${HORSES[horseIndex].emoji} ${HORSES[horseIndex].name}`,
+      content: `Inscription valid├®e ! Cheval : ${HORSES[horseIndex].emoji} ${HORSES[horseIndex].name}`,
       flags: MessageFlags.Ephemeral,
       withResponse: true
     });
@@ -2555,7 +2554,7 @@ async function handleButtonInteraction(interaction) {
     if (selectedMode === 'ia') {
       const msg = await interaction.followUp({
         content:
-          `Départ contre l'IA dans **${IA_PRESTART_SECONDS} secondes**.\n` +
+          `D├®part contre l'IA dans **${IA_PRESTART_SECONDS} secondes**.\n` +
           `Tu peux annuler pendant **${IA_CANCEL_WINDOW_SECONDS} secondes**.`,
         components: cancelIaLaunchRows(userId),
         flags: MessageFlags.Ephemeral,
@@ -2567,7 +2566,7 @@ async function handleButtonInteraction(interaction) {
     } else {
       currentMatchCreatorId = userId;
       const msg = await interaction.followUp({
-        content: `Recherche d'adversaires lancée. Tu peux annuler pendant **${MATCH_CANCEL_WINDOW_SECONDS} secondes**.`,
+        content: `Recherche d'adversaires lanc├®e. Tu peux annuler pendant **${MATCH_CANCEL_WINDOW_SECONDS} secondes**.`,
         components: cancelParticipationRows(userId),
         flags: MessageFlags.Ephemeral,
         withResponse: true
@@ -2581,8 +2580,8 @@ async function handleButtonInteraction(interaction) {
 
   if (customId.startsWith('cancelia:')) {
     const [, userId] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
-    if (!iaPendingLaunch || iaPendingUserId !== userId) return interaction.reply({ content: 'Il n’y a plus de départ IA en attente pour toi.', flags: MessageFlags.Ephemeral });
+    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
+    if (!iaPendingLaunch || iaPendingUserId !== userId) return interaction.reply({ content: 'Il nÔÇÖy a plus de d├®part IA en attente pour toi.', flags: MessageFlags.Ephemeral });
 
     await cancelUserParticipationDebt(userId).catch((error) => logException('cancelia.cancelUserParticipationDebt', error));
 
@@ -2592,7 +2591,7 @@ async function handleButtonInteraction(interaction) {
     delete playerMode[userId];
     clearReservation();
 
-    await interaction.update({ content: 'La course contre l’IA a été annulée avant le départ.', components: [] });
+    await interaction.update({ content: 'La course contre lÔÇÖIA a ├®t├® annul├®e avant le d├®part.', components: [] });
     autoDeleteInteractionReply(interaction, 5000);
     await updateMainMessage(interaction.channel).catch(() => {});
     return true;
@@ -2600,11 +2599,11 @@ async function handleButtonInteraction(interaction) {
 
   if (customId.startsWith('cancel:')) {
     const [, userId] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', flags: MessageFlags.Ephemeral });
-    if (raceInProgress) return interaction.reply({ content: 'La course a déjà commencé, tu ne peux plus annuler.', flags: MessageFlags.Ephemeral });
+    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autoris├®.', flags: MessageFlags.Ephemeral });
+    if (raceInProgress) return interaction.reply({ content: 'La course a d├®j├á commenc├®, tu ne peux plus annuler.', flags: MessageFlags.Ephemeral });
     if (!waitingForPlayers) return interaction.reply({ content: 'Il n\'y a plus de phase d\'attente en cours.', flags: MessageFlags.Ephemeral });
-    if (!currentPlayers.includes(userId)) return interaction.reply({ content: 'Tu n\'es plus inscrit à cette course.', flags: MessageFlags.Ephemeral });
-    if (!canCancelParticipationNow()) return interaction.reply({ content: `Le désistement n’est autorisé que pendant les ${MATCH_CANCEL_WINDOW_SECONDS} premières secondes de recherche.`, flags: MessageFlags.Ephemeral });
+    if (!currentPlayers.includes(userId)) return interaction.reply({ content: 'Tu n\'es plus inscrit ├á cette course.', flags: MessageFlags.Ephemeral });
+    if (!canCancelParticipationNow()) return interaction.reply({ content: `Le d├®sistement nÔÇÖest autoris├® que pendant les ${MATCH_CANCEL_WINDOW_SECONDS} premi├¿res secondes de recherche.`, flags: MessageFlags.Ephemeral });
 
     const isCreator = currentMatchCreatorId === userId;
 
@@ -2614,15 +2613,15 @@ async function handleButtonInteraction(interaction) {
     delete playerHorses[userId];
     delete playerMode[userId];
 
-    await interaction.update({ content: 'Ta participation a été annulée et ta dette a été retirée.', components: [] });
+    await interaction.update({ content: 'Ta participation a ├®t├® annul├®e et ta dette a ├®t├® retir├®e.', components: [] });
     autoDeleteInteractionReply(interaction, 5000);
 
     if (isCreator) {
-      await cancelMatchmakingSession(interaction.channel, 'Le créateur du pari a annulé sa participation, la file est donc fermée.');
+      await cancelMatchmakingSession(interaction.channel, 'Le cr├®ateur du pari a annul├® sa participation, la file est donc ferm├®e.');
       return true;
     }
     if (!currentPlayers.length) {
-      await cancelMatchmakingSession(interaction.channel, 'La file d’attente a été annulée, tous les joueurs se sont retirés.');
+      await cancelMatchmakingSession(interaction.channel, 'La file dÔÇÖattente a ├®t├® annul├®e, tous les joueurs se sont retir├®s.');
       return true;
     }
 
@@ -2639,8 +2638,8 @@ async function handleButtonInteraction(interaction) {
     let allowed = false;
     if (interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) allowed = true;
     else if (ADMIN_ROLE_ID && interaction.member.roles.cache.has(ADMIN_ROLE_ID)) allowed = true;
-    if (!allowed) return interaction.reply({ content: 'Rôle admin requis.', flags: MessageFlags.Ephemeral });
-    if (record.status === 'paid') return interaction.reply({ content: 'Ce gain est déjà validé.', flags: MessageFlags.Ephemeral });
+    if (!allowed) return interaction.reply({ content: 'R├┤le admin requis.', flags: MessageFlags.Ephemeral });
+    if (record.status === 'paid') return interaction.reply({ content: 'Ce gain est d├®j├á valid├®.', flags: MessageFlags.Ephemeral });
 
     record.status = 'paid';
     record.paid_at = nowIso();
@@ -2650,8 +2649,8 @@ async function handleButtonInteraction(interaction) {
     const existingEmbed = interaction.message.embeds?.[0];
     const embed = EmbedBuilder.from(existingEmbed)
       .setColor(0x3498DB)
-      .setDescription((existingEmbed?.description || '').replace('⏳ En attente de remise', '✅ Gain remis'))
-      .setFooter({ text: `Gain validé par ${interaction.user.displayName} le ${new Date().toLocaleString('fr-FR')}` });
+      .setDescription((existingEmbed?.description || '').replace('ÔÅ│ En attente de remise', 'Ô£à Gain remis'))
+      .setFooter({ text: `Gain valid├® par ${interaction.user.displayName} le ${new Date().toLocaleString('fr-FR')}` });
     await interaction.update({ embeds: [embed], components: [] });
     await updateDashboard();
     return true;
@@ -2665,9 +2664,9 @@ async function handleButtonInteraction(interaction) {
     let allowed = false;
     if (interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) allowed = true;
     else if (ADMIN_ROLE_ID && interaction.member.roles.cache.has(ADMIN_ROLE_ID)) allowed = true;
-    if (!allowed) return interaction.reply({ content: 'Rôle admin requis.', flags: MessageFlags.Ephemeral });
-    if (record.status === 'paid') return interaction.reply({ content: 'Ce paiement est déjà validé.', flags: MessageFlags.Ephemeral });
-    if (record.status === 'cancelled') return interaction.reply({ content: 'Cet engagement a déjà été annulé.', flags: MessageFlags.Ephemeral });
+    if (!allowed) return interaction.reply({ content: 'R├┤le admin requis.', flags: MessageFlags.Ephemeral });
+    if (record.status === 'paid') return interaction.reply({ content: 'Ce paiement est d├®j├á valid├®.', flags: MessageFlags.Ephemeral });
+    if (record.status === 'cancelled') return interaction.reply({ content: 'Cet engagement a d├®j├á ├®t├® annul├®.', flags: MessageFlags.Ephemeral });
 
     record.status = 'paid';
     record.paid_at = nowIso();
@@ -2676,7 +2675,7 @@ async function handleButtonInteraction(interaction) {
     applyUserPayment(record.user_id, record.amount);
 
     const existingEmbed = interaction.message.embeds?.[0];
-    const embed = EmbedBuilder.from(existingEmbed).setColor(0x00FF00).setDescription((existingEmbed?.description || '').replace('⏳ En attente de paiement', '✅ Payé')).setFooter({ text: `Validé par ${interaction.user.displayName} le ${new Date().toLocaleString('fr-FR')}` });
+    const embed = EmbedBuilder.from(existingEmbed).setColor(0x00FF00).setDescription((existingEmbed?.description || '').replace('ÔÅ│ En attente de paiement', 'Ô£à Pay├®')).setFooter({ text: `Valid├® par ${interaction.user.displayName} le ${new Date().toLocaleString('fr-FR')}` });
     await interaction.update({ embeds: [embed], components: [] });
     await updateDashboard();
     return true;
@@ -2692,7 +2691,7 @@ async function onInteraction(interaction) {
       const guild = interaction.guild;
 
       if (interaction.commandName === 'dragodinde_setup') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         setupInProgressByUser.add(interaction.user.id);
         configDrafts.set(interaction.user.id, {
           logs_channel_id: null,
@@ -2702,14 +2701,14 @@ async function onInteraction(interaction) {
           allowed_role_ids: [],
         });
         return interaction.reply({
-          content: '### 🏇 Bienvenue dans la configuration du jeu\nChoisis tous les éléments, puis valide à la fin. Rien ne sera créé avant validation.',
+          content: '### ­ƒÅç Bienvenue dans la configuration du jeu\nChoisis tous les ├®l├®ments, puis valide ├á la fin. Rien ne sera cr├®├® avant validation.',
           components: configRows(guild),
           flags: MessageFlags.Ephemeral,
         });
       }
 
       if (interaction.commandName === 'dragodinde_config') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         setupInProgressByUser.add(interaction.user.id);
         configDrafts.set(interaction.user.id, {
           logs_channel_id: config.logs_channel_id || null,
@@ -2718,11 +2717,11 @@ async function onInteraction(interaction) {
           notification_role_id: config.notification_role_id || null,
           allowed_role_ids: [...(config.allowed_role_ids || [])],
         });
-        return interaction.reply({ content: 'Modification de la configuration. Rien ne sera appliqué avant validation :', components: configRows(guild), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: 'Modification de la configuration. Rien ne sera appliqu├® avant validation :', components: configRows(guild), flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.commandName === 'set_emojis_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const emoji1 = interaction.options.getString('emoji1', true).trim();
@@ -2749,26 +2748,26 @@ async function onInteraction(interaction) {
         }
 
         await interaction.editReply({
-          content: `Emojis mis à jour !\nTonnerre: ${HORSE_EMOJIS[0]}\nÉclair: ${HORSE_EMOJIS[1]}\nFoudre: ${HORSE_EMOJIS[2]}\nTempête: ${HORSE_EMOJIS[3]}`
+          content: `Emojis mis ├á jour !\nTonnerre: ${HORSE_EMOJIS[0]}\n├ëclair: ${HORSE_EMOJIS[1]}\nFoudre: ${HORSE_EMOJIS[2]}\nTemp├¬te: ${HORSE_EMOJIS[3]}`
         });
         return true;
       }
 
       if (interaction.commandName === 'setup_dashboard_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         const salon = interaction.options.getChannel('salon', true);
         config.dashboard_channel_id = salon.id;
         config.dashboard_message_id = null;
         saveConfig();
         DASHBOARD_CHANNEL_ID = salon.id;
         DASHBOARD_MESSAGE_ID = null;
-        await interaction.reply({ content: `Salon du dashboard défini sur ${salon}`, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: `Salon du dashboard d├®fini sur ${salon}`, flags: MessageFlags.Ephemeral });
         await updateDashboard();
         return true;
       }
 
       if (interaction.commandName === 'debt_report_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         const debtRows = Object.entries(finance)
           .filter(([, data]) => Number(data?.total_debt || 0) > 0)
           .map(([uid, data]) => [uid, Number(data.total_debt || 0), Number(data.bets_count || 0), Number(data.payments_count || 0)])
@@ -2777,24 +2776,24 @@ async function onInteraction(interaction) {
         if (!debtRows.length) return interaction.reply({ content: 'Aucune dette en cours.', flags: MessageFlags.Ephemeral });
 
         const lines = debtRows.slice(0, 25).map(([uid, debt, betsCount, paymentsCount]) =>
-          `${debt > DEBT_LIMIT ? '🔒 bloqué' : '✅ autorisé'} <@${uid}> , **${debt.toLocaleString('fr-FR')} kamas** | paris: ${betsCount} | paiements: ${paymentsCount}`
+          `${debt > DEBT_LIMIT ? '­ƒöÆ bloqu├®' : 'Ô£à autoris├®'} <@${uid}> , **${debt.toLocaleString('fr-FR')} kamas** | paris: ${betsCount} | paiements: ${paymentsCount}`
         );
 
         const embed = new EmbedBuilder()
-          .setTitle('💳 Rapport des dettes')
+          .setTitle('­ƒÆ│ Rapport des dettes')
           .setDescription(lines.join('\n'))
           .setColor(0xE67E22)
           .setTimestamp(utcnow())
           .addFields(
             { name: 'Dette totale', value: `${totalOutstandingDebt().toLocaleString('fr-FR')} kamas`, inline: true },
-            { name: 'Joueurs endettés', value: String(indebtedPlayersCount()), inline: true }
+            { name: 'Joueurs endett├®s', value: String(indebtedPlayersCount()), inline: true }
           );
 
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       }
 
       if (interaction.commandName === 'reset_total_dragodinde') {
-        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+        if (!isAdminMember(member)) return interaction.reply({ content: 'Tu dois ├¬tre administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
         await interaction.reply({ content: 'Reset total en cours...', flags: MessageFlags.Ephemeral });
 
         stopMatchmakingTimers();
@@ -2861,7 +2860,7 @@ async function onInteraction(interaction) {
         clearIaPendingLaunch();
 
         return interaction.followUp({
-          content: `Reset total terminé.\nSalon de logs précédent : ${previousLogsChannelId ? `<#${previousLogsChannelId}>` : 'aucun'}.\nRelance \`/dragodinde_setup\` pour repartir sur une base propre.`,
+          content: `Reset total termin├®.\nSalon de logs pr├®c├®dent : ${previousLogsChannelId ? `<#${previousLogsChannelId}>` : 'aucun'}.\nRelance \`/dragodinde_setup\` pour repartir sur une base propre.`,
           flags: MessageFlags.Ephemeral
         });
       }
@@ -2880,14 +2879,14 @@ async function onInteraction(interaction) {
     try {
       if (typeof interaction.isRepliable === 'function' && interaction.isRepliable()) {
         if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({ content: '❌ Une erreur est survenue.', flags: MessageFlags.Ephemeral });
+          await interaction.followUp({ content: 'ÔØî Une erreur est survenue.', flags: MessageFlags.Ephemeral });
         } else {
-          await interaction.reply({ content: '❌ Une erreur est survenue.', flags: MessageFlags.Ephemeral });
+          await interaction.reply({ content: 'ÔØî Une erreur est survenue.', flags: MessageFlags.Ephemeral });
         }
       } else if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({ content: '❌ Une erreur est survenue.', flags: MessageFlags.Ephemeral });
+        await interaction.followUp({ content: 'ÔØî Une erreur est survenue.', flags: MessageFlags.Ephemeral });
       } else {
-        await interaction.reply({ content: '❌ Une erreur est survenue.', flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: 'ÔØî Une erreur est survenue.', flags: MessageFlags.Ephemeral });
       }
     } catch {}
     return true;
@@ -2896,17 +2895,17 @@ async function onInteraction(interaction) {
 
 async function onReady(readyClient) {
   client = readyClient;
-  logInfo(`Bot connecté : ${readyClient.user.tag}`);
+  logInfo(`Bot connect├® : ${readyClient.user.tag}`);
   refreshHorsesFromEmojis();
   await downloadImage();
 
   try {
     mainMessage = await safeFetchMessage(MAIN_CHANNEL_ID, MAIN_MESSAGE_ID);
     if (mainMessage) {
-      logInfo('[INFO] Message principal restauré.');
+      logInfo('[INFO] Message principal restaur├®.');
       await updateMainMessage(mainMessage.channel);
     } else {
-      logInfo('[INFO] Aucun message principal restauré.');
+      logInfo('[INFO] Aucun message principal restaur├®.');
     }
   } catch (error) {
     logException('restoreMainMessage', error);
