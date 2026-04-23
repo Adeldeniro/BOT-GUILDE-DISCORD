@@ -549,7 +549,7 @@ async function ensureEventAdminPanel(guild, rc) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('evadm:resync').setLabel('🔄 Resync classement').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('evadm:add').setLabel('➕ Add points').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('evadm:set').setLabel('✏️ Set points').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('evadm:set').setLabel('✏️ Set points').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('evadm:remove').setLabel('🧹 Remove player').setStyle(ButtonStyle.Danger),
     new ButtonBuilder().setCustomId('evadm:reset').setLabel('🧨 Reset saison').setStyle(ButtonStyle.Danger),
   );
