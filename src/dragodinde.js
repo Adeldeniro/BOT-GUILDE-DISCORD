@@ -1,1277 +1,1067 @@
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
 const {
   SlashCommandBuilder,
+  PermissionFlagsBits,
+  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
-  AttachmentBuilder,
-  ChannelType,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
-  PermissionsBitField,
+  MessageFlags,
 } = require('discord.js');
 
-const DATA_DIR = path.join(__dirname, '..', 'data', 'dragodinde');
-const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
-const DEBTS_FILE = path.join(DATA_DIR, 'debts.json');
-const FINANCE_FILE = path.join(DATA_DIR, 'finance.json');
-const STATS_FILE = path.join(DATA_DIR, 'stats.json');
-const RUNTIME_FILE = path.join(DATA_DIR, 'runtime.json');
-const IMAGE_FILE = path.join(DATA_DIR, 'dragodinde.png');
-const SOURCE_DIR = path.join(process.env.USERPROFILE || '', 'Desktop', 'BOT TEST JEUX');
-const SOURCE_IMAGE_FILE = path.join(SOURCE_DIR, 'dragodinde.png');
+const db = require('./db');
 
-const ENTRY_FEE = 55_000;
-const REAL_BET = 50_000;
-const COMMISSION = ENTRY_FEE - REAL_BET;
-const MAX_PLAYERS = 4;
-const WAIT_TIME = 180;
-const FULL_LOBBY_START_DELAY_SECONDS = 25;
-const MATCH_CANCEL_WINDOW_SECONDS = 20;
-const JOIN_LOCK_LAST_SECONDS = 30;
-const COOLDOWN_AFTER_RACE = 30;
-const THREAD_LIFETIME = 45;
-const DEBT_LIMIT = 1_000_000;
-const PENDING_RESERVATION_SECONDS = 60;
-const IA_CANCEL_WINDOW_SECONDS = 20;
-const IA_PRESTART_SECONDS = 30;
-const TRACK_LENGTH = 12;
-const RACE_STEP_MIN = 2;
-const RACE_STEP_MAX = 4;
+const CLEAN_EMOJIS = ['🐎', '⚡', '🌩️', '🌊'];
+const CLEAN_NAMES = ['Tonnerre', 'Éclair', 'Foudre', 'Tempête'];
 
-function ensureDataDir() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+const DEFAULTS = {
+  entry_fee: 55000,
+  real_bet: 50000,
+  debt_limit: 1000000,
+  wait_time_seconds: 180,
+  cooldown_after_race_seconds: 30,
+  horse_emojis_json: JSON.stringify(CLEAN_EMOJIS),
+  allowed_role_ids_json: JSON.stringify([]),
+};
 
-function nowIso() {
-  return new Date().toISOString();
-}
+const runtimeStates = new Map();
+const HORSE_NAMES = CLEAN_NAMES;
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function defaultConfig() {
-  return {
-    logs_channel_id: null,
-    dashboard_channel_id: null,
-    dashboard_message_id: null,
-    admin_role_id: null,
-    notification_role_id: null,
-    main_channel_id: null,
-    main_message_id: null,
-    allowed_role_ids: [],
-    horse_emojis: ['🐎', '⚡', '🌩️', '🌊'],
-  };
-}
-
-function defaultStats() {
-  return {
-    total_gains: 0,
-    total_bets: 0,
-    total_races: 0,
-    ai_wins: 0,
-    top_winners: {},
-    last_race: {
-      winner_id: null,
-      winner_name: '',
-      gains: 0,
-      participants: [],
-      timestamp: '',
-    },
-  };
-}
-
-function defaultRuntime() {
-  return {
-    raceInProgress: false,
-    waitingForPlayers: false,
-    cooldown: false,
-    cooldownEndTime: 0,
-    expectedHumans: 0,
-    currentPlayers: [],
-    playerHorses: {},
-    playerMode: {},
-    currentMatchCreatorId: null,
-    currentMatchSessionId: null,
-    matchmakingStartedAt: 0,
-    fullLobbyDeadlineAt: 0,
-    reservation: null,
-    iaPendingLaunch: false,
-    iaPendingUserId: null,
-    iaPendingCount: 0,
-    raceAnnouncementChannelId: null,
-    raceAnnouncementMessageId: null,
-    raceWatchChannelId: null,
-    raceWatchMessageId: null,
-  };
-}
-
-function loadJson(file, fallback) {
+function safeJson(raw, fallback) {
   try {
-    if (!fs.existsSync(file)) return fallback;
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return JSON.parse(raw);
   } catch {
     return fallback;
   }
 }
 
-function saveJson(file, data) {
-  ensureDataDir();
-  fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+function ensureConfigRow(guildId) {
+  db.prepare(
+    `INSERT INTO dragodinde_config (
+      guild_id,
+      entry_fee,
+      real_bet,
+      debt_limit,
+      wait_time_seconds,
+      cooldown_after_race_seconds,
+      horse_emojis_json,
+      allowed_role_ids_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(guild_id) DO NOTHING`
+  ).run(
+    guildId,
+    DEFAULTS.entry_fee,
+    DEFAULTS.real_bet,
+    DEFAULTS.debt_limit,
+    DEFAULTS.wait_time_seconds,
+    DEFAULTS.cooldown_after_race_seconds,
+    DEFAULTS.horse_emojis_json,
+    DEFAULTS.allowed_role_ids_json,
+  );
 }
 
-function getState() {
-  ensureDataDir();
+function getDragodindeConfig(guildId) {
+  ensureConfigRow(guildId);
+  const row = db.prepare(`SELECT * FROM dragodinde_config WHERE guild_id=?`).get(guildId);
   return {
-    config: loadJson(CONFIG_FILE, defaultConfig()),
-    stats: loadJson(STATS_FILE, defaultStats()),
-    finance: loadJson(FINANCE_FILE, {}),
-    debts: loadJson(DEBTS_FILE, {}),
-    runtime: loadJson(RUNTIME_FILE, defaultRuntime()),
+    ...row,
+    horse_emojis: safeJson(row?.horse_emojis_json, CLEAN_EMOJIS),
+    allowed_role_ids: safeJson(row?.allowed_role_ids_json, []),
   };
 }
 
-function saveState(state) {
-  saveJson(CONFIG_FILE, state.config);
-  saveJson(STATS_FILE, state.stats);
-  saveJson(FINANCE_FILE, state.finance);
-  saveJson(DEBTS_FILE, state.debts);
-  saveJson(RUNTIME_FILE, state.runtime);
+function updateDragodindeConfig(guildId, patch) {
+  ensureConfigRow(guildId);
+  const payload = { ...patch, updated_at: Date.now() };
+  const keys = Object.keys(payload);
+  if (!keys.length) return getDragodindeConfig(guildId);
+  const sets = keys.map(k => `${k}=?`).join(', ');
+  const values = keys.map(k => payload[k]);
+  db.prepare(`UPDATE dragodinde_config SET ${sets} WHERE guild_id=?`).run(...values, guildId);
+  return getDragodindeConfig(guildId);
 }
 
-function horsesFromConfig(config) {
-  const emojis = Array.isArray(config.horse_emojis) && config.horse_emojis.length >= 4
-    ? config.horse_emojis
-    : ['🐎', '⚡', '🌩️', '🌊'];
-  return [
-    { name: 'Tonnerre', emoji: emojis[0] || '🐎' },
-    { name: 'Éclair', emoji: emojis[1] || '⚡' },
-    { name: 'Foudre', emoji: emojis[2] || '🌩️' },
-    { name: 'Tempête', emoji: emojis[3] || '🌊' },
-  ];
+function ensureStatsRow(guildId) {
+  db.prepare(
+    `INSERT INTO dragodinde_stats (
+      guild_id, total_gains, total_bets, total_races, ai_wins,
+      last_race_participants_json
+    ) VALUES (?, 0, 0, 0, 0, ?)
+    ON CONFLICT(guild_id) DO NOTHING`
+  ).run(guildId, JSON.stringify([]));
 }
 
-function getUserFinance(state, userId) {
-  const key = String(userId);
-  if (!state.finance[key]) {
-    state.finance[key] = {
-      total_debt: 0,
-      bets_count: 0,
-      payments_count: 0,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    };
-  }
-  return state.finance[key];
-}
-
-function getUserDebt(state, userId) {
-  return Number(getUserFinance(state, userId).total_debt || 0);
-}
-
-function addUserDebt(state, userId, amount) {
-  const data = getUserFinance(state, userId);
-  data.total_debt += amount;
-  data.bets_count += 1;
-  data.updated_at = nowIso();
-}
-
-function applyUserPayment(state, userId, amount) {
-  const data = getUserFinance(state, userId);
-  data.total_debt = Math.max(0, Number(data.total_debt || 0) - amount);
-  data.payments_count += 1;
-  data.updated_at = nowIso();
-}
-
-function totalOutstandingDebt(state) {
-  return Object.values(state.finance).reduce((sum, v) => sum + Number(v?.total_debt || 0), 0);
-}
-
-function indebtedPlayersCount(state) {
-  return Object.values(state.finance).filter(v => Number(v?.total_debt || 0) > 0).length;
-}
-
-function aiWinrate(state) {
-  const total = Number(state.stats.total_races || 0);
-  if (!total) return '0%';
-  return `${Math.round((Number(state.stats.ai_wins || 0) / total) * 100)}%`;
-}
-
-function isAdminMember(member, state) {
-  if (!member) return false;
-  if (member.permissions?.has(PermissionsBitField.Flags.Administrator)) return true;
-  if (state.config.admin_role_id && member.roles?.cache?.has(state.config.admin_role_id)) return true;
-  return false;
-}
-
-function canUserPlay(state, member) {
-  if (!member) return [false, 'Membre introuvable.'];
-  if (Array.isArray(state.config.allowed_role_ids) && state.config.allowed_role_ids.length > 0) {
-    const allowed = state.config.allowed_role_ids.some((roleId) => member.roles.cache.has(roleId));
-    if (!allowed) return [false, 'Tu n’as pas le rôle autorisé pour jouer.'];
-  }
-  const debt = getUserDebt(state, member.id);
-  if (debt > DEBT_LIMIT) {
-    return [false, `Accès bloqué, dette actuelle ${debt.toLocaleString('fr-FR')} kamas.`];
-  }
-  return [true, null];
-}
-
-function reservationIsActive(state) {
-  const r = state.runtime.reservation;
-  return !!(r && Number(r.expires_at || 0) > Date.now());
-}
-
-function clearReservation(state) {
-  state.runtime.reservation = null;
-}
-
-function createReservation(state, userId) {
-  const token = crypto.randomUUID().replace(/-/g, '');
-  state.runtime.reservation = {
-    user_id: String(userId),
-    token,
-    expires_at: Date.now() + PENDING_RESERVATION_SECONDS * 1000,
+function getDragodindeStats(guildId) {
+  ensureStatsRow(guildId);
+  const row = db.prepare(`SELECT * FROM dragodinde_stats WHERE guild_id=?`).get(guildId);
+  return {
+    ...row,
+    last_race_participants: safeJson(row?.last_race_participants_json, []),
   };
-  return token;
 }
 
-function reservationOwnedBy(state, userId, token) {
-  const r = state.runtime.reservation;
-  if (!reservationIsActive(state)) return false;
-  return r.user_id === String(userId) && r.token === token;
+function updateStatsAfterRace(guildId, { participants, winnerId, winnerName, totalPool, aiWon }) {
+  const stats = getDragodindeStats(guildId);
+  db.prepare(
+    `UPDATE dragodinde_stats SET
+      total_gains=?,
+      total_bets=?,
+      total_races=?,
+      ai_wins=?,
+      last_race_winner_id=?,
+      last_race_winner_name=?,
+      last_race_gains=?,
+      last_race_participants_json=?,
+      last_race_timestamp=?
+     WHERE guild_id=?`
+  ).run(
+    Number(stats.total_gains || 0) + Number(totalPool || 0),
+    Number(stats.total_bets || 0) + (DEFAULTS.entry_fee * Number(participants?.length || 0)),
+    Number(stats.total_races || 0) + 1,
+    Number(stats.ai_wins || 0) + (aiWon ? 1 : 0),
+    winnerId || null,
+    winnerName || null,
+    Number(totalPool || 0),
+    JSON.stringify(participants || []),
+    Date.now(),
+    guildId
+  );
 }
 
-function getMatchmakingRemainingSeconds(state) {
-  if (!state.runtime.waitingForPlayers || !state.runtime.matchmakingStartedAt) return 0;
-  return Math.max(0, WAIT_TIME - Math.floor((Date.now() - state.runtime.matchmakingStartedAt) / 1000));
+function addRaceHistory(guildId, payload) {
+  db.prepare(
+    `INSERT INTO dragodinde_race_history (
+      guild_id, winner_id, winner_name, winner_type, pot, participants_json, horses_json, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    guildId,
+    payload.winnerId || null,
+    payload.winnerName || null,
+    payload.winnerType || null,
+    Number(payload.pot || 0),
+    JSON.stringify(payload.participants || []),
+    JSON.stringify(payload.horses || {}),
+    Date.now()
+  );
 }
 
-function isJoinWindowLocked(state) {
-  const remaining = getMatchmakingRemainingSeconds(state);
-  return remaining > 0 && remaining <= JOIN_LOCK_LAST_SECONDS;
-}
-
-function canCancelParticipationNow(state) {
-  if (!state.runtime.waitingForPlayers || !state.runtime.matchmakingStartedAt) return false;
-  const elapsed = Math.floor((Date.now() - state.runtime.matchmakingStartedAt) / 1000);
-  return elapsed <= MATCH_CANCEL_WINDOW_SECONDS;
-}
-
-function canJoinButtonBeEnabled(state) {
-  return !state.runtime.raceInProgress && !state.runtime.cooldown && !state.runtime.iaPendingLaunch;
-}
-
-function buildMainMessageContent(state, timer = null) {
-  const rt = state.runtime;
-  let content = '**🏇 ANIMATION GUILDE - Mise sur ta Dragodinde !**\n\n';
-  content += 'Bienvenue dans **Mise sur ta Dragodinde !**\n\n';
-  content += `💰 **Participation :** ${ENTRY_FEE.toLocaleString('fr-FR')} kamas\n`;
-  content += `🧾 **Commission organisation :** ${COMMISSION.toLocaleString('fr-FR')} kamas par entrée\n`;
-  content += `🏆 **Gain joueurs :** ${REAL_BET.toLocaleString('fr-FR')} kamas par joueur humain engagé\n`;
-  content += `🤖 **Gain IA :** ${REAL_BET.toLocaleString('fr-FR')} kamas par IA battue\n`;
-  content += `🚫 **Blocage dette :** au-delà de ${DEBT_LIMIT.toLocaleString('fr-FR')} kamas\n\n`;
-  content += '**Comment jouer ?**\n';
-  content += '• Clique sur **Participer**\n';
-  content += '• Choisis le mode, puis le nombre d’adversaires, puis ta dragodinde\n';
-  content += '• En mode joueurs, les places manquantes sont complétées par l’IA à la fin du délai\n\n';
-
-  if (reservationIsActive(state) && !rt.waitingForPlayers && !rt.raceInProgress && !rt.cooldown) {
-    const remaining = Math.max(0, Math.floor((rt.reservation.expires_at - Date.now()) / 1000));
-    content += `⏳ **Réservation en cours** pour <@${rt.reservation.user_id}> pendant encore **${remaining} sec**\n\n`;
+function getRuntimeState(guildId) {
+  if (!runtimeStates.has(guildId)) {
+    runtimeStates.set(guildId, {
+      raceInProgress: false,
+      waitingForPlayers: false,
+      cooldownUntil: null,
+      expectedHumans: null,
+      currentPlayers: [],
+      currentMatchCreatorId: null,
+      selectedMode: null,
+      selectedCount: null,
+      selectedHorseIndex: null,
+      playerHorses: {},
+      playerModes: {},
+      waitingMessageId: null,
+      waitTimeoutAt: null,
+    });
   }
-
-  if (rt.iaPendingLaunch && rt.iaPendingUserId) {
-    content += `🤖 **Départ contre l'IA en préparation** pour <@${rt.iaPendingUserId}>\n`;
-    content += `🎯 IA prévues : **${rt.iaPendingCount}**\n`;
-    content += `❌ Annulation possible pendant **${IA_CANCEL_WINDOW_SECONDS} secondes**\n`;
-    content += `🚀 Départ automatique au bout de **${IA_PRESTART_SECONDS} secondes**\n\n`;
-  }
-
-  if (timer !== null && timer > 0) {
-    content += `⏱️ **Prochaine course disponible dans : ${timer} secondes**\n\n`;
-  } else if (rt.cooldown) {
-    const remaining = Math.max(0, Math.floor((rt.cooldownEndTime - Date.now()) / 1000));
-    content += `⏱️ **Prochaine course disponible dans : ${remaining} secondes**\n\n`;
-  }
-
-  if (rt.waitingForPlayers) {
-    content += `👥 **Recherche d'adversaires en cours** : ${rt.currentPlayers.length}/${rt.expectedHumans}\n`;
-    content += `⏱️ **Départ dans :** ${getMatchmakingRemainingSeconds(state)} sec\n`;
-    content += `🔒 **Inscriptions :** ${isJoinWindowLocked(state) ? 'fermées' : 'ouvertes'}\n`;
-    content += `↩️ **Annulation possible :** ${canCancelParticipationNow(state) ? 'oui' : 'non'}\n\n`;
-  }
-
-  content += '**Participants actuels :**\n';
-  if (rt.currentPlayers.length) {
-    const horses = horsesFromConfig(state.config);
-    for (const uid of rt.currentPlayers) {
-      const horseIndex = rt.playerHorses[uid];
-      const horse = horseIndex !== undefined ? horses[horseIndex] : null;
-      content += `• <@${uid}> ${horse ? `${horse.emoji} ${horse.name}` : '❓'}\n`;
-    }
-  } else {
-    content += 'Aucun participant pour l’instant.\n';
-  }
-
-  content += `\n*Capacité max : ${MAX_PLAYERS} joueurs humains*`;
-  return content;
+  return runtimeStates.get(guildId);
 }
 
-function joinButtonRow(state) {
+function saveRuntimeState(guildId) {
+  const state = getRuntimeState(guildId);
+  db.prepare(
+    `INSERT INTO dragodinde_runtime_state (
+      guild_id,
+      race_in_progress,
+      waiting_for_players,
+      cooldown_until,
+      expected_humans,
+      current_match_creator_id,
+      join_message_id,
+      selected_mode,
+      selected_count,
+      selected_horse_index,
+      current_players_json,
+      player_horses_json,
+      player_modes_json,
+      state_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(guild_id) DO UPDATE SET
+      race_in_progress=excluded.race_in_progress,
+      waiting_for_players=excluded.waiting_for_players,
+      cooldown_until=excluded.cooldown_until,
+      expected_humans=excluded.expected_humans,
+      current_match_creator_id=excluded.current_match_creator_id,
+      join_message_id=excluded.join_message_id,
+      selected_mode=excluded.selected_mode,
+      selected_count=excluded.selected_count,
+      selected_horse_index=excluded.selected_horse_index,
+      current_players_json=excluded.current_players_json,
+      player_horses_json=excluded.player_horses_json,
+      player_modes_json=excluded.player_modes_json,
+      state_json=excluded.state_json`
+  ).run(
+    guildId,
+    state.raceInProgress ? 1 : 0,
+    state.waitingForPlayers ? 1 : 0,
+    state.cooldownUntil || null,
+    state.expectedHumans || null,
+    state.currentMatchCreatorId || null,
+    state.waitingMessageId || null,
+    state.selectedMode || null,
+    state.selectedCount || null,
+    state.selectedHorseIndex ?? null,
+    JSON.stringify(state.currentPlayers || []),
+    JSON.stringify(state.playerHorses || {}),
+    JSON.stringify(state.playerModes || {}),
+    JSON.stringify({ version: 2, waitTimeoutAt: state.waitTimeoutAt || null })
+  );
+}
+
+function loadRuntimeState(guildId) {
+  const row = db.prepare(`SELECT * FROM dragodinde_runtime_state WHERE guild_id=?`).get(guildId);
+  const state = getRuntimeState(guildId);
+  if (!row) return state;
+
+  const extra = safeJson(row.state_json, {});
+  state.raceInProgress = Boolean(row.race_in_progress);
+  state.waitingForPlayers = Boolean(row.waiting_for_players);
+  state.cooldownUntil = row.cooldown_until || null;
+  state.expectedHumans = row.expected_humans || null;
+  state.currentMatchCreatorId = row.current_match_creator_id || null;
+  state.waitingMessageId = row.join_message_id || null;
+  state.selectedMode = row.selected_mode || null;
+  state.selectedCount = row.selected_count || null;
+  state.selectedHorseIndex = row.selected_horse_index ?? null;
+  state.currentPlayers = safeJson(row.current_players_json, []);
+  state.playerHorses = safeJson(row.player_horses_json, {});
+  state.playerModes = safeJson(row.player_modes_json, {});
+  state.waitTimeoutAt = extra.waitTimeoutAt || null;
+  return state;
+}
+
+function getHorseLabel(cfg, index) {
+  const emoji = (cfg.horse_emojis || CLEAN_EMOJIS)[index] || '🐎';
+  const name = HORSE_NAMES[index] || `Monture ${index + 1}`;
+  return `${emoji} ${name}`;
+}
+
+function buildMainEmbed(cfg, state) {
+  const horseEmojis = cfg.horse_emojis || CLEAN_EMOJIS;
+  const cooldownLeft = state.cooldownUntil
+    ? Math.max(0, Math.ceil((state.cooldownUntil - Date.now()) / 1000))
+    : null;
+
+  return new EmbedBuilder()
+    .setColor(0x8e44ad)
+    .setTitle('🐎 Dragodinde, panneau principal')
+    .setDescription([
+      `Participation: **${Number(cfg.entry_fee || DEFAULTS.entry_fee).toLocaleString('fr-FR')} kamas**`,
+      `Gain joueur: **${Number(cfg.real_bet || DEFAULTS.real_bet).toLocaleString('fr-FR')} kamas**`,
+      `Blocage dette: **${Number(cfg.debt_limit || DEFAULTS.debt_limit).toLocaleString('fr-FR')} kamas**`,
+      '',
+      `Montures: ${horseEmojis.join(' ')}`,
+      state.waitingForPlayers
+        ? `Recherche d'adversaires en cours: **${state.currentPlayers.length}/${state.expectedHumans || '?'}** joueurs humains`
+        : 'Aucune course en attente.',
+      cooldownLeft ? `Cooldown restant: **${cooldownLeft} sec**` : 'Jeu disponible.',
+      state.currentPlayers.length
+        ? `Participants actuels: ${state.currentPlayers.map(uid => `<@${uid}>`).join(', ')}`
+        : 'Aucun participant pour le moment.',
+    ].join('\n'));
+}
+
+function buildMainComponents(disabled = false) {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('dragodinde:join:main')
-        .setLabel('Participer')
+        .setCustomId('dragodinde:join')
+        .setLabel('🐎 Participer')
         .setStyle(ButtonStyle.Success)
-        .setDisabled(!canJoinButtonBeEnabled(state))
+        .setDisabled(disabled)
     ),
   ];
 }
 
-function modeChoiceRows(userId, token) {
+function buildModeComponents() {
   return [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`dragodinde:mode:ia:${userId}:${token}`).setLabel("Contre l'IA").setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`dragodinde:mode:players:${userId}:${token}`).setLabel("Contre d'autres joueurs").setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('dragodinde:mode:ia').setLabel("🤖 Contre l'IA").setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('dragodinde:mode:players').setLabel('👥 Contre joueurs').setStyle(ButtonStyle.Success),
     ),
   ];
 }
 
-function countChoiceRows(userId, token, selectedMode) {
+function buildCountComponents(mode) {
   return [
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`dragodinde:count:${selectedMode}:1:${userId}:${token}`).setLabel('1').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`dragodinde:count:${selectedMode}:2:${userId}:${token}`).setLabel('2').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`dragodinde:count:${selectedMode}:3:${userId}:${token}`).setLabel('3').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`dragodinde:count:${mode}:1`).setLabel('1').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`dragodinde:count:${mode}:2`).setLabel('2').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId(`dragodinde:count:${mode}:3`).setLabel('3').setStyle(ButtonStyle.Primary),
     ),
   ];
 }
 
-function horseChoiceRows(state, userId, contextMode, selectedMode, selectedCount, token) {
-  const horses = horsesFromConfig(state.config);
+function buildDebtPaymentComponents(recordId) {
   return [
     new ActionRowBuilder().addComponents(
-      horses.map((horse, index) => (
-        new ButtonBuilder()
-          .setCustomId(`dragodinde:horse:${contextMode}:${selectedMode}:${selectedCount ?? 'null'}:${index}:${userId}:${token || 'none'}`)
-          .setLabel(horse.name)
-          .setEmoji(horse.emoji)
-          .setStyle(ButtonStyle.Primary)
-      ))
+      new ButtonBuilder()
+        .setCustomId(`dragodinde:debtpay:${recordId}`)
+        .setLabel('✅ Valider le paiement')
+        .setStyle(ButtonStyle.Success)
     ),
   ];
 }
 
-function cancelParticipationRows(userId) {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`dragodinde:cancel:${userId}`).setLabel('Annuler ma participation').setStyle(ButtonStyle.Danger)
-    ),
-  ];
+function buildDebtLogEmbed(cfg, record, debtTotal) {
+  return new EmbedBuilder()
+    .setColor(0xf39c12)
+    .setTitle('💰 Engagement de participation Dragodinde')
+    .setDescription([
+      `Joueur: <@${record.user_id}>`,
+      `Montant: **${Number(record.amount).toLocaleString('fr-FR')} kamas**`,
+      `Monture: ${getHorseLabel(cfg, record.horse_index)}`,
+      `Dette totale après inscription: **${Number(debtTotal).toLocaleString('fr-FR')} kamas**`,
+      'Statut: ⏳ En attente de paiement',
+    ].join('\n'));
 }
 
-function cancelIaLaunchRows(userId) {
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`dragodinde:cancelia:${userId}`).setLabel('Annuler cette course IA').setStyle(ButtonStyle.Danger)
-    ),
-  ];
-}
-
-function channelSelectRow(customId, placeholder) {
-  return new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(customId)
-      .setPlaceholder(placeholder)
-      .setMinValues(1)
-      .setMaxValues(1)
+function buildHorseComponents(cfg, state) {
+  const taken = new Set(Object.values(state.playerHorses || {}).map(v => Number(v)));
+  const buttons = [0, 1, 2, 3].map(index => new ButtonBuilder()
+    .setCustomId(`dragodinde:horse:${index}`)
+    .setLabel(getHorseLabel(cfg, index))
+    .setStyle(ButtonStyle.Primary)
+    .setDisabled(state.waitingForPlayers && taken.has(index))
   );
+
+  return [new ActionRowBuilder().addComponents(buttons)];
 }
 
-function roleSelectRow(customId, placeholder, options, maxValues = 1) {
-  return new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(customId)
-      .setPlaceholder(placeholder)
-      .setMinValues(1)
-      .setMaxValues(maxValues)
-      .addOptions(options.map((o) => new StringSelectMenuOptionBuilder().setLabel(o.label).setValue(o.value)))
-  );
-}
+function buildWaitingEmbed(cfg, state) {
+  const participants = state.currentPlayers.map(uid => {
+    const horseIndex = state.playerHorses[uid];
+    return `• <@${uid}> avec ${getHorseLabel(cfg, horseIndex)}`;
+  });
 
-function configRows(guild) {
-  const textChannels = guild.channels.cache
-    .filter((ch) => ch.type === ChannelType.GuildText)
-    .first(25)
-    .map((ch) => ({ label: ch.name.slice(0, 100), value: ch.id }));
-
-  const roles = guild.roles.cache
-    .filter((role) => role.name !== '@everyone')
-    .sort((a, b) => b.position - a.position)
-    .first(25)
-    .map((role) => ({ label: role.name.slice(0, 100), value: role.id }));
-
-  return [
-    roleSelectRow('dragodinde:config:logs_channel', 'Salon des logs', textChannels),
-    roleSelectRow('dragodinde:config:dashboard_channel', 'Salon du dashboard', textChannels),
-    roleSelectRow('dragodinde:config:admin_role', 'Rôle admin', roles),
-    roleSelectRow('dragodinde:config:notif_role', 'Rôle notification', roles),
-    roleSelectRow('dragodinde:config:allowed_roles', 'Rôles autorisés à jouer', roles, Math.min(roles.length || 1, 5)),
-  ];
-}
-
-async function safeFetchMessage(channel, messageId) {
-  try {
-    return await channel.messages.fetch(messageId);
-  } catch {
-    return null;
-  }
-}
-
-async function fetchChannel(client, channelId) {
-  if (!channelId) return null;
-  return client.channels.fetch(channelId).catch(() => null);
-}
-
-async function ensureImage() {
-  ensureDataDir();
-  if (fs.existsSync(IMAGE_FILE)) return IMAGE_FILE;
-  if (fs.existsSync(SOURCE_IMAGE_FILE)) {
-    fs.copyFileSync(SOURCE_IMAGE_FILE, IMAGE_FILE);
-    return IMAGE_FILE;
-  }
-  return null;
-}
-
-async function updateMainMessageByChannel(channel, state, timer = null) {
-  if (!channel || !channel.isTextBased()) return null;
-  let msg = null;
-  if (state.config.main_channel_id === channel.id && state.config.main_message_id) {
-    msg = await safeFetchMessage(channel, state.config.main_message_id);
-  }
-
-  const payload = {
-    content: buildMainMessageContent(state, timer),
-    components: joinButtonRow(state),
-  };
-  const imagePath = await ensureImage();
-  if (imagePath && !msg) payload.files = [new AttachmentBuilder(imagePath)];
-
-  if (msg) {
-    await msg.edit(payload).catch(() => {});
-    return msg;
-  }
-
-  msg = await channel.send(payload);
-  state.config.main_channel_id = channel.id;
-  state.config.main_message_id = msg.id;
-  saveState(state);
-  try { await msg.pin(); } catch {}
-  return msg;
-}
-
-async function updateMainMessage(client, state, timer = null) {
-  const channel = await fetchChannel(client, state.config.main_channel_id);
-  if (!channel) return null;
-  return updateMainMessageByChannel(channel, state, timer);
-}
-
-function humanHorseLines(state, userIds, horsesSnapshot = null) {
-  const horses = horsesFromConfig(state.config);
-  return userIds.map((uid) => {
-    const horseIndex = horsesSnapshot ? horsesSnapshot[uid] : state.runtime.playerHorses[uid];
-    const horse = horseIndex !== undefined ? horses[horseIndex] : null;
-    return `${horse ? horse.emoji : '❓'} <@${uid}>${horse ? ` avec **${horse.name}**` : ''}`;
-  }).join('\n') || '—';
-}
-
-function buildRaceStatusEmbed(state, phase, { creatorId = null, humans = [], aiCount = 0, pot = 0, winnerId = null, winnerName = null, horsesSnapshot = null, reason = null } = {}) {
-  const colorMap = {
-    waiting: 0xF1C40F,
-    launching: 0x3498DB,
-    running: 0x9B59B6,
-    finished: 0x2ECC71,
-    cancelled: 0xE74C3C,
-  };
-
-  const embed = new EmbedBuilder()
-    .setTitle('Course Dragodinde')
-    .setColor(colorMap[phase] ?? 0x3498DB)
-    .setTimestamp();
-
-  if (phase === 'waiting') {
-    const remaining = getMatchmakingRemainingSeconds(state);
-    embed
-      .setDescription(`**<@${creatorId}>** cherche des adversaires.\nInscrits : **${humans.length}/${state.runtime.expectedHumans}**\nPlaces restantes : **${Math.max(0, state.runtime.expectedHumans - humans.length)}**`)
-      .addFields(
-        { name: 'Joueurs engagés', value: humanHorseLines(state, humans, horsesSnapshot), inline: false },
-        { name: 'Cagnotte actuelle', value: `${(REAL_BET * humans.length).toLocaleString('fr-FR')} kamas`, inline: false },
-        { name: 'Départ dans', value: `${remaining} sec`, inline: true },
-        { name: 'Inscriptions', value: isJoinWindowLocked(state) ? 'Fermées' : 'Ouvertes', inline: true },
-        { name: 'Désistement', value: canCancelParticipationNow(state) ? 'Autorisé' : 'Verrouillé', inline: true },
-      );
-  }
-
-  if (phase === 'launching') {
-    embed.setDescription(`La course se prépare avec **${humans.length}** joueur(s) et **${aiCount}** IA.\nCagnotte : **${pot.toLocaleString('fr-FR')} kamas**`)
-      .addFields({ name: 'Participants', value: humanHorseLines(state, humans, horsesSnapshot), inline: false });
-  }
-
-  if (phase === 'running') {
-    embed.setDescription(`La course est en cours. Cagnotte : **${pot.toLocaleString('fr-FR')} kamas**`)
-      .addFields({ name: 'Participants', value: humanHorseLines(state, humans, horsesSnapshot), inline: false });
-  }
-
-  if (phase === 'finished') {
-    embed.setDescription(`Vainqueur : ${winnerId ? `<@${winnerId}>` : '**IA**'} avec **${winnerName || 'Inconnu'}**`)
-      .addFields(
-        { name: 'Participants', value: humanHorseLines(state, humans, horsesSnapshot), inline: false },
-        { name: 'Cagnotte finale', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: true },
-      );
-  }
-
-  if (phase === 'cancelled') {
-    embed.setDescription(reason || 'Course annulée.');
-  }
-
-  return embed;
-}
-
-async function upsertRaceAnnouncement(client, state, channel, embed) {
-  let msg = null;
-  if (state.runtime.raceAnnouncementChannelId && state.runtime.raceAnnouncementMessageId) {
-    const prevChannel = await fetchChannel(client, state.runtime.raceAnnouncementChannelId);
-    if (prevChannel) msg = await safeFetchMessage(prevChannel, state.runtime.raceAnnouncementMessageId);
-  }
-
-  if (msg) {
-    await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
-    return msg;
-  }
-
-  msg = await channel.send({ embeds: [embed] });
-  state.runtime.raceAnnouncementChannelId = channel.id;
-  state.runtime.raceAnnouncementMessageId = msg.id;
-  saveState(state);
-  return msg;
-}
-
-async function clearRaceAnnouncement(client, state) {
-  if (!state.runtime.raceAnnouncementChannelId || !state.runtime.raceAnnouncementMessageId) return;
-  const ch = await fetchChannel(client, state.runtime.raceAnnouncementChannelId);
-  if (!ch) return;
-  const msg = await safeFetchMessage(ch, state.runtime.raceAnnouncementMessageId);
-  if (msg) await msg.delete().catch(() => {});
-  state.runtime.raceAnnouncementChannelId = null;
-  state.runtime.raceAnnouncementMessageId = null;
-  saveState(state);
-}
-
-function buildDashboardEmbed(state) {
-  const debtRows = Object.entries(state.finance)
-    .map(([uid, data]) => [uid, Number(data?.total_debt || 0)])
-    .filter(([, amount]) => amount > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
+  const remaining = state.waitTimeoutAt
+    ? Math.max(0, Math.ceil((state.waitTimeoutAt - Date.now()) / 1000))
+    : Number(cfg.wait_time_seconds || DEFAULTS.wait_time_seconds);
 
   return new EmbedBuilder()
-    .setTitle('Dashboard Dragodinde')
-    .setColor(0xF39C12)
-    .addFields(
-      { name: 'Dette totale', value: `${totalOutstandingDebt(state).toLocaleString('fr-FR')} kamas`, inline: true },
-      { name: 'Joueurs endettés', value: String(indebtedPlayersCount(state)), inline: true },
-      { name: 'Courses', value: String(state.stats.total_races || 0), inline: true },
-      { name: 'Victoires IA', value: String(state.stats.ai_wins || 0), inline: true },
-      { name: 'Taux IA', value: aiWinrate(state), inline: true },
-      { name: 'Top dettes', value: debtRows.length ? debtRows.map(([uid, amount]) => `<@${uid}> : ${amount.toLocaleString('fr-FR')} kamas`).join('\n') : 'Aucune', inline: false },
-    )
-    .setTimestamp();
+    .setColor(0xf1c40f)
+    .setTitle('⏳ Course joueurs en attente')
+    .setDescription([
+      `Créateur: <@${state.currentMatchCreatorId}>`,
+      `Inscrits: **${state.currentPlayers.length}/${state.expectedHumans || '?'}**`,
+      `Temps restant avant remplissage IA: **${remaining} sec**`,
+      '',
+      participants.length ? participants.join('\n') : 'Aucun participant.',
+    ].join('\n'));
 }
 
-async function ensureDashboardMessage(channel, state) {
-  if (!channel || !channel.isTextBased()) return null;
-  let msg = null;
-  if (state.config.dashboard_channel_id === channel.id && state.config.dashboard_message_id) {
-    msg = await safeFetchMessage(channel, state.config.dashboard_message_id);
+function getUserFinance(guildId, userId) {
+  let row = db.prepare(`SELECT * FROM dragodinde_finance WHERE guild_id=? AND user_id=?`).get(guildId, userId);
+  if (!row) {
+    db.prepare(
+      `INSERT INTO dragodinde_finance (guild_id, user_id, total_debt, bets_count, payments_count, created_at, updated_at)
+       VALUES (?, ?, 0, 0, 0, ?, ?)`
+    ).run(guildId, userId, Date.now(), Date.now());
+    row = db.prepare(`SELECT * FROM dragodinde_finance WHERE guild_id=? AND user_id=?`).get(guildId, userId);
   }
-  const payload = { embeds: [buildDashboardEmbed(state)] };
-  if (msg) {
-    await msg.edit(payload).catch(() => {});
-    return msg;
+  return row;
+}
+
+function addDebtRecord(guildId, userId, horseIndex) {
+  const recordId = `${guildId}-${userId}-${Date.now()}`;
+  db.prepare(
+    `INSERT INTO dragodinde_debt_records (
+      record_id, guild_id, user_id, amount, horse_index, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, 'unpaid', ?)`
+  ).run(recordId, guildId, userId, DEFAULTS.entry_fee, horseIndex, Date.now());
+
+  const finance = getUserFinance(guildId, userId);
+  db.prepare(
+    `UPDATE dragodinde_finance
+     SET total_debt=?, bets_count=?, updated_at=?
+     WHERE guild_id=? AND user_id=?`
+  ).run(
+    Number(finance.total_debt || 0) + DEFAULTS.entry_fee,
+    Number(finance.bets_count || 0) + 1,
+    Date.now(),
+    guildId,
+    userId
+  );
+
+  return db.prepare(`SELECT * FROM dragodinde_debt_records WHERE record_id=?`).get(recordId);
+}
+
+function markDebtAsPaid(recordId, adminUserId) {
+  const record = db.prepare(`SELECT * FROM dragodinde_debt_records WHERE record_id=?`).get(recordId);
+  if (!record) return { ok: false, reason: 'Enregistrement introuvable.' };
+  if (record.status === 'paid') return { ok: false, reason: 'Paiement déjà validé.' };
+
+  db.prepare(
+    `UPDATE dragodinde_debt_records
+     SET status='paid', paid_at=?, paid_by_admin_id=?
+     WHERE record_id=?`
+  ).run(Date.now(), adminUserId, recordId);
+
+  const finance = getUserFinance(record.guild_id, record.user_id);
+  db.prepare(
+    `UPDATE dragodinde_finance
+     SET total_debt=?, payments_count=?, updated_at=?
+     WHERE guild_id=? AND user_id=?`
+  ).run(
+    Math.max(0, Number(finance.total_debt || 0) - Number(record.amount || 0)),
+    Number(finance.payments_count || 0) + 1,
+    Date.now(),
+    record.guild_id,
+    record.user_id
+  );
+
+  return { ok: true, record: db.prepare(`SELECT * FROM dragodinde_debt_records WHERE record_id=?`).get(recordId) };
+}
+
+function canMemberPlay(member, cfg) {
+  if (!member) return { ok: false, reason: 'Membre introuvable.' };
+  if (member.permissions.has(PermissionFlagsBits.Administrator)) return { ok: true };
+
+  const allowedRoles = Array.isArray(cfg.allowed_role_ids) ? cfg.allowed_role_ids : [];
+  if (allowedRoles.length && !member.roles.cache.some(r => allowedRoles.includes(r.id))) {
+    return {
+      ok: false,
+      reason: `⛔ Tu n'as pas accès à ce jeu. Rôles autorisés: ${allowedRoles.map(id => `<@&${id}>`).join(', ')}`,
+    };
   }
-  msg = await channel.send(payload);
-  state.config.dashboard_channel_id = channel.id;
-  state.config.dashboard_message_id = msg.id;
-  saveState(state);
+
+  const finance = getUserFinance(member.guild.id, member.id);
+  if (finance.total_debt > Number(cfg.debt_limit || DEFAULTS.debt_limit)) {
+    return {
+      ok: false,
+      reason: `⛔ Accès bloqué. Dette actuelle: **${Number(finance.total_debt).toLocaleString('fr-FR')} kamas**`,
+    };
+  }
+
+  return { ok: true };
+}
+
+function isAdminForGame(member, cfg) {
+  if (!member) return false;
+  if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+  if (cfg.admin_role_id && member.roles.cache.has(cfg.admin_role_id)) return true;
+  return false;
+}
+
+function resetStateForNextRace(guildId, preserveCooldown = true) {
+  const state = getRuntimeState(guildId);
+  state.raceInProgress = false;
+  state.waitingForPlayers = false;
+  state.expectedHumans = null;
+  state.currentMatchCreatorId = null;
+  state.selectedMode = null;
+  state.selectedCount = null;
+  state.selectedHorseIndex = null;
+  state.currentPlayers = [];
+  state.playerHorses = {};
+  state.playerModes = {};
+  state.waitingMessageId = null;
+  state.waitTimeoutAt = null;
+  if (!preserveCooldown) state.cooldownUntil = null;
+  saveRuntimeState(guildId);
+}
+
+function generateTrack(cfg, positions, activeHorseIndexes) {
+  return activeHorseIndexes.map((horseIndex, rank) => {
+    const pos = positions[horseIndex];
+    const filled = Math.max(0, Math.min(20, Math.floor(pos / 5)));
+    const bar = '█'.repeat(filled) + '░'.repeat(20 - filled);
+    return `**${rank + 1}.** ${getHorseLabel(cfg, horseIndex)} → ${pos}% ${bar}`;
+  }).join('\n');
+}
+
+async function ensureMainPanel(guild, channel, { allowCreate = true } = {}) {
+  const cfg = getDragodindeConfig(guild.id);
+  const state = getRuntimeState(guild.id);
+  const embed = buildMainEmbed(cfg, state);
+  const components = buildMainComponents(Boolean(state.raceInProgress));
+
+  if (cfg.main_channel_id === channel.id && cfg.main_message_id) {
+    try {
+      const existing = await channel.messages.fetch(cfg.main_message_id);
+      await existing.edit({ embeds: [embed], components });
+      return existing;
+    } catch {}
+  }
+
+  if (!allowCreate) return null;
+
+  const msg = await channel.send({ embeds: [embed], components });
+  try { await msg.pin(); } catch {}
+
+  updateDragodindeConfig(guild.id, {
+    main_channel_id: channel.id,
+    main_message_id: msg.id,
+  });
+
   return msg;
 }
 
-async function updateDashboard(client, state) {
-  if (!state.config.dashboard_channel_id) return null;
-  const ch = await fetchChannel(client, state.config.dashboard_channel_id);
-  if (!ch) return null;
-  return ensureDashboardMessage(ch, state);
+async function postDebtLog(client, guildId, record) {
+  const cfg = getDragodindeConfig(guildId);
+  if (!cfg.logs_channel_id) return null;
+  const channel = await client.channels.fetch(cfg.logs_channel_id).catch(() => null);
+  if (!channel || !channel.isTextBased()) return null;
+
+  const finance = getUserFinance(guildId, record.user_id);
+  const msg = await channel.send({
+    embeds: [buildDebtLogEmbed(cfg, record, finance.total_debt)],
+    components: buildDebtPaymentComponents(record.record_id),
+  }).catch(() => null);
+
+  if (!msg) return null;
+
+  db.prepare(`UPDATE dragodinde_debt_records SET channel_id=?, message_id=? WHERE record_id=?`).run(channel.id, msg.id, record.record_id);
+  return msg;
 }
 
-async function createDebtRecord(interaction, state, horseIndex) {
-  if (!state.config.logs_channel_id) {
-    return { ok: false, reason: 'Salon de logs non configuré.' };
-  }
-  const logsChannel = await interaction.client.channels.fetch(state.config.logs_channel_id).catch(() => null);
-  if (!logsChannel || !logsChannel.isTextBased()) {
-    return { ok: false, reason: 'Salon de logs introuvable.' };
-  }
-
-  const horses = horsesFromConfig(state.config);
-  const recordId = crypto.randomUUID().replace(/-/g, '');
-  const futureTotal = getUserDebt(state, interaction.user.id) + ENTRY_FEE;
-
-  const embed = new EmbedBuilder()
-    .setTitle('Engagement de participation')
-    .setColor(0xFFA500)
-    .setDescription(
-      `**Joueur :** <@${interaction.user.id}>\n` +
-      `**Montant :** ${ENTRY_FEE.toLocaleString('fr-FR')} kamas\n` +
-      `**Cheval :** ${horses[horseIndex]?.emoji || '🐎'} ${horses[horseIndex]?.name || 'Inconnu'}\n` +
-      `**Dette totale après inscription :** ${futureTotal.toLocaleString('fr-FR')} kamas\n` +
-      `**Statut :** En attente de paiement`
-    )
-    .setTimestamp();
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`dragodinde:debtpay:${recordId}`).setLabel('Valider le paiement').setStyle(ButtonStyle.Success)
-  );
-
-  const msg = await logsChannel.send({ embeds: [embed], components: [row] });
-  state.debts[recordId] = {
-    record_id: recordId,
-    user_id: String(interaction.user.id),
-    amount: ENTRY_FEE,
-    horse_index: horseIndex,
-    status: 'unpaid',
-    channel_id: logsChannel.id,
-    message_id: msg.id,
-    created_at: nowIso(),
-  };
-  addUserDebt(state, interaction.user.id, ENTRY_FEE);
-  saveState(state);
-  await updateDashboard(interaction.client, state).catch(() => {});
-  return { ok: true, recordId };
-}
-
-async function cancelDebtRecord(client, state, recordId) {
-  const record = state.debts[recordId];
-  if (!record || record.status !== 'unpaid') return false;
-  record.status = 'cancelled';
-  record.cancelled_at = nowIso();
-  applyUserPayment(state, record.user_id, record.amount);
-  saveState(state);
-
-  const ch = await fetchChannel(client, record.channel_id);
-  const msg = ch ? await safeFetchMessage(ch, record.message_id) : null;
-  if (msg && msg.embeds?.[0]) {
-    const embed = EmbedBuilder.from(msg.embeds[0])
-      .setColor(0xE74C3C)
-      .setDescription(`${msg.embeds[0].description || ''}\n\n❌ Engagement annulé`);
-    await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
-  }
-
-  await updateDashboard(client, state).catch(() => {});
-  return true;
-}
-
-async function cancelUserParticipationDebt(client, state, userId) {
-  const entries = Object.values(state.debts).filter((rec) => rec.user_id === String(userId) && rec.status === 'unpaid');
-  for (const rec of entries) {
-    await cancelDebtRecord(client, state, rec.record_id);
-  }
-}
-
-function generateTrack(state, positions, activeHorseIndexes) {
-  const horses = horsesFromConfig(state.config);
-  const lines = [];
-  for (const index of activeHorseIndexes) {
-    const pos = Math.min(100, positions[index]);
-    const progress = Math.min(TRACK_LENGTH, Math.floor((pos / 100) * TRACK_LENGTH));
-    const track = '─'.repeat(progress) + '🏁' + '─'.repeat(Math.max(0, TRACK_LENGTH - progress));
-    lines.push(`${horses[index].emoji} ${horses[index].name.padEnd(9, ' ')} ${track} ${pos}%`);
-  }
-  return lines.join('\n');
-}
-
-function computeRaceAdvance() {
-  return Math.floor(Math.random() * (RACE_STEP_MAX - RACE_STEP_MIN + 1)) + RACE_STEP_MIN;
-}
-
-async function runCountdown(thread, seconds, label = 'Départ dans') {
-  const msg = await thread.send({ embeds: [new EmbedBuilder().setTitle('Pré-départ').setDescription(`${label} **${seconds}** secondes...`).setColor(0x3498DB).setTimestamp()] });
-  for (let s = seconds - 1; s >= 1; s--) {
-    await sleep(1000);
-    await msg.edit({ embeds: [new EmbedBuilder().setTitle('Pré-départ').setDescription(`${label} **${s}** secondes...`).setColor(0x3498DB).setTimestamp()] }).catch(() => {});
-  }
-  await sleep(1000);
-  await msg.delete().catch(() => {});
-}
-
-async function runRace(thread, state, contestants) {
-  const horses = horsesFromConfig(state.config);
-  const positions = [0, 0, 0, 0];
-  const horseToContestant = {};
-  const activeHorseIndexes = [];
-
-  for (const [type, uid, horseIndex] of contestants) {
-    horseToContestant[horseIndex] = [type, uid];
-    activeHorseIndexes.push(horseIndex);
-  }
-
-  await runCountdown(thread, 5, 'La course démarre dans');
-  const animMsg = await thread.send({ content: `🏇 **Départ** 🏇\n${generateTrack(state, positions, activeHorseIndexes)}` });
-  await sleep(1000);
-
-  let winnerHorse = null;
-  while (winnerHorse === null) {
-    const shuffled = [...activeHorseIndexes].sort(() => Math.random() - 0.5);
-    for (const idx of shuffled) {
-      positions[idx] += computeRaceAdvance();
-      if (positions[idx] >= 100) {
-        positions[idx] = 100;
-        winnerHorse = idx;
-        break;
-      }
-    }
-    await animMsg.edit({ content: `🏇 **Course en cours** 🏇\n${generateTrack(state, positions, activeHorseIndexes)}` }).catch(() => {});
-    await sleep(1450);
-  }
-
-  const [winnerType, winnerId] = horseToContestant[winnerHorse];
-  return [winnerType, winnerId, winnerHorse, horses[winnerHorse].name];
-}
-
-async function createRaceThread(channel, prefix) {
-  const starter = await channel.send({ content: '🏇' });
-  const thread = await starter.startThread({ name: `${prefix}-${Math.floor(Date.now() / 1000)}`, autoArchiveDuration: 60 });
-  return { starter, thread };
-}
-
-async function finishRace(client, state, channel) {
-  state.runtime.waitingForPlayers = false;
-  state.runtime.raceInProgress = false;
-  state.runtime.expectedHumans = 0;
-  state.runtime.currentMatchCreatorId = null;
-  state.runtime.currentMatchSessionId = null;
-  state.runtime.currentPlayers = [];
-  state.runtime.playerHorses = {};
-  state.runtime.playerMode = {};
-  clearReservation(state);
-  state.runtime.iaPendingLaunch = false;
-  state.runtime.iaPendingUserId = null;
-  state.runtime.iaPendingCount = 0;
-
-  state.runtime.cooldown = true;
-  state.runtime.cooldownEndTime = Date.now() + COOLDOWN_AFTER_RACE * 1000;
-  saveState(state);
-  await updateMainMessage(client, state).catch(() => {});
-
-  setTimeout(async () => {
-    const next = getState();
-    next.runtime.cooldown = false;
-    next.runtime.cooldownEndTime = 0;
-    saveState(next);
-    await clearRaceAnnouncement(client, next).catch(() => {});
-    await updateMainMessage(client, next).catch(() => {});
-  }, COOLDOWN_AFTER_RACE * 1000);
-}
-
-async function updateStatsAfterRace(state, participantsSnapshot, winnerId, winnerName, totalPool) {
-  state.stats.total_races = Number(state.stats.total_races || 0) + 1;
-  state.stats.total_bets = Number(state.stats.total_bets || 0) + participantsSnapshot.length;
-  if (!winnerId) state.stats.ai_wins = Number(state.stats.ai_wins || 0) + 1;
-  if (winnerId) {
-    state.stats.total_gains = Number(state.stats.total_gains || 0) + totalPool;
-    state.stats.top_winners[winnerId] = Number(state.stats.top_winners[winnerId] || 0) + totalPool;
-  }
-  state.stats.last_race = {
-    winner_id: winnerId || null,
-    winner_name: winnerName || '',
-    gains: winnerId ? totalPool : 0,
-    participants: participantsSnapshot,
-    timestamp: nowIso(),
-  };
-  saveState(state);
-}
-
-async function startIaRace(interaction, state, userId, channel, nbIa) {
-  if (state.runtime.raceInProgress || state.runtime.waitingForPlayers || state.runtime.iaPendingLaunch) {
-    await channel.send({ content: 'Une course est déjà en cours.' }).catch(() => {});
+async function sendFlowStep(interaction, payload) {
+  if (interaction.deferred || interaction.replied) {
+    await interaction.followUp({ ...payload, ephemeral: true });
     return;
   }
 
-  state.runtime.iaPendingLaunch = true;
-  state.runtime.iaPendingUserId = String(userId);
-  state.runtime.iaPendingCount = Number(nbIa);
-  saveState(state);
-  await updateMainMessage(interaction.client, state).catch(() => {});
-
-  setTimeout(async () => {
-    const live = getState();
-    if (!live.runtime.iaPendingLaunch || live.runtime.iaPendingUserId !== String(userId)) return;
-    live.runtime.iaPendingLaunch = false;
-    live.runtime.raceInProgress = true;
-    saveState(live);
-    await updateMainMessage(interaction.client, live).catch(() => {});
-
-    const totalPool = REAL_BET * nbIa;
-    const participantsSnapshot = [String(userId)];
-    const horsesSnapshot = { ...live.runtime.playerHorses };
-    const humanHorse = horsesSnapshot[String(userId)];
-    const used = new Set([humanHorse]);
-    const contestants = [['human', String(userId), humanHorse]];
-    const available = [0, 1, 2, 3].filter((i) => !used.has(i));
-    for (let i = 0; i < nbIa; i++) {
-      const horse = available.length ? available.shift() : i % 4;
-      contestants.push(['ai', null, horse]);
-    }
-
-    await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'launching', { humans: [String(userId)], aiCount: nbIa, pot: totalPool, horsesSnapshot }));
-
-    let starter = null;
-    let thread = null;
-    try {
-      const made = await createRaceThread(channel, 'course-ia');
-      starter = made.starter;
-      thread = made.thread;
-      await thread.send({ embeds: [new EmbedBuilder().setTitle('Course contre l’IA').setDescription(`Humain : ${humanHorseLines(live, [String(userId)], horsesSnapshot)}\nIA adverses : ${nbIa}\nCagnotte : ${totalPool.toLocaleString('fr-FR')} kamas`).setColor(0x3498DB).setTimestamp()] });
-      await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'running', { humans: [String(userId)], aiCount: nbIa, pot: totalPool, horsesSnapshot }));
-
-      const [winnerType, winnerId, winnerHorseIdx, winnerName] = await runRace(thread, live, contestants);
-      const horses = horsesFromConfig(live.config);
-
-      if (winnerType === 'human') {
-        await thread.send({ embeds: [new EmbedBuilder().setTitle('Victoire joueur').setDescription(`🏆 <@${winnerId}> remporte la course avec ${horses[winnerHorseIdx].emoji} **${winnerName}** et gagne **${totalPool.toLocaleString('fr-FR')} kamas**.`).setColor(0x2ECC71).setTimestamp()] });
-        await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'finished', { humans: [String(userId)], aiCount: nbIa, pot: totalPool, winnerId, winnerName, horsesSnapshot }));
-        await updateStatsAfterRace(live, participantsSnapshot, winnerId, winnerName, totalPool);
-      } else {
-        await thread.send({ embeds: [new EmbedBuilder().setTitle('Victoire IA').setDescription(`🤖 L’IA gagne avec ${horses[winnerHorseIdx].emoji} **${winnerName}**.`).setColor(0xE67E22).setTimestamp()] });
-        await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'finished', { humans: [String(userId)], aiCount: nbIa, pot: 0, winnerId: null, winnerName, horsesSnapshot }));
-        await updateStatsAfterRace(live, participantsSnapshot, null, winnerName, 0);
-      }
-
-      await thread.send({ content: `Ce thread sera supprimé dans ${THREAD_LIFETIME} secondes.` }).catch(() => {});
-      await sleep(THREAD_LIFETIME * 1000);
-    } catch {
-      await channel.send({ content: 'Erreur pendant la course IA.' }).catch(() => {});
-    } finally {
-      if (thread) await thread.delete().catch(() => {});
-      if (starter) await starter.delete().catch(() => {});
-      const endState = getState();
-      await finishRace(interaction.client, endState, channel);
-      await updateDashboard(interaction.client, endState).catch(() => {});
-    }
-  }, IA_PRESTART_SECONDS * 1000);
+  await interaction.reply({ ...payload, ephemeral: true, flags: MessageFlags.Ephemeral });
 }
 
-async function waitForPlayers(interaction, state, channel) {
-  const live = getState();
-  if (!live.runtime.waitingForPlayers || live.runtime.raceInProgress) return;
-
-  live.runtime.waitingForPlayers = false;
-  live.runtime.raceInProgress = true;
-  saveState(live);
-  await updateMainMessage(interaction.client, live).catch(() => {});
-
-  const humans = live.runtime.currentPlayers.slice(0, live.runtime.expectedHumans);
-  const nbIaNeeded = Math.max(0, live.runtime.expectedHumans - humans.length);
-  const totalPool = REAL_BET * humans.length;
-  const participantsSnapshot = [...humans];
-  const horsesSnapshot = { ...live.runtime.playerHorses };
-  const used = new Set();
-  const contestants = [];
-  for (const uid of humans) {
-    const horse = live.runtime.playerHorses[uid];
-    contestants.push(['human', uid, horse]);
-    used.add(horse);
-  }
-  const available = [0, 1, 2, 3].filter((i) => !used.has(i));
-  for (let i = 0; i < nbIaNeeded; i++) {
-    const horse = available.length ? available.shift() : i % 4;
-    contestants.push(['ai', null, horse]);
-  }
-
-  await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'launching', { humans, aiCount: nbIaNeeded, pot: totalPool, horsesSnapshot }));
-
-  let starter = null;
-  let thread = null;
-  try {
-    const made = await createRaceThread(channel, 'course-joueurs');
-    starter = made.starter;
-    thread = made.thread;
-    await thread.send({ embeds: [new EmbedBuilder().setTitle('Course entre joueurs').setDescription(`Participants :\n${humanHorseLines(live, humans, horsesSnapshot)}\nIA complémentaires : ${nbIaNeeded}\nCagnotte : ${totalPool.toLocaleString('fr-FR')} kamas`).setColor(0x3498DB).setTimestamp()] });
-    await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'running', { humans, aiCount: nbIaNeeded, pot: totalPool, horsesSnapshot }));
-
-    const [winnerType, winnerId, winnerHorseIdx, winnerName] = await runRace(thread, live, contestants);
-    const horses = horsesFromConfig(live.config);
-    if (winnerType === 'human') {
-      await thread.send({ embeds: [new EmbedBuilder().setTitle('Victoire joueur').setDescription(`🏆 <@${winnerId}> gagne avec ${horses[winnerHorseIdx].emoji} **${winnerName}** et remporte **${totalPool.toLocaleString('fr-FR')} kamas**.`).setColor(0x2ECC71).setTimestamp()] });
-      await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'finished', { humans, aiCount: nbIaNeeded, pot: totalPool, winnerId, winnerName, horsesSnapshot }));
-      await updateStatsAfterRace(live, participantsSnapshot, winnerId, winnerName, totalPool);
-    } else {
-      await thread.send({ embeds: [new EmbedBuilder().setTitle('Victoire IA').setDescription(`🤖 L’IA gagne avec ${horses[winnerHorseIdx].emoji} **${winnerName}**.`).setColor(0xE67E22).setTimestamp()] });
-      await upsertRaceAnnouncement(interaction.client, live, channel, buildRaceStatusEmbed(live, 'finished', { humans, aiCount: nbIaNeeded, pot: 0, winnerId: null, winnerName, horsesSnapshot }));
-      await updateStatsAfterRace(live, participantsSnapshot, null, winnerName, 0);
-    }
-
-    await thread.send({ content: `Ce thread sera supprimé dans ${THREAD_LIFETIME} secondes.` }).catch(() => {});
-    await sleep(THREAD_LIFETIME * 1000);
-  } catch {
-    await channel.send({ content: 'Erreur pendant la course joueurs.' }).catch(() => {});
-  } finally {
-    if (thread) await thread.delete().catch(() => {});
-    if (starter) await starter.delete().catch(() => {});
-    const endState = getState();
-    await finishRace(interaction.client, endState, channel);
-    await updateDashboard(interaction.client, endState).catch(() => {});
-  }
+function registerCommands(commands) {
+  commands.push(
+    new SlashCommandBuilder()
+      .setName('dragodinde_setup')
+      .setDescription('Configure le module Dragodinde')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .addChannelOption(opt =>
+        opt.setName('salon_principal').setDescription('Salon du panneau principal').setRequired(true)
+      )
+      .addChannelOption(opt =>
+        opt.setName('salon_logs').setDescription('Salon des logs et paiements').setRequired(false)
+      )
+      .addChannelOption(opt =>
+        opt.setName('salon_dashboard').setDescription('Salon du dashboard').setRequired(false)
+      )
+      .addRoleOption(opt =>
+        opt.setName('role_admin').setDescription('Rôle admin du jeu').setRequired(false)
+      )
+      .addRoleOption(opt =>
+        opt.setName('role_autorise').setDescription('Rôle autorisé à jouer').setRequired(false)
+      ),
+    new SlashCommandBuilder()
+      .setName('dragodinde_config')
+      .setDescription('Affiche la configuration Dragodinde')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder()
+      .setName('dragodinde_refresh')
+      .setDescription('Rafraîchit le panneau principal Dragodinde')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    new SlashCommandBuilder()
+      .setName('dragodinde_stats')
+      .setDescription('Affiche les statistiques Dragodinde')
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  );
 }
 
-async function startPlayersWait(interaction, state, userId, channel, nbAdversaires) {
-  state.runtime.waitingForPlayers = true;
-  state.runtime.raceInProgress = false;
-  state.runtime.expectedHumans = 1 + Number(nbAdversaires);
-  state.runtime.matchmakingStartedAt = Date.now();
-  state.runtime.currentMatchCreatorId = String(userId);
-  state.runtime.currentMatchSessionId = crypto.randomUUID().replace(/-/g, '');
-  saveState(state);
-
-  await updateMainMessage(interaction.client, state).catch(() => {});
-  await upsertRaceAnnouncement(interaction.client, state, channel, buildRaceStatusEmbed(state, 'waiting', {
-    creatorId: userId,
-    humans: [...state.runtime.currentPlayers],
-    pot: REAL_BET * state.runtime.currentPlayers.length,
-    horsesSnapshot: { ...state.runtime.playerHorses },
-  }));
-
-  setTimeout(async () => {
-    const live = getState();
-    if (!live.runtime.waitingForPlayers) return;
-    await waitForPlayers(interaction, live, channel);
-  }, WAIT_TIME * 1000);
-}
-
-async function maybeApplyDraftConfig(interaction, state, draft) {
-  if (!draft.logs_channel_id) return false;
-  state.config.logs_channel_id = draft.logs_channel_id;
-  state.config.dashboard_channel_id = draft.dashboard_channel_id || null;
-  state.config.admin_role_id = draft.admin_role_id || null;
-  state.config.notification_role_id = draft.notification_role_id || null;
-  state.config.allowed_role_ids = draft.allowed_role_ids || [];
-  saveState(state);
-  await updateMainMessageByChannel(interaction.channel, state).catch(() => {});
-  await updateDashboard(interaction.client, state).catch(() => {});
-  return true;
-}
-
-const configDrafts = new Map();
-function getConfigDraft(userId) {
-  const key = String(userId);
-  if (!configDrafts.has(key)) configDrafts.set(key, {});
-  return configDrafts.get(key);
-}
-
-async function handleConfigSelect(interaction) {
-  const state = getState();
-  const draft = getConfigDraft(interaction.user.id);
-
-  if (interaction.customId === 'dragodinde:config:logs_channel') {
-    draft.logs_channel_id = interaction.values[0] || null;
-    await maybeApplyDraftConfig(interaction, state, draft);
-    return interaction.reply({ content: `Salon des logs sélectionné : <#${interaction.values[0]}>`, ephemeral: true });
-  }
-  if (interaction.customId === 'dragodinde:config:dashboard_channel') {
-    draft.dashboard_channel_id = interaction.values[0] || null;
-    await maybeApplyDraftConfig(interaction, state, draft);
-    return interaction.reply({ content: `Salon du dashboard sélectionné : <#${interaction.values[0]}>`, ephemeral: true });
-  }
-  if (interaction.customId === 'dragodinde:config:admin_role') {
-    draft.admin_role_id = interaction.values[0] || null;
-    await maybeApplyDraftConfig(interaction, state, draft);
-    return interaction.reply({ content: `Rôle admin : ${draft.admin_role_id ? `<@&${draft.admin_role_id}>` : 'Aucun'}`, ephemeral: true });
-  }
-  if (interaction.customId === 'dragodinde:config:notif_role') {
-    draft.notification_role_id = interaction.values[0] || null;
-    await maybeApplyDraftConfig(interaction, state, draft);
-    return interaction.reply({ content: `Rôle notification : ${draft.notification_role_id ? `<@&${draft.notification_role_id}>` : 'Aucun'}`, ephemeral: true });
-  }
-  if (interaction.customId === 'dragodinde:config:allowed_roles') {
-    draft.allowed_role_ids = [...interaction.values];
-    await maybeApplyDraftConfig(interaction, state, draft);
-    const txt = draft.allowed_role_ids.length ? draft.allowed_role_ids.map((rid) => `<@&${rid}>`).join(', ') : 'Aucun filtre';
-    return interaction.reply({ content: `Rôles autorisés : ${txt}`, ephemeral: true });
-  }
-
-  return false;
-}
-
-function buildCommands() {
-  return [
-    new SlashCommandBuilder().setName('dragodinde_setup').setDescription('Configure le jeu et crée l’annonce épinglée'),
-    new SlashCommandBuilder().setName('config_course').setDescription('Modifier la configuration Dragodinde'),
-    new SlashCommandBuilder().setName('set_emojis_dragodinde').setDescription('Définir les 4 emojis des dragodindes')
-      .addStringOption((o) => o.setName('emoji1').setDescription('Tonnerre').setRequired(true))
-      .addStringOption((o) => o.setName('emoji2').setDescription('Éclair').setRequired(true))
-      .addStringOption((o) => o.setName('emoji3').setDescription('Foudre').setRequired(true))
-      .addStringOption((o) => o.setName('emoji4').setDescription('Tempête').setRequired(true)),
-    new SlashCommandBuilder().setName('setup_dashboard_dragodinde').setDescription('Crée ou met à jour le tableau de bord Dragodinde')
-      .addChannelOption((o) => o.setName('salon').setDescription('Salon du dashboard').setRequired(true).addChannelTypes(ChannelType.GuildText)),
-    new SlashCommandBuilder().setName('debt_report_dragodinde').setDescription('Rapport détaillé des dettes Dragodinde'),
-    new SlashCommandBuilder().setName('reset_total_dragodinde').setDescription('Supprime les messages du jeu et remet tout à zéro'),
-    new SlashCommandBuilder().setName('ping_dragodinde').setDescription('Vérifier la latence du module Dragodinde'),
-  ];
-}
-
-async function handleChatInputCommand(interaction) {
-  const state = getState();
-  const member = interaction.member;
-  const guild = interaction.guild;
-
-  if (interaction.commandName === 'dragodinde_setup') {
-    if (!isAdminMember(member, state)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
-    if (state.config.main_message_id && state.config.main_channel_id) {
-      return interaction.reply({ content: 'Un message de course existe déjà. Utilise `/reset_total_dragodinde` pour repartir proprement.', ephemeral: true });
-    }
-    return interaction.reply({ content: 'Bienvenue dans la configuration du jeu. Choisis le salon des logs, le salon du dashboard, le rôle admin, le rôle de notification et les rôles autorisés à jouer :', components: configRows(guild), ephemeral: true });
-  }
-
-  if (interaction.commandName === 'config_course') {
-    if (!isAdminMember(member, state)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
-    return interaction.reply({ content: 'Modification de la configuration Dragodinde :', components: configRows(guild), ephemeral: true });
-  }
-
-  if (interaction.commandName === 'set_emojis_dragodinde') {
-    if (!isAdminMember(member, state)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
-    state.config.horse_emojis = [
-      interaction.options.getString('emoji1', true),
-      interaction.options.getString('emoji2', true),
-      interaction.options.getString('emoji3', true),
-      interaction.options.getString('emoji4', true),
-    ];
-    saveState(state);
-    await interaction.reply({ content: `Emojis mis à jour : ${state.config.horse_emojis.join(' ')}`, ephemeral: true });
-    await updateMainMessageByChannel(interaction.channel, state).catch(() => {});
+async function handleChatInput(interaction) {
+  if (!interaction.inGuild()) {
+    await interaction.reply({ content: 'Commande utilisable uniquement dans un serveur.', ephemeral: true });
     return true;
   }
 
-  if (interaction.commandName === 'setup_dashboard_dragodinde') {
-    if (!isAdminMember(member, state)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
-    const salon = interaction.options.getChannel('salon', true);
-    state.config.dashboard_channel_id = salon.id;
-    state.config.dashboard_message_id = null;
-    saveState(state);
-    await ensureDashboardMessage(salon, state);
-    return interaction.reply({ content: `Salon du dashboard défini sur ${salon}.`, ephemeral: true });
+  const { commandName } = interaction;
+  if (!['dragodinde_setup', 'dragodinde_config', 'dragodinde_refresh', 'dragodinde_stats'].includes(commandName)) {
+    return false;
   }
 
-  if (interaction.commandName === 'debt_report_dragodinde') {
-    if (!isAdminMember(member, state)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
-    const debtRows = Object.entries(state.finance)
-      .filter(([, data]) => Number(data?.total_debt || 0) > 0)
-      .map(([uid, data]) => [uid, Number(data.total_debt || 0), Number(data.bets_count || 0), Number(data.payments_count || 0)])
-      .sort((a, b) => b[1] - a[1]);
-    if (!debtRows.length) return interaction.reply({ content: 'Aucune dette en cours.', ephemeral: true });
-    const lines = debtRows.slice(0, 25).map(([uid, debt, betsCount, paymentsCount]) => `${debt > DEBT_LIMIT ? 'bloqué' : 'autorisé'} <@${uid}>  **${debt.toLocaleString('fr-FR')} kamas** | paris: ${betsCount} | paiements: ${paymentsCount}`);
-    const embed = new EmbedBuilder().setTitle('Rapport des dettes').setDescription(lines.join('\n')).setColor(0xE67E22).setTimestamp().addFields(
-      { name: 'Dette totale', value: `${totalOutstandingDebt(state).toLocaleString('fr-FR')} kamas`, inline: true },
-      { name: 'Joueurs endettés', value: String(indebtedPlayersCount(state)), inline: true },
-    );
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+  const guildId = interaction.guildId;
+
+  if (commandName === 'dragodinde_setup') {
+    const mainChannel = interaction.options.getChannel('salon_principal', true);
+    const logsChannel = interaction.options.getChannel('salon_logs');
+    const dashboardChannel = interaction.options.getChannel('salon_dashboard');
+    const adminRole = interaction.options.getRole('role_admin');
+    const allowedRole = interaction.options.getRole('role_autorise');
+
+    updateDragodindeConfig(guildId, {
+      logs_channel_id: logsChannel?.id || null,
+      admin_role_id: adminRole?.id || null,
+      dashboard_channel_id: dashboardChannel?.id || null,
+      allowed_role_ids_json: JSON.stringify(allowedRole ? [allowedRole.id] : []),
+    });
+
+    const msg = await ensureMainPanel(interaction.guild, mainChannel, { allowCreate: true });
+
+    await interaction.reply({
+      content: [
+        '✅ Module Dragodinde initialisé.',
+        `Panneau principal: ${mainChannel}`,
+        logsChannel ? `Logs: ${logsChannel}` : 'Logs: non configuré',
+        dashboardChannel ? `Dashboard: ${dashboardChannel}` : 'Dashboard: non configuré',
+        adminRole ? `Rôle admin: ${adminRole}` : 'Rôle admin: non configuré',
+        allowedRole ? `Rôle autorisé: ${allowedRole}` : 'Rôle autorisé: tous',
+        msg ? `Message principal: ${msg.url}` : 'Message principal: non créé',
+      ].join('\n'),
+      ephemeral: true,
+    });
+    return true;
   }
 
-  if (interaction.commandName === 'reset_total_dragodinde') {
-    if (!isAdminMember(member, state)) return interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
-    state.config = defaultConfig();
-    state.stats = defaultStats();
-    state.finance = {};
-    state.debts = {};
-    state.runtime = defaultRuntime();
-    saveState(state);
-    await clearRaceAnnouncement(interaction.client, state).catch(() => {});
-    return interaction.reply({ content: 'Reset total Dragodinde terminé. Relance `/dragodinde_setup` pour repartir proprement.', ephemeral: true });
+  if (commandName === 'dragodinde_config') {
+    const cfg = getDragodindeConfig(guildId);
+    const embed = new EmbedBuilder()
+      .setColor(0x9b59b6)
+      .setTitle('⚙️ Config Dragodinde')
+      .setDescription([
+        `Salon principal: ${cfg.main_channel_id ? `<#${cfg.main_channel_id}>` : '—'}`,
+        `Message principal: ${cfg.main_message_id || '—'}`,
+        `Salon logs: ${cfg.logs_channel_id ? `<#${cfg.logs_channel_id}>` : '—'}`,
+        `Salon dashboard: ${cfg.dashboard_channel_id ? `<#${cfg.dashboard_channel_id}>` : '—'}`,
+        `Rôle admin: ${cfg.admin_role_id ? `<@&${cfg.admin_role_id}>` : '—'}`,
+        `Rôles autorisés: ${cfg.allowed_role_ids?.length ? cfg.allowed_role_ids.map(id => `<@&${id}>`).join(', ') : 'Tous'}`,
+        `Entrée: ${Number(cfg.entry_fee || DEFAULTS.entry_fee).toLocaleString('fr-FR')} kamas`,
+        `Dette max: ${Number(cfg.debt_limit || DEFAULTS.debt_limit).toLocaleString('fr-FR')} kamas`,
+      ].join('\n'));
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+    return true;
   }
 
-  if (interaction.commandName === 'ping_dragodinde') {
-    return interaction.reply({ content: `Pong Dragodinde, latence: ${Math.round(interaction.client.ws.ping)} ms`, ephemeral: true });
-  }
-
-  return false;
-}
-
-async function handleButtonInteraction(interaction) {
-  const state = getState();
-  const { customId } = interaction;
-
-  if (customId === 'dragodinde:join:main') {
-    const [allowed, reason] = canUserPlay(state, interaction.member);
-    if (!allowed) return interaction.reply({ content: reason, ephemeral: true });
-    if (state.runtime.cooldown) return interaction.reply({ content: 'Une course vient de se terminer, patiente quelques secondes.', ephemeral: true });
-    if (state.runtime.raceInProgress || state.runtime.iaPendingLaunch) return interaction.reply({ content: 'Une course est déjà en cours ou en préparation.', ephemeral: true });
-    if (state.runtime.currentPlayers.includes(interaction.user.id)) return interaction.reply({ content: 'Tu es déjà inscrit pour cette course.', ephemeral: true });
-
-    if (state.runtime.waitingForPlayers) {
-      if (state.runtime.currentPlayers.length >= state.runtime.expectedHumans) return interaction.reply({ content: 'Toutes les places sont déjà prises.', ephemeral: true });
-      if (isJoinWindowLocked(state)) return interaction.reply({ content: 'Les inscriptions sont fermées durant les 30 dernières secondes avant le départ.', ephemeral: true });
-      return interaction.reply({ content: 'Choisis ta dragodinde pour rejoindre la course en attente :', components: horseChoiceRows(state, interaction.user.id, 'join_waiting', 'players', null, 'none'), ephemeral: true });
-    }
-
-    if (reservationIsActive(state) && state.runtime.reservation.user_id !== interaction.user.id) {
-      const remaining = Math.max(0, Math.floor((state.runtime.reservation.expires_at - Date.now()) / 1000));
-      return interaction.reply({ content: `Une autre personne est en train de finaliser son inscription, priorité à <@${state.runtime.reservation.user_id}> pendant encore **${remaining} sec**.`, ephemeral: true });
-    }
-
-    const token = createReservation(state, interaction.user.id);
-    saveState(state);
-    await updateMainMessage(interaction.client, state).catch(() => {});
-    return interaction.reply({ content: 'Choisis ton mode de jeu :', components: modeChoiceRows(interaction.user.id, token), ephemeral: true });
-  }
-
-  if (customId.startsWith('dragodinde:mode:')) {
-    const [, , mode, userId, token] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', ephemeral: true });
-    if (!reservationOwnedBy(state, userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', ephemeral: true });
-    await interaction.update({ content: `Mode choisi : ${mode === 'ia' ? "Contre l'IA" : "Contre d'autres joueurs"}`, components: [] });
-    const follow = await interaction.followUp({ content: mode === 'ia' ? 'Combien d’IA veux-tu affronter ? (1, 2 ou 3)' : 'Combien d’adversaires humains veux-tu ? (1, 2 ou 3)', components: countChoiceRows(userId, token, mode), ephemeral: true });
-    return follow;
-  }
-
-  if (customId.startsWith('dragodinde:count:')) {
-    const [, , selectedMode, count, userId, token] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', ephemeral: true });
-    if (!reservationOwnedBy(state, userId, token)) return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', ephemeral: true });
-    await interaction.update({ content: `Nombre choisi : ${count}`, components: [] });
-    return interaction.followUp({ content: 'Choisis maintenant ta dragodinde :', components: horseChoiceRows(state, userId, 'new_match', selectedMode, count, token), ephemeral: true });
-  }
-
-  if (customId.startsWith('dragodinde:horse:')) {
-    const [, , contextMode, selectedMode, selectedCountRaw, horseIndexRaw, userId, token] = customId.split(':');
-    const horseIndex = Number(horseIndexRaw);
-    const selectedCount = selectedCountRaw === 'null' ? null : Number(selectedCountRaw);
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', ephemeral: true });
-    const [allowed, reason] = canUserPlay(state, interaction.member);
-    if (!allowed) return interaction.reply({ content: reason, ephemeral: true });
-    if (contextMode === 'new_match' && !reservationOwnedBy(state, userId, token)) {
-      return interaction.reply({ content: 'Cette tentative a expiré. Recommence en cliquant sur Participer.', ephemeral: true });
-    }
-    if (state.runtime.currentPlayers.includes(interaction.user.id)) return interaction.reply({ content: 'Tu es déjà inscrit.', ephemeral: true });
-
-    if (contextMode === 'join_waiting') {
-      const taken = new Set(state.runtime.currentPlayers.map((uid) => state.runtime.playerHorses[uid]).filter((v) => v !== undefined));
-      if (taken.has(horseIndex)) return interaction.reply({ content: 'Cette dragodinde est déjà prise par un autre joueur.', ephemeral: true });
-    }
-
-    const result = await createDebtRecord(interaction, state, horseIndex);
-    if (!result.ok) return interaction.reply({ content: result.reason, ephemeral: true });
-
-    state.runtime.currentPlayers.push(userId);
-    state.runtime.playerHorses[userId] = horseIndex;
-    state.runtime.playerMode[userId] = { type: selectedMode, count: selectedCount, debt_record_id: result.recordId };
-    saveState(state);
-
-    await interaction.update({ content: `Dragodinde choisie : ${horsesFromConfig(state.config)[horseIndex].emoji} ${horsesFromConfig(state.config)[horseIndex].name}`, components: [] });
-    await interaction.followUp({ content: `Dette actuelle : ${getUserDebt(state, userId).toLocaleString('fr-FR')} kamas`, ephemeral: true }).catch(() => {});
-
-    if (contextMode === 'join_waiting') {
-      await interaction.followUp({ content: `Tu as rejoint la course en attente. Annulation possible pendant ${MATCH_CANCEL_WINDOW_SECONDS} secondes.`, components: cancelParticipationRows(userId), ephemeral: true }).catch(() => {});
-      await updateMainMessage(interaction.client, state).catch(() => {});
-      await upsertRaceAnnouncement(interaction.client, state, interaction.channel, buildRaceStatusEmbed(state, 'waiting', { creatorId: state.runtime.currentMatchCreatorId, humans: [...state.runtime.currentPlayers], pot: REAL_BET * state.runtime.currentPlayers.length, horsesSnapshot: { ...state.runtime.playerHorses } })).catch(() => {});
+  if (commandName === 'dragodinde_refresh') {
+    const cfg = getDragodindeConfig(guildId);
+    if (!cfg.main_channel_id) {
+      await interaction.reply({ content: '❌ Aucun salon principal configuré. Lance /dragodinde_setup.', ephemeral: true });
       return true;
     }
 
-    clearReservation(state);
-    saveState(state);
-    await interaction.followUp({ content: `Inscription validée !`, ephemeral: true }).catch(() => {});
-    await updateMainMessage(interaction.client, state).catch(() => {});
-
-    if (selectedMode === 'ia') {
-      await interaction.followUp({ content: `Départ contre l’IA dans **${IA_PRESTART_SECONDS} secondes**.`, components: cancelIaLaunchRows(userId), ephemeral: true }).catch(() => {});
-      await startIaRace(interaction, state, userId, interaction.channel, Number(selectedCount || 1));
-    } else {
-      await interaction.followUp({ content: `Recherche d’adversaires lancée.`, components: cancelParticipationRows(userId), ephemeral: true }).catch(() => {});
-      await startPlayersWait(interaction, state, userId, interaction.channel, Number(selectedCount || 1));
+    const channel = await interaction.client.channels.fetch(cfg.main_channel_id).catch(() => null);
+    if (!channel || !channel.isTextBased()) {
+      await interaction.reply({ content: '❌ Salon principal inaccessible.', ephemeral: true });
+      return true;
     }
+
+    const msg = await ensureMainPanel(interaction.guild, channel, { allowCreate: true });
+    await interaction.reply({ content: `✅ Panneau Dragodinde rafraîchi.${msg ? `\n${msg.url}` : ''}`, ephemeral: true });
     return true;
   }
 
-  if (customId.startsWith('dragodinde:cancelia:')) {
-    const [, , userId] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', ephemeral: true });
-    if (!state.runtime.iaPendingLaunch || state.runtime.iaPendingUserId !== userId) return interaction.reply({ content: 'Il n’y a plus de départ IA en attente.', ephemeral: true });
-    await cancelUserParticipationDebt(interaction.client, state, userId);
-    state.runtime.iaPendingLaunch = false;
-    state.runtime.iaPendingUserId = null;
-    state.runtime.iaPendingCount = 0;
-    state.runtime.currentPlayers = state.runtime.currentPlayers.filter((uid) => uid !== userId);
-    delete state.runtime.playerHorses[userId];
-    delete state.runtime.playerMode[userId];
-    clearReservation(state);
-    saveState(state);
-    await interaction.update({ content: 'La course contre l’IA a été annulée avant le départ.', components: [] });
-    await updateMainMessage(interaction.client, state).catch(() => {});
-    return true;
-  }
+  if (commandName === 'dragodinde_stats') {
+    const stats = getDragodindeStats(guildId);
+    const embed = new EmbedBuilder()
+      .setColor(0x2ecc71)
+      .setTitle('📊 Stats Dragodinde')
+      .addFields(
+        { name: 'Courses', value: String(stats.total_races || 0), inline: true },
+        { name: 'Mises', value: `${Number(stats.total_bets || 0).toLocaleString('fr-FR')} kamas`, inline: true },
+        { name: 'Gains', value: `${Number(stats.total_gains || 0).toLocaleString('fr-FR')} kamas`, inline: true },
+        { name: 'Victoires IA', value: String(stats.ai_wins || 0), inline: true },
+      );
 
-  if (customId.startsWith('dragodinde:cancel:')) {
-    const [, , userId] = customId.split(':');
-    if (interaction.user.id !== userId) return interaction.reply({ content: 'Pas autorisé.', ephemeral: true });
-    if (state.runtime.raceInProgress) return interaction.reply({ content: 'La course a déjà commencé.', ephemeral: true });
-    if (!state.runtime.waitingForPlayers) return interaction.reply({ content: 'Il n’y a plus de phase d’attente.', ephemeral: true });
-    if (!state.runtime.currentPlayers.includes(userId)) return interaction.reply({ content: 'Tu n’es plus inscrit à cette course.', ephemeral: true });
-    if (!canCancelParticipationNow(state)) return interaction.reply({ content: `Le désistement n’est autorisé que pendant les ${MATCH_CANCEL_WINDOW_SECONDS} premières secondes.`, ephemeral: true });
-
-    await cancelUserParticipationDebt(interaction.client, state, userId);
-    state.runtime.currentPlayers = state.runtime.currentPlayers.filter((uid) => uid !== userId);
-    delete state.runtime.playerHorses[userId];
-    delete state.runtime.playerMode[userId];
-    saveState(state);
-
-    await interaction.update({ content: 'Ta participation a été annulée et ta dette retirée.', components: [] });
-    await updateMainMessage(interaction.client, state).catch(() => {});
-    await upsertRaceAnnouncement(interaction.client, state, interaction.channel, buildRaceStatusEmbed(state, 'waiting', { creatorId: state.runtime.currentMatchCreatorId, humans: [...state.runtime.currentPlayers], pot: REAL_BET * state.runtime.currentPlayers.length, horsesSnapshot: { ...state.runtime.playerHorses } })).catch(() => {});
-    return true;
-  }
-
-  if (customId.startsWith('dragodinde:debtpay:')) {
-    const [, , recordId] = customId.split(':');
-    const record = state.debts[recordId];
-    if (!record) return interaction.reply({ content: 'Enregistrement introuvable.', ephemeral: true });
-    if (!isAdminMember(interaction.member, state)) return interaction.reply({ content: 'Rôle admin requis.', ephemeral: true });
-    if (record.status === 'paid') return interaction.reply({ content: 'Ce paiement est déjà validé.', ephemeral: true });
-    if (record.status === 'cancelled') return interaction.reply({ content: 'Cet engagement a déjà été annulé.', ephemeral: true });
-
-    record.status = 'paid';
-    record.paid_at = nowIso();
-    record.paid_by_admin_id = interaction.user.id;
-    applyUserPayment(state, record.user_id, record.amount);
-    saveState(state);
-
-    const existingEmbed = interaction.message.embeds?.[0];
-    const embed = existingEmbed ? EmbedBuilder.from(existingEmbed).setColor(0x00FF00).setDescription(`${existingEmbed.description || ''}\n\n✅ Payé`) : null;
-    await interaction.update({ embeds: embed ? [embed] : [], components: [] });
-    await updateDashboard(interaction.client, state).catch(() => {});
+    await interaction.reply({ embeds: [embed], ephemeral: true });
     return true;
   }
 
   return false;
 }
 
+async function updateMainPanelFromInteraction(interaction) {
+  const cfg = getDragodindeConfig(interaction.guildId);
+  const channelId = cfg.main_channel_id || interaction.channelId;
+  const channel = await interaction.client.channels.fetch(channelId).catch(() => null);
+  if (channel && channel.isTextBased()) {
+    await ensureMainPanel(interaction.guild, channel, { allowCreate: true });
+  }
+}
+
+async function startWaitingRace(interaction, cfg, state) {
+  const channel = interaction.channel;
+  if (!channel?.isTextBased?.()) return;
+
+  const waitingEmbed = buildWaitingEmbed(cfg, state);
+  const msg = await channel.send({ embeds: [waitingEmbed] }).catch(() => null);
+  if (msg) state.waitingMessageId = msg.id;
+  state.waitTimeoutAt = Date.now() + (Number(cfg.wait_time_seconds || DEFAULTS.wait_time_seconds) * 1000);
+  saveRuntimeState(interaction.guildId);
+}
+
+async function updateWaitingMessage(interactionOrClient, guildId, channelId) {
+  const cfg = getDragodindeConfig(guildId);
+  const state = getRuntimeState(guildId);
+  if (!state.waitingMessageId) return;
+
+  const client = interactionOrClient.client || interactionOrClient;
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+
+  const msg = await channel.messages.fetch(state.waitingMessageId).catch(() => null);
+  if (!msg) return;
+  await msg.edit({ embeds: [buildWaitingEmbed(cfg, state)] }).catch(() => null);
+}
+
+async function runRaceCore({ interaction, cfg, participants, horses, aiCount = 0, mode = 'players' }) {
+  const guildId = interaction.guildId;
+  const totalPool = DEFAULTS.real_bet * (mode === 'ia' ? aiCount : participants.length);
+  const mainChannelId = cfg.main_channel_id || interaction.channelId;
+  const mainChannel = await interaction.client.channels.fetch(mainChannelId).catch(() => null);
+
+  const state = getRuntimeState(guildId);
+  state.raceInProgress = true;
+  state.waitingForPlayers = false;
+  state.cooldownUntil = null;
+  saveRuntimeState(guildId);
+
+  let thread = null;
+  try {
+    if (interaction.channel?.isThread?.()) {
+      thread = interaction.channel;
+    } else if (interaction.channel?.threads?.create) {
+      thread = await interaction.channel.threads.create({
+        name: `course-${mode}-${Date.now()}`,
+        autoArchiveDuration: 60,
+      });
+    }
+  } catch {}
+
+  const raceChannel = thread || interaction.channel;
+  const introLines = [
+    `🏁 **Course ${mode === 'ia' ? "contre l'IA" : 'entre joueurs'}**`,
+    ...participants.map(uid => `• <@${uid}> avec ${getHorseLabel(cfg, horses[uid])}`),
+  ];
+  if (aiCount) introLines.push(`• IA adverses: **${aiCount}**`);
+  introLines.push(`Cagnotte: **${Number(totalPool).toLocaleString('fr-FR')} kamas**`);
+
+  await raceChannel.send({ content: introLines.join('\n') }).catch(() => null);
+
+  const positions = [0, 0, 0, 0];
+  const activeHorseIndexes = [...new Set([
+    ...participants.map(uid => Number(horses[uid])),
+    ...[0, 1, 2, 3].filter(idx => !Object.values(horses).map(Number).includes(idx)).slice(0, aiCount),
+  ])];
+
+  const horseOwners = {};
+  for (const uid of participants) horseOwners[horses[uid]] = { type: 'human', uid };
+  for (const idx of activeHorseIndexes) {
+    if (!horseOwners[idx]) horseOwners[idx] = { type: 'ai', uid: null };
+  }
+
+  const animMsg = await raceChannel.send({ content: '🏇 **Départ**\n' + generateTrack(cfg, positions, activeHorseIndexes) }).catch(() => null);
+
+  let winnerHorseIndex = null;
+  for (let turn = 0; turn < 12; turn += 1) {
+    for (const idx of activeHorseIndexes) {
+      let advance = Math.floor(Math.random() * 10) + 4;
+      if (horseOwners[idx].type === 'ai') {
+        if (Math.random() < 0.4) advance += Math.floor(Math.random() * 3) + 1;
+        if (Math.random() < 0.1) advance -= 1;
+      }
+      positions[idx] = Math.max(0, Math.min(100, positions[idx] + advance));
+      if (positions[idx] >= 100) {
+        winnerHorseIndex = idx;
+        break;
+      }
+    }
+
+    activeHorseIndexes.sort((a, b) => positions[b] - positions[a]);
+    if (animMsg) {
+      await animMsg.edit({ content: '🏇 **Course en cours**\n' + generateTrack(cfg, positions, activeHorseIndexes) }).catch(() => null);
+    }
+
+    if (winnerHorseIndex !== null) break;
+    await new Promise(resolve => setTimeout(resolve, 900));
+  }
+
+  if (winnerHorseIndex === null) {
+    activeHorseIndexes.sort((a, b) => positions[b] - positions[a]);
+    winnerHorseIndex = activeHorseIndexes[0];
+  }
+
+  const winner = horseOwners[winnerHorseIndex];
+  const winnerType = winner.type;
+  const winnerId = winner.uid;
+  const winnerName = HORSE_NAMES[winnerHorseIndex];
+  const payout = winnerType === 'human' ? totalPool : 0;
+
+  await raceChannel.send({
+    content: winnerType === 'human'
+      ? `🥇 <@${winnerId}> gagne avec ${getHorseLabel(cfg, winnerHorseIndex)} et remporte **${Number(payout).toLocaleString('fr-FR')} kamas** !`
+      : `🤖 L'IA gagne avec ${getHorseLabel(cfg, winnerHorseIndex)}. La cagnotte reste à l'organisation.`,
+  }).catch(() => null);
+
+  updateStatsAfterRace(guildId, {
+    participants,
+    winnerId,
+    winnerName,
+    totalPool: payout,
+    aiWon: winnerType === 'ai',
+  });
+
+  addRaceHistory(guildId, {
+    winnerId,
+    winnerName,
+    winnerType,
+    pot: payout,
+    participants,
+    horses,
+  });
+
+  state.cooldownUntil = Date.now() + (Number(cfg.cooldown_after_race_seconds || DEFAULTS.cooldown_after_race_seconds) * 1000);
+  resetStateForNextRace(guildId, true);
+
+  if (mainChannel && mainChannel.isTextBased()) {
+    await ensureMainPanel(interaction.guild, mainChannel, { allowCreate: true });
+  }
+
+  if (thread) {
+    await raceChannel.send({ content: 'ℹ️ Fin de course. Thread conservé pour le moment.' }).catch(() => null);
+  }
+}
+
+async function maybeLaunchPlayersRace(interaction) {
+  const state = getRuntimeState(interaction.guildId);
+  if (!state.waitingForPlayers) return;
+  if (!state.expectedHumans || state.currentPlayers.length < state.expectedHumans) return;
+
+  const cfg = getDragodindeConfig(interaction.guildId);
+  const participants = [...state.currentPlayers];
+  const horses = { ...state.playerHorses };
+
+  await interaction.channel.send({ content: '✅ Le quota est atteint, la course joueurs démarre maintenant.' }).catch(() => null);
+  await runRaceCore({ interaction, cfg, participants, horses, aiCount: 0, mode: 'players' });
+}
+
+async function handleJoin(interaction) {
+  const cfg = getDragodindeConfig(interaction.guildId);
+  const state = getRuntimeState(interaction.guildId);
+  const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+  const access = canMemberPlay(member, cfg);
+  if (!access.ok) {
+    await sendFlowStep(interaction, { content: access.reason });
+    return true;
+  }
+
+  if (state.raceInProgress) {
+    await sendFlowStep(interaction, { content: '🏁 Une course est déjà en cours.' });
+    return true;
+  }
+
+  const now = Date.now();
+  if (state.cooldownUntil && state.cooldownUntil > now) {
+    await sendFlowStep(interaction, { content: `⏳ Cooldown actif, réessaie dans ${Math.ceil((state.cooldownUntil - now) / 1000)} sec.` });
+    return true;
+  }
+
+  if (state.currentPlayers.includes(interaction.user.id)) {
+    await sendFlowStep(interaction, { content: 'Tu es déjà inscrit à la course en attente.' });
+    return true;
+  }
+
+  if (state.waitingForPlayers) {
+    state.selectedMode = 'players';
+    saveRuntimeState(interaction.guildId);
+    await sendFlowStep(interaction, {
+      content: 'Une course joueurs est déjà ouverte. Choisis simplement ta dragodinde pour rejoindre.',
+      components: buildHorseComponents(cfg, state),
+    });
+    return true;
+  }
+
+  await sendFlowStep(interaction, {
+    content: 'Choisis ton mode de jeu :',
+    components: buildModeComponents(),
+  });
+  return true;
+}
+
+async function handleMode(interaction, mode) {
+  const state = getRuntimeState(interaction.guildId);
+  state.selectedMode = mode;
+  saveRuntimeState(interaction.guildId);
+  await interaction.update({
+    content: mode === 'ia' ? "Choisis combien d'IA tu veux affronter." : "Choisis combien d'adversaires humains tu veux.",
+    components: buildCountComponents(mode),
+  });
+  return true;
+}
+
+async function handleCount(interaction, mode, count) {
+  const cfg = getDragodindeConfig(interaction.guildId);
+  const state = getRuntimeState(interaction.guildId);
+  state.selectedMode = mode;
+  state.selectedCount = count;
+  saveRuntimeState(interaction.guildId);
+  await interaction.update({
+    content: 'Choisis maintenant ta dragodinde :',
+    components: buildHorseComponents(cfg, state),
+  });
+  return true;
+}
+
+async function handleHorse(interaction, horseIndex) {
+  const cfg = getDragodindeConfig(interaction.guildId);
+  const state = getRuntimeState(interaction.guildId);
+  const userId = interaction.user.id;
+
+  if (!state.selectedMode) {
+    await sendFlowStep(interaction, { content: '⛔ Séquence incomplète. Recommence avec le bouton Participer.' });
+    return true;
+  }
+
+  if (state.selectedMode === 'ia' && !state.selectedCount) {
+    await sendFlowStep(interaction, { content: '⛔ Choisis d’abord le nombre d’IA.' });
+    return true;
+  }
+
+  if (state.currentPlayers.includes(userId)) {
+    await sendFlowStep(interaction, { content: 'Tu es déjà inscrit.' });
+    return true;
+  }
+
+  const taken = new Set(Object.values(state.playerHorses || {}).map(v => Number(v)));
+  if (state.waitingForPlayers && taken.has(horseIndex)) {
+    await sendFlowStep(interaction, { content: '⛔ Cette monture est déjà prise.' });
+    return true;
+  }
+
+  const record = addDebtRecord(interaction.guildId, userId, horseIndex);
+  state.selectedHorseIndex = horseIndex;
+  state.currentPlayers.push(userId);
+  state.playerHorses[userId] = horseIndex;
+  state.playerModes[userId] = {
+    type: state.selectedMode,
+    count: state.selectedCount,
+    debt_record_id: record.record_id,
+  };
+
+  if (state.selectedMode === 'players') {
+    if (!state.waitingForPlayers) {
+      state.waitingForPlayers = true;
+      state.expectedHumans = Number(state.selectedCount) + 1;
+      state.currentMatchCreatorId = userId;
+      await startWaitingRace(interaction, cfg, state);
+    } else {
+      saveRuntimeState(interaction.guildId);
+      await updateWaitingMessage(interaction, interaction.guildId, interaction.channelId);
+    }
+  } else {
+    saveRuntimeState(interaction.guildId);
+  }
+
+  const finance = getUserFinance(interaction.guildId, userId);
+  const horseLabel = getHorseLabel(cfg, horseIndex);
+
+  await interaction.update({
+    content: [
+      `✅ Inscription enregistrée avec ${horseLabel}`,
+      `Mode: **${state.selectedMode === 'ia' ? 'IA' : 'Joueurs'}**`,
+      `Adversaires: **${state.selectedCount || (state.expectedHumans ? state.expectedHumans - 1 : '?')}**`,
+      `Dette actuelle: **${Number(finance.total_debt).toLocaleString('fr-FR')} kamas**`,
+      cfg.logs_channel_id ? 'Un log de paiement a été envoyé au salon staff.' : 'Aucun salon de logs configuré pour le paiement.',
+      state.selectedMode === 'players'
+        ? `Course ouverte. Inscrits: **${state.currentPlayers.length}/${state.expectedHumans}** joueurs humains.`
+        : 'Course IA en préparation...',
+    ].join('\n'),
+    components: [],
+  });
+
+  await postDebtLog(interaction.client, interaction.guildId, record);
+  await updateMainPanelFromInteraction(interaction);
+
+  if (state.selectedMode === 'ia') {
+    const participants = [userId];
+    const horses = { [userId]: horseIndex };
+    await runRaceCore({ interaction, cfg, participants, horses, aiCount: Number(state.selectedCount || 0), mode: 'ia' });
+    return true;
+  }
+
+  await maybeLaunchPlayersRace(interaction);
+  return true;
+}
+
+async function handleInteraction(interaction) {
+  if (interaction.isChatInputCommand && interaction.isChatInputCommand()) {
+    return handleChatInput(interaction);
+  }
+
+  if (interaction.isButton && interaction.isButton()) {
+    if (interaction.customId === 'dragodinde:join') {
+      return handleJoin(interaction);
+    }
+
+    if (interaction.customId.startsWith('dragodinde:mode:')) {
+      const [, , mode] = interaction.customId.split(':');
+      return handleMode(interaction, mode);
+    }
+
+    if (interaction.customId.startsWith('dragodinde:count:')) {
+      const [, , mode, countRaw] = interaction.customId.split(':');
+      return handleCount(interaction, mode, Number(countRaw));
+    }
+
+    if (interaction.customId.startsWith('dragodinde:horse:')) {
+      const horseIndex = Number(interaction.customId.split(':')[2]);
+      return handleHorse(interaction, horseIndex);
+    }
+
+    if (interaction.customId.startsWith('dragodinde:debtpay:')) {
+      const recordId = interaction.customId.split(':')[2];
+      const cfg = getDragodindeConfig(interaction.guildId);
+      const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+      if (!isAdminForGame(member, cfg)) {
+        await sendFlowStep(interaction, { content: '⛔ Rôle admin requis pour valider ce paiement.' });
+        return true;
+      }
+
+      const result = markDebtAsPaid(recordId, interaction.user.id);
+      if (!result.ok) {
+        await sendFlowStep(interaction, { content: `❌ ${result.reason}` });
+        return true;
+      }
+
+      const paidRecord = result.record;
+      const finance = getUserFinance(interaction.guildId, paidRecord.user_id);
+      const embed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle('✅ Paiement validé')
+        .setDescription([
+          `Joueur: <@${paidRecord.user_id}>`,
+          `Montant validé: **${Number(paidRecord.amount).toLocaleString('fr-FR')} kamas**`,
+          `Dette restante: **${Number(finance.total_debt).toLocaleString('fr-FR')} kamas**`,
+          `Validé par: <@${interaction.user.id}>`,
+        ].join('\n'));
+
+      await interaction.update({ embeds: [embed], components: [] });
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function init(client) {
+  for (const guild of client.guilds.cache.values()) {
+    try {
+      ensureConfigRow(guild.id);
+      ensureStatsRow(guild.id);
+      loadRuntimeState(guild.id);
+    } catch (e) {
+      console.warn('[dragodinde] init guild failed:', guild.id, e?.message || e);
+    }
+  }
+}
+
 module.exports = {
-  buildCommands,
-  handleChatInputCommand,
-  handleButtonInteraction,
-  handleConfigSelect,
-  updateMainMessage,
-  ensureDashboardMessage,
+  registerCommands,
+  handleInteraction,
+  init,
+  ensureConfigRow,
+  ensureStatsRow,
+  getDragodindeConfig,
+  updateDragodindeConfig,
+  getDragodindeStats,
+  ensureMainPanel,
 };
