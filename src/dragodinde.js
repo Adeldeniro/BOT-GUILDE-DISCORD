@@ -539,13 +539,13 @@ function registerCommands(commands) {
       .setDescription('Configure le module Dragodinde')
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
       .addChannelOption(opt =>
-        opt.setName('salon_principal').setDescription('Salon du panneau principal').setRequired(true)
+        opt.setName('salon_principal').setDescription('Salon du panneau principal').addChannelTypes(0, 5).setRequired(true)
       )
       .addChannelOption(opt =>
-        opt.setName('salon_logs').setDescription('Salon des logs et paiements').setRequired(false)
+        opt.setName('salon_logs').setDescription('Salon des logs et paiements').addChannelTypes(0, 5).setRequired(false)
       )
       .addChannelOption(opt =>
-        opt.setName('salon_dashboard').setDescription('Salon du dashboard').setRequired(false)
+        opt.setName('salon_dashboard').setDescription('Salon du dashboard').addChannelTypes(0, 5).setRequired(false)
       )
       .addRoleOption(opt =>
         opt.setName('role_admin').setDescription('Rôle admin du jeu').setRequired(false)
