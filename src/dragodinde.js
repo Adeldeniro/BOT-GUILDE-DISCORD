@@ -1267,8 +1267,13 @@ async function handleButtonInteraction(interaction) {
   return false;
 }
 
+async function onReady() {
+  return true;
+}
+
 module.exports = {
   buildCommands,
+  onReady,
   handleChatInputCommand,
   handleButtonInteraction,
   handleConfigSelect,
