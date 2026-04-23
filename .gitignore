@@ -27,6 +27,13 @@ data.sqlite-shm
 data/metiers_users.json
 data/metiers_emojis.json
 
+# dragodinde runtime data (server-specific)
+data/dragodinde/
+
+# local notes / temp
+scan_dragodinde_clean.py
+src/dragodinde_integration_notes.txt
+
 # OS
 .DS_Store
 Thumbs.db
