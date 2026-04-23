@@ -211,6 +211,40 @@ function buildRulesEmbed(rc) {
   return embed;
 }
 
+function pickWelcomeGif() {
+  const fs = require('fs');
+  const assetsDir = path.join(__dirname, '..', 'assets');
+
+  try {
+    const localCandidates = fs.readdirSync(assetsDir)
+      .filter((name) => /^welcome-.*\.(gif|png|jpg|jpeg|webp)$/i.test(name) && name !== 'welcome-thumb.png')
+      .map((name) => path.join(assetsDir, name));
+
+    if (localCandidates.length) {
+      const chosen = localCandidates[Math.floor(Math.random() * localCandidates.length)];
+      return { kind: 'file', value: chosen };
+    }
+  } catch {}
+
+  try {
+    const gifsPath = path.join(assetsDir, 'welcome-gifs.txt');
+    const raw = fs.readFileSync(gifsPath, 'utf8');
+    const urls = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    if (urls.length) {
+      return { kind: 'url', value: urls[Math.floor(Math.random() * urls.length)] };
+    }
+  } catch {}
+
+  try {
+    const fallback = path.join(assetsDir, 'welcome-default.gif');
+    if (fs.existsSync(fallback)) {
+      return { kind: 'file', value: fallback };
+    }
+  } catch {}
+
+  return null;
+}
+
 function buildRulesAcceptComponents(guildId, userId) {
   return [
     new ActionRowBuilder().addComponents(
@@ -5214,31 +5248,20 @@ ${info}`.slice(0, 1900),
                   }
 
                   if (!ws?.first_gif_sent_at && rc.welcomeChatChannelId) {
-                    let gifUrl = null;
-                    try {
-                      const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
-                      const raw = require('fs').readFileSync(gifsPath, 'utf8');
-                      const urls = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
-                      if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
-                    } catch {}
-                    if (!gifUrl) {
-                      try {
-                        const fallback = path.join(__dirname, '..', 'assets', 'welcome-default.gif');
-                        if (require('fs').existsSync(fallback)) gifUrl = fallback;
-                      } catch {}
-                    }
+                    const selectedGif = pickWelcomeGif();
 
                     const chat = await interaction.client.channels.fetch(rc.welcomeChatChannelId).catch(() => null);
-                    if (chat && chat.isTextBased()) {
+                    if (chat && chat.isTextBased() && selectedGif) {
                       const embed = new EmbedBuilder()
                         .setColor(0x3498db)
                         .setTitle('🎉 Bienvenue !')
-                        .setDescription(`Bienvenue à <@${targetUserId}> !`)
-                        .setImage(typeof gifUrl === 'string' && gifUrl.startsWith('http') ? gifUrl : null);
+                        .setDescription(`Bienvenue à <@${targetUserId}> !`);
 
                       const files = [];
-                      if (gifUrl && typeof gifUrl === 'string' && !gifUrl.startsWith('http')) {
-                        files.push({ attachment: gifUrl, name: 'welcome.gif' });
+                      if (selectedGif.kind === 'url') {
+                        embed.setImage(selectedGif.value);
+                      } else {
+                        files.push({ attachment: selectedGif.value, name: 'welcome.gif' });
                         embed.setImage('attachment://welcome.gif');
                       }
 
@@ -5299,31 +5322,20 @@ ${info}`.slice(0, 1900),
                 }
 
                 if (!ws?.first_gif_sent_at && rc.welcomeChatChannelId) {
-                  let gifUrl = null;
-                  try {
-                    const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
-                    const raw = require('fs').readFileSync(gifsPath, 'utf8');
-                    const urls = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
-                    if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
-                  } catch {}
-                  if (!gifUrl) {
-                    try {
-                      const fallback = path.join(__dirname, '..', 'assets', 'welcome-default.gif');
-                      if (require('fs').existsSync(fallback)) gifUrl = fallback;
-                    } catch {}
-                  }
+                  const selectedGif = pickWelcomeGif();
 
                   const chat = await interaction.client.channels.fetch(rc.welcomeChatChannelId).catch(() => null);
-                  if (chat && chat.isTextBased()) {
+                  if (chat && chat.isTextBased() && selectedGif) {
                     const embed = new EmbedBuilder()
                       .setColor(0x3498db)
                       .setTitle('🎉 Bienvenue !')
-                      .setDescription(`Bienvenue à <@${targetUserId}> !`)
-                      .setImage(typeof gifUrl === 'string' && gifUrl.startsWith('http') ? gifUrl : null);
+                      .setDescription(`Bienvenue à <@${targetUserId}> !`);
 
                     const files = [];
-                    if (gifUrl && typeof gifUrl === 'string' && !gifUrl.startsWith('http')) {
-                      files.push({ attachment: gifUrl, name: 'welcome.gif' });
+                    if (selectedGif.kind === 'url') {
+                      embed.setImage(selectedGif.value);
+                    } else {
+                      files.push({ attachment: selectedGif.value, name: 'welcome.gif' });
                       embed.setImage('attachment://welcome.gif');
                     }
 
@@ -5414,28 +5426,25 @@ ${info}`.slice(0, 1900),
           }
           cooldown.set(key, now);
 
-          let gifUrl = null;
-          try {
-            const gifsPath = path.join(__dirname, '..', 'assets', 'welcome-gifs.txt');
-            const raw = require('fs').readFileSync(gifsPath, 'utf8');
-            const urls = raw
-              .split(/\r?\n/)
-              .map(l => l.trim())
-              .filter(l => l && !l.startsWith('#'));
-            if (urls.length) gifUrl = urls[Math.floor(Math.random() * urls.length)];
-          } catch {}
-
-          if (!gifUrl) {
-            return interaction.reply({ content: 'Liste de GIFs manquante (welcome-gifs.txt).', ephemeral: true });
+          const selectedGif = pickWelcomeGif();
+          if (!selectedGif) {
+            return interaction.reply({ content: 'Aucun GIF de bienvenue disponible.', ephemeral: true });
           }
 
           const embed = new EmbedBuilder()
             .setColor(0x3498db)
             .setTitle('🎉 Bienvenue !')
-            .setDescription(`${interaction.user} souhaite la bienvenue à <@${newUserId}> !`)
-            .setImage(gifUrl);
+            .setDescription(`${interaction.user} souhaite la bienvenue à <@${newUserId}> !`);
 
-          await ch.send({ embeds: [embed], allowedMentions: { users: [newUserId] } }).catch(() => {});
+          const files = [];
+          if (selectedGif.kind === 'url') {
+            embed.setImage(selectedGif.value);
+          } else {
+            files.push({ attachment: selectedGif.value, name: 'welcome.gif' });
+            embed.setImage('attachment://welcome.gif');
+          }
+
+          await ch.send({ embeds: [embed], files, allowedMentions: { users: [newUserId] } }).catch(() => {});
           return interaction.reply({ content: '✅ GIF envoyé dans le salon chat-arrive.', ephemeral: true });
         }
 
