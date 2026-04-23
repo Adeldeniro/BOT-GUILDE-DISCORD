@@ -214,11 +214,24 @@ function buildRulesEmbed(rc) {
 function pickWelcomeGif() {
   const fs = require('fs');
   const assetsDir = path.join(__dirname, '..', 'assets');
+  const welcomeGifDir = path.join(assetsDir, 'welcome-gif');
 
   try {
-    const localCandidates = fs.readdirSync(assetsDir)
-      .filter((name) => /^welcome-.*\.(gif|png|jpg|jpeg|webp)$/i.test(name) && name !== 'welcome-thumb.png')
-      .map((name) => path.join(assetsDir, name));
+    const localCandidates = [];
+
+    if (fs.existsSync(welcomeGifDir)) {
+      localCandidates.push(
+        ...fs.readdirSync(welcomeGifDir)
+          .filter((name) => /^welcome-.*\.(gif|png|jpg|jpeg|webp)$/i.test(name))
+          .map((name) => path.join(welcomeGifDir, name))
+      );
+    }
+
+    localCandidates.push(
+      ...fs.readdirSync(assetsDir)
+        .filter((name) => /^welcome-.*\.(gif|png|jpg|jpeg|webp)$/i.test(name) && name !== 'welcome-thumb.png')
+        .map((name) => path.join(assetsDir, name))
+    );
 
     if (localCandidates.length) {
       const chosen = localCandidates[Math.floor(Math.random() * localCandidates.length)];
