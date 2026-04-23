@@ -70,7 +70,7 @@ function buildDashboardEmbed(rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('âš™ï¸ Dashboard de configuration')
+    .setTitle('⚙️ Dashboard de configuration')
     .setDescription('Utilise les boutons ci-dessous pour configurer le bot rapidement (mobile friendly).')
     .addFields(
       {
@@ -362,11 +362,11 @@ async function ensurePanelMessage(channel, rc) {
 
   const title = p?.title || rc.panelTitle;
 
-  // Embed = best “official announcementâ€ look on Discord
+  // Embed = best "official announcement" look on Discord
   const embed = new EmbedBuilder()
     .setColor(0xe74c3c) // alert red
     .setAuthor({ name: 'GTO — Centre de commandement', iconURL: channel.guild?.iconURL?.({ size: 128 }) || undefined })
-    .setTitle(`âš”ï¸ ALERTE DEF — ${title}`)
+    .setTitle(`⚔️ ALERTE DEF — ${title}`)
     .setDescription('**EN CAS D’ATTAQUE : sélectionne la guilde et déclenche l’alerte.**')
     .addFields(
       {
@@ -386,7 +386,7 @@ async function ensurePanelMessage(channel, rc) {
       },
     )
     .setImage('attachment://pingdef-banner.png')
-    .setFooter({ text: "â¬‡ï¸ Clique sur un bouton â¬‡ï¸" });
+    .setFooter({ text: '⬇️ Clique sur un bouton ⬇️' });
 
   const content = '';
 
@@ -482,7 +482,7 @@ function buildHelpEmbedFromCommands(commands) {
 
   // Extra notes for features that are not slash commands
   embed.addFields({
-    name: 'â„¹ï¸ Notes',
+    name: 'ℹ️ Notes',
     value:
       '• Le bouton **✍️ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
       '• Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.',
@@ -503,7 +503,7 @@ async function ensureEventScoreboard(guild, rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle('🏆 Classement événements — Allâ€‘time')
+    .setTitle('🏆 Classement événements — All-time')
     .setDescription(lines)
     .setFooter({ text: 'Validé par le staff à partir des preuves (screens).' });
 
@@ -539,8 +539,8 @@ async function ensureEventAdminPanel(guild, rc) {
         '',
         'Actions principales :',
         '• 🔄 Resync = reconstruit le classement à partir de la DB',
-        '• âž• Add points = ajoute/enlève des points à un joueur',
-        '• âœï¸ Set points = fixe les points exacts d\'un joueur',
+        '• ➕ Add points = ajoute/enlève des points à un joueur',
+        '• ✏️ Set points = fixe les points exacts d\'un joueur',
         '• 🧹 Remove player = supprime un joueur du classement (ex: kick event)',
       ].join('\n')
     )
@@ -548,8 +548,8 @@ async function ensureEventAdminPanel(guild, rc) {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('evadm:resync').setLabel('🔄 Resync classement').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('evadm:add').setLabel('âž• Add points').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('evadm:set').setLabel('âœï¸ Set points').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('evadm:add').setLabel('➕ Add points').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('evadm:set').setLabel('✏️ Set points').setStyle(ButtonStyle.Secondary)
     new ButtonBuilder().setCustomId('evadm:remove').setLabel('🧹 Remove player').setStyle(ButtonStyle.Danger),
     new ButtonBuilder().setCustomId('evadm:reset').setLabel('🧨 Reset saison').setStyle(ButtonStyle.Danger),
   );
