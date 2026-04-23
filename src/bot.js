@@ -12,6 +12,7 @@ const ev = require('./events');
 const drafts = require('./eventDrafts');
 const stuffGen = require('./stuffGenerator');
 const metiers = require('./metiers');
+const dragodinde = require('./dragodinde');
 
 // Stuff generator (DofusBook Touch)
 const STUFF_GEN_CHANNEL_ID = '1480657603779362963';
@@ -1469,7 +1470,8 @@ async function registerCommands(client) {
       .addChannelOption(o => o.setName('validation').setDescription('Salon staff de validation').addChannelTypes(0,5).setRequired(true))
       .addChannelOption(o => o.setName('classement').setDescription('Salon du classement all-time').addChannelTypes(0,5).setRequired(true))
       .addChannelOption(o => o.setName('screens').setDescription('Salon où poster les screens OFFICIELS (optionnel)').addChannelTypes(0,5).setRequired(false))
-      .addChannelOption(o => o.setName('panneau').setDescription('Salon où placer la box de soumission (optionnel)').addChannelTypes(0,5).setRequired(false)),  
+      .addChannelOption(o => o.setName('panneau').setDescription('Salon où placer la box de soumission (optionnel)').addChannelTypes(0,5).setRequired(false)),
+    ...dragodinde.buildCommands(),
   ].map(c => c.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(config.token);
@@ -1508,6 +1510,7 @@ async function main() {
   client.once('ready', async () => {
     try {
       await registerCommands(client);
+      await dragodinde.onReady(client).catch((error) => console.error('[dragodinde] ready failed', error));
 
       const guild = config.guildId ? await client.guilds.fetch(config.guildId) : null;
 
@@ -2093,6 +2096,7 @@ async function main() {
 
       // Event validation select
       if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
+        if (await dragodinde.handleConfigSelect(interaction).catch(() => false)) return;
         // Stuff generator selects
         if (interaction.customId.startsWith('gs:')) {
           if (interaction.channelId !== STUFF_GEN_CHANNEL_ID) {
@@ -2140,6 +2144,7 @@ async function main() {
 
       // Activity log: slash commands usage (no pings)
       if (interaction.isChatInputCommand && interaction.isChatInputCommand()) {
+        if (await dragodinde.handleChatInputCommand(interaction).catch(() => false)) return;
         // Avoid logging the logger setup itself before it exists
         if (interaction.commandName !== 'setup_activity_logs') {
           const rc = getConfigForGuild(interaction.guildId);
@@ -4127,6 +4132,7 @@ ${info}`.slice(0, 1900),
       }
 
       if (interaction.isButton()) {
+        if (await dragodinde.handleButtonInteraction(interaction).catch(() => false)) return;
         // Métiers buttons
         if (interaction.customId === 'mj:open') {
           const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
