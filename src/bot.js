@@ -1658,12 +1658,12 @@ async function main() {
           const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`evval:${sid}:approve`).setLabel('✅ Valider').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`evval:${sid}:deny`).setLabel('❌ Refuser').setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId(`evval:${sid}:editparts`).setLabel('âœï¸ Participants').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`evval:${sid}:editparts`).setLabel('✏️ Participants').setStyle(ButtonStyle.Secondary),
           );
 
           const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(`evpub:${sid}:add`).setLabel('âž• Points').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId(`evpub:${sid}:set`).setLabel('âœï¸ Fixer points').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:add`).setLabel('➕ Points').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId(`evpub:${sid}:set`).setLabel('✏️ Fixer points').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId(`evpub:${sid}:remove`).setLabel('🧹 Kick').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`evpub:${sid}:resync`).setLabel('🔄 Refresh').setStyle(ButtonStyle.Secondary),
           );
@@ -1873,7 +1873,7 @@ async function main() {
       const actor = await getAuditActor(newCh.guild, { type: 11, targetId: newCh.id, windowMs: 20_000 }); // CHANNEL_UPDATE
       const embed = new EmbedBuilder()
         .setColor(0xf1c40f)
-        .setTitle('âœï¸ Salon renommé')
+        .setTitle('✏️ Salon renommé')
         .addFields(
           { name: 'Avant', value: String(oldCh.name), inline: true },
           { name: 'Après', value: String(newCh.name), inline: true },
@@ -2101,7 +2101,7 @@ async function main() {
             : '';
           const embed = new EmbedBuilder()
             .setColor(0x8e44ad)
-            .setTitle('âŒ¨ï¸ Commande exécutée')
+            .setTitle('⌨️ Commande exécutée')
             .addFields(
               { name: 'Commande', value: `/${interaction.commandName} ${opts}`.trim().slice(0, 1024), inline: false },
               { name: 'Par', value: `${interaction.user.tag || interaction.user.username} (\`${interaction.user.id}\`)`, inline: true },
@@ -3810,7 +3810,7 @@ ${info}`.slice(0, 1900),
 
           const panelChannel = await interaction.client.channels.fetch(channelId);
           await ensurePanelMessage(panelChannel, rc);
-          return interaction.reply({ content: `Guilde ${name} ajoutée/modifiée â†’ <@&${role.id}>.`, ephemeral: true });
+          return interaction.reply({ content: `Guilde ${name} ajoutée/modifiée → <@&${role.id}>.`, ephemeral: true });
         }
 
         if (interaction.commandName === 'guilde_supprimer') {
@@ -5410,7 +5410,7 @@ ${info}`.slice(0, 1900),
           const now = Date.now();
           const last = cooldown.get(key) || 0;
           if (now - last < 3_000) {
-            return interaction.reply({ content: 'â³ Attends 3 secondes avant de renvoyer un GIF.', ephemeral: true });
+            return interaction.reply({ content: '⏳ Attends 3 secondes avant de renvoyer un GIF.', ephemeral: true });
           }
           cooldown.set(key, now);
 
