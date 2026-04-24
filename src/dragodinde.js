@@ -258,9 +258,17 @@ function buildSetupComponents(guild) {
 
   return [
     channelSelectRow(guild, `dragodinde:setup:logs:${guild.id}`, 'Salon des logs (liste rapide)'),
-    channelSearchButtonRow('logs', guild.id),
     channelSelectRow(guild, `dragodinde:setup:dashboard:${guild.id}`, 'Salon du dashboard (liste rapide)'),
-    channelSearchButtonRow('dashboard', guild.id),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`dragodinde:setupsearch:logs:${guild.id}`)
+        .setLabel('Rechercher salon logs')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`dragodinde:setupsearch:dashboard:${guild.id}`)
+        .setLabel('Rechercher salon dashboard')
+        .setStyle(ButtonStyle.Secondary)
+    ),
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(`dragodinde:setup:admin:${guild.id}`)
