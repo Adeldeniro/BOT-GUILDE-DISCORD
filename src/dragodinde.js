@@ -146,19 +146,13 @@ function horseChoiceRows(userId, mode) {
   )];
 }
 
-function buildPanelEmbed(guildId) {
-  const cfg = getGuildConfig(guildId);
+function buildPanelEmbed() {
   return new EmbedBuilder()
     .setColor(0xF1C40F)
     .setTitle('🏇 Course Dragodinde')
     .setDescription(getMainMessageContent())
-    .addFields(
-      { name: 'Salon des logs', value: cfg.logsChannelId ? `<#${cfg.logsChannelId}>` : '—', inline: true },
-      { name: 'Salon du dashboard', value: cfg.dashboardChannelId ? `<#${cfg.dashboardChannelId}>` : '—', inline: true },
-      { name: 'Rôle admin', value: cfg.adminRoleId ? `<@&${cfg.adminRoleId}>` : '—', inline: true },
-    )
     .setImage(IMAGE_URL)
-    .setFooter({ text: 'Dragodinde phase 1 jouable.' });
+    .setFooter({ text: 'Approchez, prenez place, et tentez votre chance au PMU.' });
 }
 
 function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, winnerId = null, winnerName = null } = {}) {
@@ -215,7 +209,7 @@ async function deleteRecentSystemMessages(channel) {
 
 async function ensurePinnedRaceMessage(channel, guildId) {
   const cfg = getGuildConfig(guildId);
-  const embed = buildPanelEmbed(guildId);
+  const embed = buildPanelEmbed();
   const components = joinButtonRow();
 
   if (cfg.mainChannelId === channel.id && cfg.mainMessageId) {
