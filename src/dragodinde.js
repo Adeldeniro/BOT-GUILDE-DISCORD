@@ -200,19 +200,71 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, w
   return embed;
 }
 
-async function ensureDashboardPanel(channel, guildId) {
+async function deleteRecentSystemMessages(channel) {
+  const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+  if (!messages) return;
+  for (const msg of messages.values()) {
+    if (msg.system || msg.type === 6) {
+      await msg.delete().catch(() => {});
+    }
+  }
+}
+
+async function ensurePinnedRaceMessage(channel, guildId) {
   const cfg = getGuildConfig(guildId);
   const embed = buildPanelEmbed(guildId);
   const components = joinButtonRow();
-  if (cfg.dashboardMessageId) {
-    const existing = await channel.messages.fetch(cfg.dashboardMessageId).catch(() => null);
+
+  if (cfg.mainChannelId === channel.id && cfg.mainMessageId) {
+    const existing = await channel.messages.fetch(cfg.mainMessageId).catch(() => null);
     if (existing) {
       await existing.edit({ embeds: [embed], components });
       return existing;
     }
   }
+
   const msg = await channel.send({ embeds: [embed], components });
-  setGuildConfig(guildId, { ...cfg, dashboardMessageId: msg.id, mainChannelId: channel.id, mainMessageId: msg.id });
+  await msg.pin().catch(() => {});
+  setTimeout(() => deleteRecentSystemMessages(channel).catch(() => {}), 1500);
+
+  setGuildConfig(guildId, {
+    ...cfg,
+    mainChannelId: channel.id,
+    mainMessageId: msg.id,
+  });
+
+  return msg;
+}
+
+function buildDashboardAdminEmbed(guildId) {
+  const cfg = getGuildConfig(guildId);
+  return new EmbedBuilder()
+    .setColor(0x3498DB)
+    .setTitle('📋 Dashboard admin Dragodinde')
+    .setDescription('Vue admin de configuration du PMU Dragodinde.')
+    .addFields(
+      { name: 'Salon course / annonce', value: cfg.mainChannelId ? `<#${cfg.mainChannelId}>` : '—', inline: true },
+      { name: 'Message principal', value: cfg.mainMessageId || '—', inline: true },
+      { name: 'Salon logs', value: cfg.logsChannelId ? `<#${cfg.logsChannelId}>` : '—', inline: true },
+      { name: 'Salon dashboard admin', value: cfg.dashboardChannelId ? `<#${cfg.dashboardChannelId}>` : '—', inline: true },
+      { name: 'Rôle admin', value: cfg.adminRoleId ? `<@&${cfg.adminRoleId}>` : '—', inline: true },
+      { name: 'Rôle autorisé', value: cfg.allowedRoleIds?.length ? cfg.allowedRoleIds.map((rid) => `<@&${rid}>`).join(', ') : '—', inline: true },
+    )
+    .setFooter({ text: 'Le message PMU public est séparé du dashboard admin.' });
+}
+
+async function ensureDashboardPanel(channel, guildId) {
+  const cfg = getGuildConfig(guildId);
+  const embed = buildDashboardAdminEmbed(guildId);
+  if (cfg.dashboardMessageId) {
+    const existing = await channel.messages.fetch(cfg.dashboardMessageId).catch(() => null);
+    if (existing) {
+      await existing.edit({ embeds: [embed], components: [] });
+      return existing;
+    }
+  }
+  const msg = await channel.send({ embeds: [embed], components: [] });
+  setGuildConfig(guildId, { ...cfg, dashboardMessageId: msg.id, dashboardChannelId: channel.id });
   return msg;
 }
 
@@ -400,16 +452,16 @@ async function handleChatInputCommand(interaction) {
     }
     const cfg = getGuildConfig(interaction.guild.id);
     if (!cfg.dashboardChannelId) {
-      await interaction.reply({ content: 'Configure d’abord le salon dashboard avec /dragodinde_setup.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: 'Configure d’abord le salon dashboard admin avec /dragodinde_setup.', flags: MessageFlags.Ephemeral });
       return true;
     }
     const channel = await interaction.client.channels.fetch(cfg.dashboardChannelId).catch(() => null);
     if (!channel || !channel.isTextBased()) {
-      await interaction.reply({ content: 'Salon dashboard inaccessible.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: 'Salon dashboard admin inaccessible.', flags: MessageFlags.Ephemeral });
       return true;
     }
     const msg = await ensureDashboardPanel(channel, interaction.guild.id);
-    await interaction.reply({ content: `✅ Panneau Dragodinde prêt dans ${channel} (message ${msg.id}).`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: `✅ Dashboard admin Dragodinde prêt dans ${channel} (message ${msg.id}).`, flags: MessageFlags.Ephemeral });
     return true;
   }
 
@@ -421,9 +473,13 @@ async function handleChatInputCommand(interaction) {
       return true;
     }
 
-    getDraft(interaction.guild.id);
+    const guildId = interaction.guild.id;
+    const cfg = getGuildConfig(guildId);
+    const nextDraft = { ...cfg, mainChannelId: interaction.channelId };
+    setupDrafts.set(guildId, nextDraft);
+
     await interaction.editReply({
-      content: '### 🐎 Bienvenue dans la configuration du jeu\nChoisis tous les éléments, puis valide à la fin. Rien ne sera créé avant validation.',
+      content: '### 🐎 Bienvenue dans la configuration du jeu\nLe message PMU sera créé dans ce salon après validation. Choisis les éléments ci-dessous puis valide.',
       components: buildSetupComponents(interaction.guild),
     });
     return true;
@@ -553,15 +609,36 @@ async function handleButtonInteraction(interaction) {
 
   if (action === 'save') {
     const draft = getDraft(guildId);
-    setGuildConfig(guildId, { ...getGuildConfig(guildId), ...draft });
+    const saved = { ...getGuildConfig(guildId), ...draft };
+    setGuildConfig(guildId, saved);
+
+    if (saved.mainChannelId) {
+      const raceChannel = await interaction.client.channels.fetch(saved.mainChannelId).catch(() => null);
+      if (raceChannel && raceChannel.isTextBased()) {
+        const msg = await ensurePinnedRaceMessage(raceChannel, guildId);
+        saved.mainMessageId = msg.id;
+        setGuildConfig(guildId, saved);
+      }
+    }
+
+    if (saved.dashboardChannelId) {
+      const dashboardChannel = await interaction.client.channels.fetch(saved.dashboardChannelId).catch(() => null);
+      if (dashboardChannel && dashboardChannel.isTextBased()) {
+        const dashMsg = await ensureDashboardPanel(dashboardChannel, guildId);
+        saved.dashboardMessageId = dashMsg.id;
+        setGuildConfig(guildId, saved);
+      }
+    }
+
     await interaction.update({
       content:
         'Configuration Dragodinde enregistrée.\n' +
-        `• Logs: ${draft.logsChannelId ? `<#${draft.logsChannelId}>` : '—'}\n` +
-        `• Dashboard: ${draft.dashboardChannelId ? `<#${draft.dashboardChannelId}>` : '—'}\n` +
-        `• Admin: ${draft.adminRoleId ? `<@&${draft.adminRoleId}>` : '—'}\n` +
-        `• Rôle autorisé: ${draft.allowedRoleIds?.length ? draft.allowedRoleIds.map((rid) => `<@&${rid}>`).join(', ') : '—'}\n\n` +
-        'Tu peux maintenant utiliser /dragodinde_panel pour générer le panneau.',
+        `• Salon course / annonce: ${saved.mainChannelId ? `<#${saved.mainChannelId}>` : '—'}\n` +
+        `• Logs: ${saved.logsChannelId ? `<#${saved.logsChannelId}>` : '—'}\n` +
+        `• Dashboard admin: ${saved.dashboardChannelId ? `<#${saved.dashboardChannelId}>` : '—'}\n` +
+        `• Admin: ${saved.adminRoleId ? `<@&${saved.adminRoleId}>` : '—'}\n` +
+        `• Rôle autorisé: ${saved.allowedRoleIds?.length ? saved.allowedRoleIds.map((rid) => `<@&${rid}>`).join(', ') : '—'}\n\n` +
+        'Le message PMU public a été placé dans le salon où tu as lancé /dragodinde_setup.',
       components: [],
     });
     return true;
