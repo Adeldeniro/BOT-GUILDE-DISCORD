@@ -27,7 +27,7 @@ const RACE_BANNER_URL = 'https://cdn.discordapp.com/attachments/1481127126248984
 const ENTRY_FEE = 55_000;
 const REAL_BET = 50_000;
 const MAX_PLAYERS = 4;
-const HORSES = [
+let HORSES = [
   { name: 'Tonnerre', emoji: '🐎' },
   { name: 'Éclair', emoji: '⚡' },
   { name: 'Foudre', emoji: '🌩️' },
@@ -112,6 +112,7 @@ function getGuildConfig(guildId) {
     dashboardMessageId: null,
     mainChannelId: null,
     mainMessageId: null,
+    horseEmojis: null,
   };
 }
 
@@ -126,6 +127,26 @@ function getDraft(guildId) {
     setupDrafts.set(guildId, { ...getGuildConfig(guildId) });
   }
   return setupDrafts.get(guildId);
+}
+
+function getAllowedRolesFromConfig(cfg) {
+  return [
+    ...(Array.isArray(cfg.allowedRoleIds) ? cfg.allowedRoleIds : []),
+    cfg.notificationRoleId || null,
+    '1480657602382790903',
+  ].filter(Boolean);
+}
+
+function refreshHorseEmojisFromConfig(guildId) {
+  const cfg = getGuildConfig(guildId);
+  const emojis = Array.isArray(cfg.horseEmojis) && cfg.horseEmojis.length === 4 ? cfg.horseEmojis : null;
+  if (!emojis) return;
+  HORSES = [
+    { ...HORSES[0], emoji: emojis[0] || HORSES[0].emoji },
+    { ...HORSES[1], emoji: emojis[1] || HORSES[1].emoji },
+    { ...HORSES[2], emoji: emojis[2] || HORSES[2].emoji },
+    { ...HORSES[3], emoji: emojis[3] || HORSES[3].emoji },
+  ];
 }
 
 function getLogsChannelId(guildId) {
@@ -172,16 +193,13 @@ function canUserPlay(member) {
   if (member.permissions?.has(PermissionsBitField.Flags.Administrator)) return [true, null];
 
   const cfg = getGuildConfig(member.guild.id);
-  const allowedRoles = [
-    ...(Array.isArray(cfg.allowedRoleIds) ? cfg.allowedRoleIds : []),
-    cfg.notificationRoleId || null,
-    '1480657602382790903',
-  ].filter(Boolean);
+  const allowedRoles = getAllowedRolesFromConfig(cfg);
 
   if (allowedRoles.length) {
-    const allowed = allowedRoles.some((rid) => member.roles?.cache?.has(rid));
+    const memberRoleIds = new Set(member.roles?.cache?.map((role) => role.id) || []);
+    const allowed = allowedRoles.some((rid) => memberRoleIds.has(rid));
     if (!allowed) {
-      return [false, 'Tu n’as pas le rôle autorisé pour jouer à cette course.'];
+      return [false, `Tu n’as pas le rôle autorisé pour jouer à cette course. Rôles acceptés: ${allowedRoles.join(', ')}`];
     }
   }
 
@@ -308,6 +326,13 @@ function buildCommands() {
     new SlashCommandBuilder()
       .setName('dragodinde_reset')
       .setDescription('Supprimer les messages Dragodinde créés par le setup et réinitialiser la config'),
+    new SlashCommandBuilder()
+      .setName('set_emojis_dragodinde')
+      .setDescription('Modifier les emojis des 4 dragodindes')
+      .addStringOption((option) => option.setName('emoji1').setDescription('Emoji dragodinde 1').setRequired(true))
+      .addStringOption((option) => option.setName('emoji2').setDescription('Emoji dragodinde 2').setRequired(true))
+      .addStringOption((option) => option.setName('emoji3').setDescription('Emoji dragodinde 3').setRequired(true))
+      .addStringOption((option) => option.setName('emoji4').setDescription('Emoji dragodinde 4').setRequired(true)),
   ];
 }
 
@@ -514,6 +539,7 @@ async function onReady(client) {
   const config = loadConfig();
   const guildIds = Object.keys(config || {});
   for (const guildId of guildIds) {
+    refreshHorseEmojisFromConfig(guildId);
     await refreshGuildMessages(client, guildId, config[guildId] || {}).catch(() => {});
   }
   return true;
@@ -935,9 +961,37 @@ async function handleChatInputCommand(interaction) {
       dashboardMessageId: null,
       mainChannelId: null,
       mainMessageId: null,
+      horseEmojis: null,
     });
 
     await interaction.editReply({ content: '✅ Dragodinde a été réinitialisé. Les messages créés par le setup ont été supprimés.' });
+    return true;
+  }
+
+  if (interaction.commandName === 'set_emojis_dragodinde') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour utiliser cette commande.' });
+      return true;
+    }
+
+    const guildId = interaction.guild.id;
+    const cfg = getGuildConfig(guildId);
+    const emojis = [
+      interaction.options.getString('emoji1', true).trim(),
+      interaction.options.getString('emoji2', true).trim(),
+      interaction.options.getString('emoji3', true).trim(),
+      interaction.options.getString('emoji4', true).trim(),
+    ];
+
+    setGuildConfig(guildId, { ...cfg, horseEmojis: emojis });
+    refreshHorseEmojisFromConfig(guildId);
+    await refreshGuildMessages(interaction.client, guildId, getGuildConfig(guildId)).catch(() => {});
+
+    await interaction.editReply({
+      content: `✅ Emojis Dragodinde mis à jour.\n1: ${emojis[0]}\n2: ${emojis[1]}\n3: ${emojis[2]}\n4: ${emojis[3]}`,
+    });
     return true;
   }
 
