@@ -299,16 +299,18 @@ function buildSetupComponents(guild) {
 }
 
 async function showChannelSearchModal(interaction, type, guildId) {
+  const safeType = type === 'logs' ? 'logs' : 'dashboard';
   const modal = new ModalBuilder()
-    .setCustomId(`dragodinde:modalsearch:${type}:${guildId}`)
-    .setTitle(type === 'logs' ? 'Rechercher le salon logs' : 'Rechercher le salon dashboard');
+    .setCustomId(`dragodinde:modalsearch:${safeType}:${guildId}`)
+    .setTitle(safeType === 'logs' ? 'Rechercher salon logs' : 'Rechercher salon dashboard');
 
   const input = new TextInputBuilder()
     .setCustomId('query')
-    .setLabel('Nom du salon à rechercher')
+    .setLabel('Nom du salon')
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
-    .setPlaceholder(type === 'logs' ? 'Ex: logs, pmu, courses...' : 'Ex: dashboard, dragodinde...');
+    .setPlaceholder(safeType === 'logs' ? 'logs, pmu, courses...' : 'dashboard, dragodinde...')
+    .setMaxLength(100);
 
   modal.addComponents(new ActionRowBuilder().addComponents(input));
   await interaction.showModal(modal);
@@ -451,9 +453,17 @@ async function handleConfigSelect(interaction) {
 
 async function handleButtonInteraction(interaction) {
   if (interaction.customId.startsWith('dragodinde:setupsearch:')) {
-    const [, type, guildId] = interaction.customId.split(':');
+    const parts = interaction.customId.split(':');
+    const type = parts[2];
+    const guildId = parts[3];
     if (!interaction.guild || interaction.guild.id !== guildId) return false;
-    await showChannelSearchModal(interaction, type, guildId);
+    try {
+      await showChannelSearchModal(interaction, type, guildId);
+    } catch (error) {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: `Impossible d'ouvrir la recherche de salon: ${error.message}`, flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
+    }
     return true;
   }
 
