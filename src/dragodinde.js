@@ -117,6 +117,9 @@ function buildCommands() {
     new SlashCommandBuilder()
       .setName('dragodinde_status')
       .setDescription('Afficher l’état actuel de la configuration Dragodinde'),
+    new SlashCommandBuilder()
+      .setName('dragodinde_reset')
+      .setDescription('Supprimer les messages Dragodinde créés par le setup et réinitialiser la config'),
   ];
 }
 
@@ -266,6 +269,16 @@ async function ensureDashboardPanel(channel, guildId) {
   const msg = await channel.send({ embeds: [embed], components: [] });
   setGuildConfig(guildId, { ...cfg, dashboardMessageId: msg.id, dashboardChannelId: channel.id });
   return msg;
+}
+
+async function safeDeleteConfiguredMessage(client, channelId, messageId) {
+  if (!channelId || !messageId) return;
+  const channel = await client.channels.fetch(channelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+  const msg = await channel.messages.fetch(messageId).catch(() => null);
+  if (!msg) return;
+  await msg.unpin().catch(() => {});
+  await msg.delete().catch(() => {});
 }
 
 async function onReady() {
@@ -482,6 +495,38 @@ async function handleChatInputCommand(interaction) {
       content: '### 🐎 Bienvenue dans la configuration du jeu\nLe message PMU sera créé dans ce salon après validation. Choisis les éléments ci-dessous puis valide.',
       components: buildSetupComponents(interaction.guild),
     });
+    return true;
+  }
+
+  if (interaction.commandName === 'dragodinde_reset') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour utiliser cette commande.' });
+      return true;
+    }
+
+    const guildId = interaction.guild.id;
+    const cfg = getGuildConfig(guildId);
+
+    await safeDeleteConfiguredMessage(interaction.client, cfg.mainChannelId, cfg.mainMessageId);
+    await safeDeleteConfiguredMessage(interaction.client, cfg.dashboardChannelId, cfg.dashboardMessageId);
+
+    setupDrafts.delete(guildId);
+    raceStates.delete(guildId);
+
+    setGuildConfig(guildId, {
+      logsChannelId: null,
+      dashboardChannelId: null,
+      adminRoleId: null,
+      notificationRoleId: null,
+      allowedRoleIds: [],
+      dashboardMessageId: null,
+      mainChannelId: null,
+      mainMessageId: null,
+    });
+
+    await interaction.editReply({ content: '✅ Dragodinde a été réinitialisé. Les messages créés par le setup ont été supprimés.' });
     return true;
   }
 
