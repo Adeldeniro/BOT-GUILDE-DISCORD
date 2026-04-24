@@ -690,6 +690,27 @@ async function updateWaitingRaceMessage(channel, guildId) {
   }).catch(() => {});
 }
 
+async function createRaceThread(channel, prefix) {
+  const starter = await channel.send({ content: '🏇' }).catch(() => null);
+  if (!starter) return { starter: null, thread: null };
+
+  const thread = await starter.startThread({
+    name: `${prefix}-${Math.floor(Date.now() / 1000)}`,
+    autoArchiveDuration: 60,
+  }).catch(() => null);
+
+  setTimeout(() => deleteRecentSystemMessages(channel).catch(() => {}), 1200);
+  return { starter, thread };
+}
+
+async function updateRaceWatchMessage(channel, thread, label = 'Regarder la course') {
+  if (!thread) return null;
+  const button = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(`https://discord.com/channels/${channel.guild.id}/${thread.id}`)
+  );
+  return channel.send({ content: '🎟️ La course est prête.', components: [button] }).catch(() => null);
+}
+
 async function finalizeWaitingRace(channel, guildId) {
   const state = raceStates.get(guildId);
   if (!state || state.started) return;
@@ -836,10 +857,28 @@ async function runSimpleRace(channel, guildId) {
   }
 
   await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
-  await runCountdown(channel, 5);
+
+  const made = await createRaceThread(channel, contestants.some((c) => c.userId) && contestants.some((c) => !c.userId) ? 'course-mixte' : 'course');
+  const starter = made.starter;
+  const thread = made.thread;
+  const raceRoom = thread || channel;
+
+  if (thread) {
+    await updateRaceWatchMessage(channel, thread, 'Regarder la course').catch(() => {});
+    await raceRoom.send({
+      embeds: [new EmbedBuilder()
+        .setTitle('🏇 Course Dragodinde')
+        .setDescription(`Participants :\n${state.players.map((p) => `${HORSES[p.horseIndex].emoji} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n')}\n\nAdversaires IA : ${contestants.filter((c) => !c.userId).length}`)
+        .setColor(0x3498DB)
+        .setImage(RACE_BANNER_URL)
+        .setTimestamp()],
+    }).catch(() => {});
+  }
+
+  await runCountdown(raceRoom, 5);
 
   const positions = Object.fromEntries(contestants.map((c) => [c.horseIndex, 0]));
-  const raceMsg = await channel.send({
+  const raceMsg = await raceRoom.send({
     content: `🏇 **Départ** 🏇\n${generateTrack(sortContestantsByProgress(contestants, positions), positions)}`,
   }).catch(() => null);
 
@@ -864,7 +903,7 @@ async function runSimpleRace(channel, guildId) {
   }
 
   const pot = REAL_BET * state.players.length;
-  await channel.send({
+  await raceRoom.send({
     embeds: [buildRaceStatusEmbed('finished', {
       humans: state.players,
       pot,
@@ -875,6 +914,14 @@ async function runSimpleRace(channel, guildId) {
 
   if (winner.userId) {
     await createPayoutRecord(channel.client, guildId, winner, pot, state.players).catch(() => {});
+  }
+
+  if (thread) {
+    await raceRoom.send({ content: '🧹 Ce thread de course sera supprimé automatiquement dans 60 secondes.' }).catch(() => {});
+    setTimeout(async () => {
+      await thread.delete().catch(() => {});
+      if (starter) await starter.delete().catch(() => {});
+    }, 60_000);
   }
 
   raceStates.delete(guildId);
