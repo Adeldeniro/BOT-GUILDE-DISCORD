@@ -175,6 +175,7 @@ function canUserPlay(member) {
   const allowedRoles = [
     ...(Array.isArray(cfg.allowedRoleIds) ? cfg.allowedRoleIds : []),
     cfg.notificationRoleId || null,
+    '1480657602382790903',
   ].filter(Boolean);
 
   if (allowedRoles.length) {
@@ -312,7 +313,8 @@ function buildCommands() {
 
 function joinButtonRow() {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('dragodinde:join:main').setLabel('Participer').setEmoji('🐎').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId('dragodinde:join:main').setLabel('Participer').setEmoji('🐎').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('dragodinde:notify:toggle').setLabel('Notifications').setEmoji('🔔').setStyle(ButtonStyle.Secondary)
   )];
 }
 
@@ -973,6 +975,32 @@ async function handleButtonInteraction(interaction) {
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({ content: `Impossible d'ouvrir la recherche de salon: ${error.message}`, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
+    }
+    return true;
+  }
+
+  if (interaction.customId === 'dragodinde:notify:toggle') {
+    const cfg = getGuildConfig(interaction.guild.id);
+    const roleId = cfg.notificationRoleId || cfg.allowedRoleIds?.[0] || '1480657602382790903';
+    const role = interaction.guild.roles.cache.get(roleId) || await interaction.guild.roles.fetch(roleId).catch(() => null);
+    const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+
+    if (!role || !member) {
+      await interaction.reply({ content: 'Impossible de gérer les notifications pour le moment.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    const hasRole = member.roles.cache.has(role.id);
+    try {
+      if (hasRole) {
+        await member.roles.remove(role.id);
+        await interaction.reply({ content: `🔕 Notifications désactivées, rôle retiré : **${role.name}**`, flags: MessageFlags.Ephemeral });
+      } else {
+        await member.roles.add(role.id);
+        await interaction.reply({ content: `🔔 Notifications activées, rôle ajouté : **${role.name}**`, flags: MessageFlags.Ephemeral });
+      }
+    } catch {
+      await interaction.reply({ content: 'Je n’ai pas réussi à modifier ton rôle de notification.', flags: MessageFlags.Ephemeral });
     }
     return true;
   }
