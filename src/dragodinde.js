@@ -34,6 +34,8 @@ const HORSES = [
 const setupDrafts = new Map();
 const userSessions = new Map();
 const raceStates = new Map();
+const WAIT_TIME_MS = 45_000;
+const CANCEL_WINDOW_MS = 15_000;
 
 function isAdmin(interaction) {
   return interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
@@ -144,13 +146,35 @@ function modeChoiceRows(userId) {
   )];
 }
 
-function horseChoiceRows(userId, mode) {
+function playerCountRows(userId) {
+  return [new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dragodinde:count:1:${userId}`).setLabel('1 adversaire').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dragodinde:count:2:${userId}`).setLabel('2 adversaires').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dragodinde:count:3:${userId}`).setLabel('3 adversaires').setStyle(ButtonStyle.Primary)
+  )];
+}
+
+function horseChoiceRows(userId, mode, waiting = false, guildId = null) {
+  const taken = new Set();
+  if (waiting && guildId && raceStates.has(guildId)) {
+    for (const player of raceStates.get(guildId).players || []) {
+      taken.add(player.horseIndex);
+    }
+  }
+
   return [new ActionRowBuilder().addComponents(
     ...HORSES.map((horse, i) => new ButtonBuilder()
       .setCustomId(`dragodinde:horse:${mode}:${i}:${userId}`)
       .setLabel(horse.name)
       .setEmoji(horse.emoji)
-      .setStyle(ButtonStyle.Primary))
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(waiting && taken.has(i)))
+  )];
+}
+
+function cancelParticipationRows(userId) {
+  return [new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dragodinde:cancel:${userId}`).setLabel('Annuler ma participation').setStyle(ButtonStyle.Danger)
   )];
 }
 
@@ -163,7 +187,7 @@ function buildPanelEmbed() {
     .setFooter({ text: 'Entre, mise, fanfaronne un peu, et assume si ça tourne mal.' });
 }
 
-function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, winnerId = null, winnerName = null } = {}) {
+function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, winnerId = null, winnerName = null, expectedHumans = MAX_PLAYERS, remainingSeconds = null } = {}) {
   const colorMap = {
     waiting: 0xF1C40F,
     launching: 0x3498DB,
@@ -179,10 +203,11 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, w
   if (phase === 'waiting') {
     embed
       .setImage(RACE_BANNER_URL)
-      .setDescription(`**<@${creatorId}>** cherche des adversaires.\nInscrits : **${humans.length}/${MAX_PLAYERS}**\nPlaces restantes : **${Math.max(0, MAX_PLAYERS - humans.length)}**`)
+      .setDescription(`**<@${creatorId}>** cherche des adversaires.\nInscrits : **${humans.length}/${expectedHumans}**\nPlaces restantes : **${Math.max(0, expectedHumans - humans.length)}**`)
       .addFields(
         { name: 'Joueurs engagés', value: humans.length ? humans.map((p) => `${HORSES[p.horseIndex].emoji} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n') : 'Aucun', inline: false },
         { name: 'Cagnotte actuelle', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false },
+        { name: 'Départ estimé', value: remainingSeconds !== null ? `${remainingSeconds} sec` : 'En attente', inline: true },
       );
   } else if (phase === 'launching') {
     embed
@@ -442,22 +467,84 @@ async function handleModalSubmit(interaction) {
   return true;
 }
 
+async function updateWaitingRaceMessage(channel, guildId) {
+  const state = raceStates.get(guildId);
+  if (!state?.waitingMessageId) return;
+  const msg = await channel.messages.fetch(state.waitingMessageId).catch(() => null);
+  if (!msg) return;
+
+  const remainingSeconds = Math.max(0, Math.ceil((state.deadlineAt - Date.now()) / 1000));
+  await msg.edit({
+    embeds: [buildRaceStatusEmbed('waiting', {
+      creatorId: state.creatorId,
+      humans: state.players,
+      pot: REAL_BET * state.players.length,
+      expectedHumans: state.expectedHumans,
+      remainingSeconds,
+    })],
+  }).catch(() => {});
+}
+
+async function finalizeWaitingRace(channel, guildId) {
+  const state = raceStates.get(guildId);
+  if (!state || state.started) return;
+  state.started = true;
+  if (state.waitInterval) clearInterval(state.waitInterval);
+  if (state.waitTimeout) clearTimeout(state.waitTimeout);
+
+  if (!state.players.length) {
+    raceStates.delete(guildId);
+    return;
+  }
+
+  await runSimpleRace(channel, guildId);
+}
+
+async function startPlayersWait(channel, guildId) {
+  const state = raceStates.get(guildId);
+  if (!state) return;
+  state.deadlineAt = Date.now() + WAIT_TIME_MS;
+
+  const waitingMessage = await channel.send({
+    embeds: [buildRaceStatusEmbed('waiting', {
+      creatorId: state.creatorId,
+      humans: state.players,
+      pot: REAL_BET * state.players.length,
+      expectedHumans: state.expectedHumans,
+      remainingSeconds: Math.ceil(WAIT_TIME_MS / 1000),
+    })],
+  }).catch(() => null);
+
+  if (waitingMessage) state.waitingMessageId = waitingMessage.id;
+
+  state.waitInterval = setInterval(() => {
+    updateWaitingRaceMessage(channel, guildId).catch(() => {});
+  }, 3000);
+
+  state.waitTimeout = setTimeout(() => {
+    finalizeWaitingRace(channel, guildId).catch(() => {});
+  }, WAIT_TIME_MS);
+}
+
 async function runSimpleRace(channel, guildId) {
   const state = raceStates.get(guildId);
   if (!state) return;
 
-  await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 2000));
-  await channel.send({ embeds: [buildRaceStatusEmbed('running', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 2500));
+  if (state.waitInterval) clearInterval(state.waitInterval);
+  if (state.waitTimeout) clearTimeout(state.waitTimeout);
 
   const contestants = [...state.players];
-  while (contestants.length < MAX_PLAYERS) {
+  while (contestants.length < state.expectedHumans) {
     const used = new Set(contestants.map((p) => p.horseIndex));
     const available = HORSES.map((_, i) => i).filter((i) => !used.has(i));
     const horseIndex = available[Math.floor(Math.random() * available.length)] ?? 0;
     contestants.push({ userId: null, horseIndex, ai: true });
   }
+
+  await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 2000));
+  await channel.send({ embeds: [buildRaceStatusEmbed('running', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 2500));
 
   const winner = contestants[Math.floor(Math.random() * contestants.length)];
   await channel.send({
@@ -616,9 +703,34 @@ async function handleButtonInteraction(interaction) {
     const session = userSessions.get(userId) || {};
     session.mode = mode;
     userSessions.set(userId, session);
+
+    if (mode === 'players') {
+      await interaction.update({
+        content: 'Choisis combien d’adversaires tu veux provoquer.',
+        components: playerCountRows(userId),
+      });
+      return true;
+    }
+
     await interaction.update({
-      content: `Mode sélectionné : **${mode === 'ia' ? "Contre l'IA" : "Contre d'autres joueurs"}**\nChoisis maintenant ta Dragodinde.`,
+      content: `Mode sélectionné : **Contre l\'IA**\nChoisis maintenant ta Dragodinde.`,
       components: horseChoiceRows(userId, mode),
+    });
+    return true;
+  }
+
+  if (interaction.customId.startsWith('dragodinde:count:')) {
+    const [, , countRaw, userId] = interaction.customId.split(':');
+    if (interaction.user.id !== userId) {
+      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+    const session = userSessions.get(userId) || {};
+    session.expectedHumans = Math.min(MAX_PLAYERS, Math.max(2, Number(countRaw) + 1));
+    userSessions.set(userId, session);
+    await interaction.update({
+      content: `Tu veux une course contre **${countRaw}** adversaire(s). Choisis maintenant ta Dragodinde.`,
+      components: horseChoiceRows(userId, 'players'),
     });
     return true;
   }
@@ -640,16 +752,56 @@ async function handleButtonInteraction(interaction) {
       });
       raceStates.set(guildId, {
         creatorId: interaction.user.id,
-        players: [{ userId: interaction.user.id, horseIndex, ai: false }],
+        players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now() }],
+        expectedHumans: MAX_PLAYERS,
+        started: false,
       });
       await runSimpleRace(interaction.channel, guildId);
       return true;
     }
 
-    const state = raceStates.get(guildId) || { creatorId: interaction.user.id, players: [] };
-    if (!state.players.find((p) => p.userId === interaction.user.id)) {
-      state.players.push({ userId: interaction.user.id, horseIndex, ai: false });
+    const session = userSessions.get(userId) || {};
+    const existing = raceStates.get(guildId);
+
+    if (existing && !existing.started) {
+      if (existing.players.find((p) => p.userId === interaction.user.id)) {
+        await interaction.reply({ content: 'Tu es déjà inscrit à cette course.', flags: MessageFlags.Ephemeral });
+        return true;
+      }
+      if (existing.players.find((p) => p.horseIndex === horseIndex)) {
+        await interaction.reply({ content: 'Cette dragodinde est déjà prise. Choisis-en une autre.', flags: MessageFlags.Ephemeral });
+        return true;
+      }
+
+      existing.players.push({ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now() });
+      raceStates.set(guildId, existing);
+
+      await interaction.update({
+        content: `✅ Tu rejoins la course en attente avec **${horse.emoji} ${horse.name}**.`,
+        components: [],
+      });
+
+      await interaction.followUp({
+        content: `Tu peux annuler pendant **${Math.floor(CANCEL_WINDOW_MS / 1000)} secondes**.`,
+        components: cancelParticipationRows(userId),
+        flags: MessageFlags.Ephemeral,
+      }).catch(() => {});
+
+      await updateWaitingRaceMessage(interaction.channel, guildId);
+
+      if (existing.players.length >= existing.expectedHumans) {
+        await finalizeWaitingRace(interaction.channel, guildId);
+      }
+      return true;
     }
+
+    const expectedHumans = session.expectedHumans || 2;
+    const state = {
+      creatorId: interaction.user.id,
+      players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now() }],
+      expectedHumans,
+      started: false,
+    };
     raceStates.set(guildId, state);
 
     await interaction.update({
@@ -657,17 +809,60 @@ async function handleButtonInteraction(interaction) {
       components: [],
     });
 
-    await interaction.channel.send({
-      embeds: [buildRaceStatusEmbed('waiting', {
-        creatorId: state.creatorId,
-        humans: state.players,
-        pot: REAL_BET * state.players.length,
-      })],
-    }).catch(() => {});
+    await startPlayersWait(interaction.channel, guildId);
 
-    if (state.players.length >= 2) {
-      await runSimpleRace(interaction.channel, guildId);
+    await interaction.followUp({
+      content: `Recherche d'adversaires lancée. Tu peux annuler pendant **${Math.floor(CANCEL_WINDOW_MS / 1000)} secondes**.`,
+      components: cancelParticipationRows(userId),
+      flags: MessageFlags.Ephemeral,
+    }).catch(() => {});
+    return true;
+  }
+
+  if (interaction.customId.startsWith('dragodinde:cancel:')) {
+    const [, , userId] = interaction.customId.split(':');
+    if (interaction.user.id !== userId) {
+      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
+      return true;
     }
+
+    const guildId = interaction.guild.id;
+    const state = raceStates.get(guildId);
+    if (!state || state.started) {
+      await interaction.reply({ content: 'Il n’y a plus de course en attente à annuler.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    const player = state.players.find((p) => p.userId === userId);
+    if (!player) {
+      await interaction.reply({ content: 'Tu n’es plus inscrit à cette course.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    if (Date.now() - (player.joinedAt || 0) > CANCEL_WINDOW_MS) {
+      await interaction.reply({ content: 'Le délai d’annulation est dépassé.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    state.players = state.players.filter((p) => p.userId !== userId);
+
+    if (!state.players.length || state.creatorId === userId) {
+      if (state.waitInterval) clearInterval(state.waitInterval);
+      if (state.waitTimeout) clearTimeout(state.waitTimeout);
+      raceStates.delete(guildId);
+      if (state.waitingMessageId) {
+        const msg = await interaction.channel.messages.fetch(state.waitingMessageId).catch(() => null);
+        if (msg) {
+          await msg.delete().catch(() => {});
+        }
+      }
+      await interaction.update({ content: 'Participation annulée, la recherche est fermée.', components: [] });
+      return true;
+    }
+
+    raceStates.set(guildId, state);
+    await interaction.update({ content: 'Ta participation a été annulée.', components: [] });
+    await updateWaitingRaceMessage(interaction.channel, guildId);
     return true;
   }
 
