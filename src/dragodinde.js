@@ -10,6 +10,9 @@ const {
   ChannelType,
   PermissionsBitField,
   EmbedBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 
 const DATA_DIR = path.join(__dirname, '..', 'data', 'dragodinde');
@@ -217,12 +220,36 @@ async function onReady() {
   return true;
 }
 
-function buildSetupComponents(guild) {
-  const textChannels = guild.channels.cache
+function getSelectableTextChannels(guild) {
+  return [...guild.channels.cache.values()]
     .filter((ch) => ch.type === ChannelType.GuildText)
-    .first(25)
-    .map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name.slice(0, 100)).setValue(ch.id));
+    .sort((a, b) => {
+      if (a.rawPosition !== b.rawPosition) return a.rawPosition - b.rawPosition;
+      return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+    });
+}
 
+function channelSelectRow(guild, customId, placeholder) {
+  const textChannels = getSelectableTextChannels(guild).slice(0, 25);
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(customId)
+    .setPlaceholder(placeholder)
+    .setMinValues(1)
+    .setMaxValues(1)
+    .addOptions(textChannels.map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name.slice(0, 100)).setValue(ch.id)));
+  return new ActionRowBuilder().addComponents(menu);
+}
+
+function channelSearchButtonRow(type, guildId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`dragodinde:setupsearch:${type}:${guildId}`)
+      .setLabel(type === 'logs' ? 'Rechercher salon logs' : 'Rechercher salon dashboard')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+function buildSetupComponents(guild) {
   const roles = guild.roles.cache
     .filter((role) => role.id !== guild.id)
     .sort((a, b) => b.position - a.position)
@@ -230,18 +257,10 @@ function buildSetupComponents(guild) {
     .map((role) => new StringSelectMenuOptionBuilder().setLabel(role.name.slice(0, 100)).setValue(role.id));
 
   return [
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(`dragodinde:setup:logs:${guild.id}`)
-        .setPlaceholder('Salon des logs (liste rapide)')
-        .addOptions(textChannels)
-    ),
-    new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(`dragodinde:setup:dashboard:${guild.id}`)
-        .setPlaceholder('Salon du dashboard (liste rapide)')
-        .addOptions(textChannels)
-    ),
+    channelSelectRow(guild, `dragodinde:setup:logs:${guild.id}`, 'Salon des logs (liste rapide)'),
+    channelSearchButtonRow('logs', guild.id),
+    channelSelectRow(guild, `dragodinde:setup:dashboard:${guild.id}`, 'Salon du dashboard (liste rapide)'),
+    channelSearchButtonRow('dashboard', guild.id),
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(`dragodinde:setup:admin:${guild.id}`)
@@ -267,6 +286,54 @@ function buildSetupComponents(guild) {
         .setStyle(ButtonStyle.Secondary)
     ),
   ];
+}
+
+async function showChannelSearchModal(interaction, type, guildId) {
+  const modal = new ModalBuilder()
+    .setCustomId(`dragodinde:modalsearch:${type}:${guildId}`)
+    .setTitle(type === 'logs' ? 'Rechercher le salon logs' : 'Rechercher le salon dashboard');
+
+  const input = new TextInputBuilder()
+    .setCustomId('query')
+    .setLabel('Nom du salon à rechercher')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true)
+    .setPlaceholder(type === 'logs' ? 'Ex: logs, pmu, courses...' : 'Ex: dashboard, dragodinde...');
+
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+  await interaction.showModal(modal);
+}
+
+async function handleModalSubmit(interaction) {
+  if (!interaction.customId.startsWith('dragodinde:modalsearch:')) return false;
+  const [, , type, guildId] = interaction.customId.split(':');
+  if (!interaction.guild || interaction.guild.id !== guildId) return false;
+
+  const query = (interaction.fields.getTextInputValue('query') || '').trim().toLowerCase();
+  const channels = getSelectableTextChannels(interaction.guild)
+    .filter((ch) => ch.name.toLowerCase().includes(query))
+    .slice(0, 10);
+
+  if (!channels.length) {
+    await interaction.reply({ content: 'Aucun salon texte trouvé pour cette recherche.', ephemeral: true });
+    return true;
+  }
+
+  await interaction.reply({
+    content: `Résultats pour **${query}** :`,
+    components: [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`dragodinde:setup:${type}:${guildId}`)
+          .setPlaceholder('Choisis un salon trouvé')
+          .setMinValues(1)
+          .setMaxValues(1)
+          .addOptions(channels.map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name.slice(0, 100)).setValue(ch.id)))
+      ),
+    ],
+    ephemeral: true,
+  });
+  return true;
 }
 
 async function runSimpleRace(channel, guildId) {
@@ -372,6 +439,13 @@ async function handleConfigSelect(interaction) {
 }
 
 async function handleButtonInteraction(interaction) {
+  if (interaction.customId.startsWith('dragodinde:setupsearch:')) {
+    const [, type, guildId] = interaction.customId.split(':');
+    if (!interaction.guild || interaction.guild.id !== guildId) return false;
+    await showChannelSearchModal(interaction, type, guildId);
+    return true;
+  }
+
   if (interaction.customId === 'dragodinde:join:main') {
     userSessions.set(interaction.user.id, { guildId: interaction.guild.id });
     await interaction.reply({
@@ -481,4 +555,5 @@ module.exports = {
   handleChatInputCommand,
   handleButtonInteraction,
   handleConfigSelect,
+  handleModalSubmit,
 };

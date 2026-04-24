@@ -2166,6 +2166,8 @@ async function main() {
       // Modal: collect in-game name (IGN)
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
 
+        if (await dragodinde.handleModalSubmit?.(interaction).catch(() => false)) return;
+
         if (interaction.customId.startsWith('dbp:add_submit:')) {
           const guildId = interaction.customId.split(':')[2];
           if (!interaction.guild || interaction.guild.id !== guildId) {
