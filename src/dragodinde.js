@@ -13,6 +13,7 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  MessageFlags,
 } = require('discord.js');
 
 const DATA_DIR = path.join(__dirname, '..', 'data', 'dragodinde');
@@ -121,14 +122,14 @@ function buildCommands() {
 
 function joinButtonRow() {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('dragodinde:join:main').setLabel('🏇 Participer').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId('dragodinde:join:main').setLabel('Participer').setEmoji('🐎').setStyle(ButtonStyle.Success)
   )];
 }
 
 function modeChoiceRows(userId) {
   return [new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`dragodinde:mode:ia:${userId}`).setLabel("🤖 Contre l'IA").setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`dragodinde:mode:players:${userId}`).setLabel("🏁 Contre d'autres joueurs").setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`dragodinde:mode:ia:${userId}`).setLabel("Contre l'IA").setEmoji('🤖').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`dragodinde:mode:players:${userId}`).setLabel("Contre d'autres joueurs").setEmoji('🏁').setStyle(ButtonStyle.Success)
   )];
 }
 
@@ -157,7 +158,7 @@ function buildPanelEmbed(guildId) {
     .setFooter({ text: 'Dragodinde phase 1 jouable.' });
 }
 
-function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], aiCount = 0, pot = 0, winnerId = null, winnerName = null } = {}) {
+function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, winnerId = null, winnerName = null } = {}) {
   const colorMap = {
     waiting: 0xF1C40F,
     launching: 0x3498DB,
@@ -175,8 +176,8 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], aiCount = 
       .setImage(RACE_BANNER_URL)
       .setDescription(`**<@${creatorId}>** cherche des adversaires.\nInscrits : **${humans.length}/${MAX_PLAYERS}**\nPlaces restantes : **${Math.max(0, MAX_PLAYERS - humans.length)}**`)
       .addFields(
-        { name: '🏇 Joueurs engagés', value: humans.length ? humans.map((p) => `${HORSES[p.horseIndex].emoji} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n') : 'Aucun', inline: false },
-        { name: '💰 Cagnotte actuelle', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false },
+        { name: 'Joueurs engagés', value: humans.length ? humans.map((p) => `${HORSES[p.horseIndex].emoji} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n') : 'Aucun', inline: false },
+        { name: 'Cagnotte actuelle', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false },
       );
   } else if (phase === 'launching') {
     embed
@@ -191,8 +192,8 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], aiCount = 
       .setImage(RESULT_IMAGE_URL)
       .setDescription('La poussière retombe. La piste a rendu son verdict.')
       .addFields(
-        { name: '🏆 Vainqueur', value: winnerId ? `<@${winnerId}> (${winnerName})` : `IA (${winnerName})`, inline: false },
-        { name: '💰 Montant', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false },
+        { name: 'Vainqueur', value: winnerId ? `<@${winnerId}> (${winnerName})` : `IA (${winnerName})`, inline: false },
+        { name: 'Montant', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false },
       );
   }
 
@@ -238,15 +239,6 @@ function channelSelectRow(guild, customId, placeholder) {
     .setMaxValues(1)
     .addOptions(textChannels.map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name.slice(0, 100)).setValue(ch.id)));
   return new ActionRowBuilder().addComponents(menu);
-}
-
-function channelSearchButtonRow(type, guildId) {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`dragodinde:setupsearch:${type}:${guildId}`)
-      .setLabel(type === 'logs' ? 'Rechercher salon logs' : 'Rechercher salon dashboard')
-      .setStyle(ButtonStyle.Secondary)
-  );
 }
 
 function buildSetupComponents(guild) {
@@ -323,7 +315,7 @@ async function handleModalSubmit(interaction) {
     .slice(0, 10);
 
   if (!channels.length) {
-    await interaction.reply({ content: 'Aucun salon texte trouvé pour cette recherche.', ephemeral: true });
+    await interaction.reply({ content: 'Aucun salon texte trouvé pour cette recherche.', flags: MessageFlags.Ephemeral });
     return true;
   }
 
@@ -339,7 +331,7 @@ async function handleModalSubmit(interaction) {
           .addOptions(channels.map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name.slice(0, 100)).setValue(ch.id)))
       ),
     ],
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
   return true;
 }
@@ -348,9 +340,9 @@ async function runSimpleRace(channel, guildId) {
   const state = raceStates.get(guildId);
   if (!state) return;
 
-  await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, aiCount: Math.max(0, MAX_PLAYERS - state.players.length), pot: REAL_BET * state.players.length })] }).catch(() => {});
+  await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
   await new Promise((r) => setTimeout(r, 2000));
-  await channel.send({ embeds: [buildRaceStatusEmbed('running', { creatorId: state.creatorId, humans: state.players, aiCount: Math.max(0, MAX_PLAYERS - state.players.length), pot: REAL_BET * state.players.length })] }).catch(() => {});
+  await channel.send({ embeds: [buildRaceStatusEmbed('running', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
   await new Promise((r) => setTimeout(r, 2500));
 
   const contestants = [...state.players];
@@ -384,34 +376,34 @@ async function handleChatInputCommand(interaction) {
         `• Dashboard: ${cfg.dashboardChannelId ? `<#${cfg.dashboardChannelId}>` : '—'}\n` +
         `• Admin: ${cfg.adminRoleId ? `<@&${cfg.adminRoleId}>` : '—'}\n` +
         `• Panneau: ${cfg.dashboardMessageId || '—'}`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return true;
   }
 
   if (interaction.commandName === 'dragodinde_panel') {
     if (!isAdmin(interaction)) {
-      await interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
+      await interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
       return true;
     }
     const cfg = getGuildConfig(interaction.guild.id);
     if (!cfg.dashboardChannelId) {
-      await interaction.reply({ content: 'Configure d’abord le salon dashboard avec /dragodinde_setup.', ephemeral: true });
+      await interaction.reply({ content: 'Configure d’abord le salon dashboard avec /dragodinde_setup.', flags: MessageFlags.Ephemeral });
       return true;
     }
     const channel = await interaction.client.channels.fetch(cfg.dashboardChannelId).catch(() => null);
     if (!channel || !channel.isTextBased()) {
-      await interaction.reply({ content: 'Salon dashboard inaccessible.', ephemeral: true });
+      await interaction.reply({ content: 'Salon dashboard inaccessible.', flags: MessageFlags.Ephemeral });
       return true;
     }
     const msg = await ensureDashboardPanel(channel, interaction.guild.id);
-    await interaction.reply({ content: `✅ Panneau Dragodinde prêt dans ${channel} (message ${msg.id}).`, ephemeral: true });
+    await interaction.reply({ content: `✅ Panneau Dragodinde prêt dans ${channel} (message ${msg.id}).`, flags: MessageFlags.Ephemeral });
     return true;
   }
 
   if (interaction.commandName === 'dragodinde_setup') {
     if (!isAdmin(interaction)) {
-      await interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', ephemeral: true });
+      await interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
       return true;
     }
 
@@ -419,7 +411,7 @@ async function handleChatInputCommand(interaction) {
     await interaction.reply({
       content: '### 🐎 Bienvenue dans la configuration du jeu\nChoisis tous les éléments, puis valide à la fin. Rien ne sera créé avant validation.',
       components: buildSetupComponents(interaction.guild),
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return true;
   }
@@ -442,7 +434,7 @@ async function handleConfigSelect(interaction) {
     draft.notificationRoleId = draft.allowedRoleIds[0] || null;
   }
 
-  await interaction.reply({ content: '✅ Sélection enregistrée.', ephemeral: true });
+  await interaction.reply({ content: '✅ Sélection enregistrée.', flags: MessageFlags.Ephemeral });
   return true;
 }
 
@@ -459,7 +451,7 @@ async function handleButtonInteraction(interaction) {
     await interaction.reply({
       content: 'Choisis ton mode de jeu.',
       components: modeChoiceRows(interaction.user.id),
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return true;
   }
@@ -467,7 +459,7 @@ async function handleButtonInteraction(interaction) {
   if (interaction.customId.startsWith('dragodinde:mode:')) {
     const [, , mode, userId] = interaction.customId.split(':');
     if (interaction.user.id !== userId) {
-      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', ephemeral: true });
+      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
       return true;
     }
     const session = userSessions.get(userId) || {};
@@ -483,7 +475,7 @@ async function handleButtonInteraction(interaction) {
   if (interaction.customId.startsWith('dragodinde:horse:')) {
     const [, , , mode, horseIndexRaw, userId] = interaction.customId.split(':');
     if (interaction.user.id !== userId) {
-      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', ephemeral: true });
+      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
       return true;
     }
     const horseIndex = Number(horseIndexRaw);
