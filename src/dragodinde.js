@@ -232,21 +232,29 @@ function getSelectableTextChannels(guild) {
 
 function channelSelectRow(guild, customId, placeholder) {
   const textChannels = getSelectableTextChannels(guild).slice(0, 25);
+  const options = textChannels.length
+    ? textChannels.map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name.slice(0, 100)).setValue(ch.id))
+    : [new StringSelectMenuOptionBuilder().setLabel('Aucun salon texte disponible').setValue('__none__')];
+
   const menu = new StringSelectMenuBuilder()
     .setCustomId(customId)
     .setPlaceholder(placeholder)
     .setMinValues(1)
     .setMaxValues(1)
-    .addOptions(textChannels.map((ch) => new StringSelectMenuOptionBuilder().setLabel(ch.name.slice(0, 100)).setValue(ch.id)));
+    .setDisabled(!textChannels.length)
+    .addOptions(options);
   return new ActionRowBuilder().addComponents(menu);
 }
 
 function buildSetupComponents(guild) {
-  const roles = guild.roles.cache
+  const roleList = guild.roles.cache
     .filter((role) => role.id !== guild.id)
     .sort((a, b) => b.position - a.position)
-    .first(25)
-    .map((role) => new StringSelectMenuOptionBuilder().setLabel(role.name.slice(0, 100)).setValue(role.id));
+    .first(25);
+
+  const roleOptions = roleList.length
+    ? roleList.map((role) => new StringSelectMenuOptionBuilder().setLabel(role.name.slice(0, 100)).setValue(role.id))
+    : [new StringSelectMenuOptionBuilder().setLabel('Aucun rôle disponible').setValue('__none__')];
 
   return [
     channelSelectRow(guild, `dragodinde:setup:logs:${guild.id}`, 'Salon des logs (liste rapide)'),
@@ -265,15 +273,19 @@ function buildSetupComponents(guild) {
       new StringSelectMenuBuilder()
         .setCustomId(`dragodinde:setup:admin:${guild.id}`)
         .setPlaceholder('Rôle admin (valider les paiements)')
-        .addOptions(roles)
+        .setMinValues(1)
+        .setMaxValues(1)
+        .setDisabled(!roleList.length)
+        .addOptions(roleOptions)
     ),
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(`dragodinde:setup:allowed:${guild.id}`)
         .setPlaceholder('Rôle autorisé à jouer (sert aussi pour les notifications)')
-        .setMinValues(0)
-        .setMaxValues(Math.min(roles.length || 1, 5))
-        .addOptions(roles)
+        .setMinValues(1)
+        .setMaxValues(Math.min(roleList.length || 1, 5))
+        .setDisabled(!roleList.length)
+        .addOptions(roleOptions)
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -402,16 +414,17 @@ async function handleChatInputCommand(interaction) {
   }
 
   if (interaction.commandName === 'dragodinde_setup') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     if (!isAdmin(interaction)) {
-      await interaction.reply({ content: 'Tu dois être administrateur pour utiliser cette commande.', flags: MessageFlags.Ephemeral });
+      await interaction.editReply({ content: 'Tu dois être administrateur pour utiliser cette commande.' });
       return true;
     }
 
     getDraft(interaction.guild.id);
-    await interaction.reply({
+    await interaction.editReply({
       content: '### 🐎 Bienvenue dans la configuration du jeu\nChoisis tous les éléments, puis valide à la fin. Rien ne sera créé avant validation.',
       components: buildSetupComponents(interaction.guild),
-      flags: MessageFlags.Ephemeral,
     });
     return true;
   }
@@ -426,11 +439,11 @@ async function handleConfigSelect(interaction) {
 
   const draft = getDraft(guildId);
   const value = interaction.values?.[0] || null;
-  if (key === 'logs') draft.logsChannelId = value;
-  if (key === 'dashboard') draft.dashboardChannelId = value;
-  if (key === 'admin') draft.adminRoleId = value;
+  if (key === 'logs' && value !== '__none__') draft.logsChannelId = value;
+  if (key === 'dashboard' && value !== '__none__') draft.dashboardChannelId = value;
+  if (key === 'admin' && value !== '__none__') draft.adminRoleId = value;
   if (key === 'allowed') {
-    draft.allowedRoleIds = [...(interaction.values || [])];
+    draft.allowedRoleIds = [...(interaction.values || [])].filter((v) => v !== '__none__');
     draft.notificationRoleId = draft.allowedRoleIds[0] || null;
   }
 
