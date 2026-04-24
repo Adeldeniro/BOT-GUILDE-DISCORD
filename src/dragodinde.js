@@ -260,16 +260,6 @@ function buildSetupComponents(guild) {
     channelSelectRow(guild, `dragodinde:setup:logs:${guild.id}`, 'Salon des logs (liste rapide)'),
     channelSelectRow(guild, `dragodinde:setup:dashboard:${guild.id}`, 'Salon du dashboard (liste rapide)'),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`dragodinde:setupsearch:logs:${guild.id}`)
-        .setLabel('Rechercher salon logs')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`dragodinde:setupsearch:dashboard:${guild.id}`)
-        .setLabel('Rechercher salon dashboard')
-        .setStyle(ButtonStyle.Secondary)
-    ),
-    new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(`dragodinde:setup:admin:${guild.id}`)
         .setPlaceholder('Rôle admin (valider les paiements)')
@@ -279,22 +269,21 @@ function buildSetupComponents(guild) {
         .addOptions(roleOptions)
     ),
     new ActionRowBuilder().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(`dragodinde:setup:allowed:${guild.id}`)
-        .setPlaceholder('Rôle autorisé à jouer (sert aussi pour les notifications)')
-        .setMinValues(1)
-        .setMaxValues(Math.min(roleList.length || 1, 5))
-        .setDisabled(!roleList.length)
-        .addOptions(roleOptions)
-    ),
-    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`dragodinde:setupsearch:logs:${guild.id}`)
+        .setLabel('Rechercher salon logs')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`dragodinde:setupsearch:dashboard:${guild.id}`)
+        .setLabel('Rechercher salon dashboard')
+        .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`dragodinde:setup:save:${guild.id}`)
-        .setLabel('✅ Valider la configuration')
+        .setLabel('Valider')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(`dragodinde:setup:cancel:${guild.id}`)
-        .setLabel('❌ Annuler')
+        .setLabel('Annuler')
         .setStyle(ButtonStyle.Secondary)
     ),
   ];
@@ -551,8 +540,7 @@ async function handleButtonInteraction(interaction) {
         'Configuration Dragodinde enregistrée.\n' +
         `• Logs: ${draft.logsChannelId ? `<#${draft.logsChannelId}>` : '—'}\n` +
         `• Dashboard: ${draft.dashboardChannelId ? `<#${draft.dashboardChannelId}>` : '—'}\n` +
-        `• Admin: ${draft.adminRoleId ? `<@&${draft.adminRoleId}>` : '—'}\n` +
-        `• Rôle autorisé: ${draft.allowedRoleIds?.length ? draft.allowedRoleIds.map((rid) => `<@&${rid}>`).join(', ') : '—'}\n\n` +
+        `• Admin: ${draft.adminRoleId ? `<@&${draft.adminRoleId}>` : '—'}\n\n` +
         'Tu peux maintenant utiliser /dragodinde_panel pour générer le panneau.',
       components: [],
     });
