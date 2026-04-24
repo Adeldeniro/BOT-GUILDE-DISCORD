@@ -170,11 +170,20 @@ function applyUserPayment(userId, amount) {
 function canUserPlay(member) {
   if (!member) return [false, 'Membre introuvable.'];
   if (member.permissions?.has(PermissionsBitField.Flags.Administrator)) return [true, null];
+
   const cfg = getGuildConfig(member.guild.id);
-  if (cfg.allowedRoleIds?.length) {
-    const allowed = cfg.allowedRoleIds.some((rid) => member.roles?.cache?.has(rid));
-    if (!allowed) return [false, 'Tu n’as pas le rôle autorisé pour jouer à cette course.'];
+  const allowedRoles = [
+    ...(Array.isArray(cfg.allowedRoleIds) ? cfg.allowedRoleIds : []),
+    cfg.notificationRoleId || null,
+  ].filter(Boolean);
+
+  if (allowedRoles.length) {
+    const allowed = allowedRoles.some((rid) => member.roles?.cache?.has(rid));
+    if (!allowed) {
+      return [false, 'Tu n’as pas le rôle autorisé pour jouer à cette course.'];
+    }
   }
+
   const debt = getUserDebt(member.id);
   if (debt > DEBT_LIMIT) return [false, `Tu es bloqué, ta dette dépasse ${DEBT_LIMIT.toLocaleString('fr-FR')} kamas.`];
   return [true, null];
