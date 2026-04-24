@@ -86,29 +86,29 @@ function getDraft(guildId) {
 
 function getMainMessageContent() {
   return [
-    '**🏇 PMU CLANDESTIN DE LA GUILDE, FAIS HURLER TA DRAGODINDE 🏇🎰**',
+    '**Type de jeu : Course de Dragodinde**',
     '',
-    'Ici, pas de tapis rouge, pas de noblesse, pas de place pour les pleurnicheurs.',
-    'On balance des kamas sur la table, on envoie les bêtes sur la piste, et on regarde qui finit riche... ou ridicule devant tout le monde.',
+    'Bienvenue dans le bouge où les grandes bouches viennent jeter leurs kamas en espérant repartir avec un sourire de travers et les poches pleines.',
+    'Ici, les fiers à bras fanfaronnent avant le départ, puis finissent souvent à regarder leur bestiole se traîner comme un sac de farine sur une piste grasse.',
     '',
-    'Si ta monture a du coffre, elle peut te remplir les poches.',
-    'Si elle a des jambes en carton, tu repartiras avec ta honte, ton seum, et peut-être l’envie de faire croire que c’était truqué.',
+    'Si ta monture a du souffle, tu peux faire sauter la banque.',
+    'Si elle court comme une enclume malade, tu repartiras avec la honte au cul pendant que les autres se foutent de toi.',
     '',
-    '**💸 Règles du carnage**',
+    '**💸 Règles du jeu**',
     `• Course entre joueurs : entrée à **${ENTRY_FEE.toLocaleString('fr-FR')} kamas**`,
-    `• Mise réellement injectée dans la cagnotte : **${REAL_BET.toLocaleString('fr-FR')} kamas** par participant`,
-    '• Si la grille n’est pas complète, l’IA ramasse les places libres au départ',
+    `• Montant réellement mis en jeu : **${REAL_BET.toLocaleString('fr-FR')} kamas** par participant`,
+    '• Si tous les emplacements ne sont pas pris, l’IA bouche les trous au départ',
     '',
     '**🤖 Défis contre l’IA**',
     '• **Double ta mise** : entrée 55 000 kamas, gain final **100 000 kamas**',
     '• **Triple ta mise** : entrée 105 000 kamas, gain final **300 000 kamas**',
     '• **Jackpot 2M** : entrée 220 000 kamas, gain final **2 000 000 kamas**',
     '',
-    '**🎮 Comment entrer dans l’arène ?**',
+    '**🎮 Comment tenter ton coup ?**',
     '• Clique sur **Participer**',
-    '• Choisis si tu veux affronter l’IA ou d’autres dégénérés de la piste',
+    '• Choisis si tu veux te faire salir par l’IA ou par d’autres clowns du paddock',
     '• Sélectionne ta Dragodinde',
-    '• Et prie pour que ce ne soit pas encore ton porte-monnaie qui se fasse ouvrir',
+    '• Et croise les doigts pour ne pas finir à sec, avec ton ego piétiné sous les sabots',
     '',
     `*Capacité max : ${MAX_PLAYERS} joueurs humains*`,
   ].join('\n');
@@ -157,10 +157,10 @@ function horseChoiceRows(userId, mode) {
 function buildPanelEmbed() {
   return new EmbedBuilder()
     .setColor(0xF1C40F)
-    .setTitle('🏇 Course Dragodinde')
+    .setTitle('🎰 PMU de la Guilde')
     .setDescription(getMainMessageContent())
     .setImage(IMAGE_URL)
-    .setFooter({ text: 'Approchez, prenez place, et tentez votre chance au PMU.' });
+    .setFooter({ text: 'Entre, mise, fanfaronne un peu, et assume si ça tourne mal.' });
 }
 
 function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, winnerId = null, winnerName = null } = {}) {
