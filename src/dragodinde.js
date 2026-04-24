@@ -18,6 +18,9 @@ const {
 
 const DATA_DIR = path.join(__dirname, '..', 'data', 'dragodinde');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+const DEBTS_FILE = path.join(DATA_DIR, 'debts.json');
+const PAYOUTS_FILE = path.join(DATA_DIR, 'payouts.json');
+const FINANCE_FILE = path.join(DATA_DIR, 'finance.json');
 const IMAGE_URL = 'https://media.discordapp.net/attachments/1481127126248984679/1494762706899701891/980ba366-2d5c-46c4-b4a9-df92e4e90f70.png?ex=69e3c9c0&is=69e27840&hm=c6652dfdc2999cacc80d9f8df4c6ef01de1a36b28c9e8fd2d3d13b112d7014a8&=&format=webp&quality=lossless';
 const RESULT_IMAGE_URL = 'https://cdn.discordapp.com/attachments/1481127126248984679/1495225714117447710/0436af6e-f2de-4962-8e0d-0451f6a9e493.png';
 const RACE_BANNER_URL = 'https://cdn.discordapp.com/attachments/1481127126248984679/1495230856178962582/Gemini_Generated_Image_lxhg3glxhg3glxhg.png';
@@ -36,6 +39,10 @@ const userSessions = new Map();
 const raceStates = new Map();
 const WAIT_TIME_MS = 45_000;
 const CANCEL_WINDOW_MS = 15_000;
+const DEBT_LIMIT = 1_000_000;
+let debtRecords = null;
+let payoutRecords = null;
+let finance = null;
 
 function isAdmin(interaction) {
   return interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator);
@@ -45,18 +52,53 @@ function ensureDataDir() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-function loadConfig() {
+function readJsonFile(file, fallback) {
   ensureDataDir();
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch {
-    return {};
+    return fallback;
   }
 }
 
-function saveConfig(config) {
+function writeJsonFile(file, value) {
   ensureDataDir();
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+  fs.writeFileSync(file, JSON.stringify(value, null, 2), 'utf8');
+}
+
+function loadConfig() {
+  return readJsonFile(CONFIG_FILE, {});
+}
+
+function saveConfig(config) {
+  writeJsonFile(CONFIG_FILE, config);
+}
+
+function loadDebtRecords() {
+  if (!debtRecords) debtRecords = readJsonFile(DEBTS_FILE, {});
+  return debtRecords;
+}
+
+function saveDebtRecords() {
+  writeJsonFile(DEBTS_FILE, loadDebtRecords());
+}
+
+function loadPayoutRecords() {
+  if (!payoutRecords) payoutRecords = readJsonFile(PAYOUTS_FILE, {});
+  return payoutRecords;
+}
+
+function savePayoutRecords() {
+  writeJsonFile(PAYOUTS_FILE, loadPayoutRecords());
+}
+
+function loadFinance() {
+  if (!finance) finance = readJsonFile(FINANCE_FILE, {});
+  return finance;
+}
+
+function saveFinance() {
+  writeJsonFile(FINANCE_FILE, loadFinance());
 }
 
 function getGuildConfig(guildId) {
@@ -84,6 +126,132 @@ function getDraft(guildId) {
     setupDrafts.set(guildId, { ...getGuildConfig(guildId) });
   }
   return setupDrafts.get(guildId);
+}
+
+function getLogsChannelId(guildId) {
+  return getGuildConfig(guildId).logsChannelId || null;
+}
+
+function getAdminRoleId(guildId) {
+  return getGuildConfig(guildId).adminRoleId || null;
+}
+
+function getUserFinance(userId) {
+  const db = loadFinance();
+  if (!db[userId]) {
+    db[userId] = { totalDebt: 0, betsCount: 0, paymentsCount: 0 };
+    saveFinance();
+  }
+  return db[userId];
+}
+
+function getUserDebt(userId) {
+  return Number(getUserFinance(String(userId)).totalDebt || 0);
+}
+
+function addUserDebt(userId, amount) {
+  const db = loadFinance();
+  const current = getUserFinance(String(userId));
+  current.totalDebt = Number(current.totalDebt || 0) + Number(amount || 0);
+  current.betsCount = Number(current.betsCount || 0) + 1;
+  db[String(userId)] = current;
+  saveFinance();
+}
+
+function applyUserPayment(userId, amount) {
+  const db = loadFinance();
+  const current = getUserFinance(String(userId));
+  current.totalDebt = Math.max(0, Number(current.totalDebt || 0) - Number(amount || 0));
+  current.paymentsCount = Number(current.paymentsCount || 0) + 1;
+  db[String(userId)] = current;
+  saveFinance();
+}
+
+function canUserPlay(member) {
+  if (!member) return [false, 'Membre introuvable.'];
+  if (member.permissions?.has(PermissionsBitField.Flags.Administrator)) return [true, null];
+  const cfg = getGuildConfig(member.guild.id);
+  if (cfg.allowedRoleIds?.length) {
+    const allowed = cfg.allowedRoleIds.some((rid) => member.roles?.cache?.has(rid));
+    if (!allowed) return [false, 'Tu n’as pas le rôle autorisé pour jouer à cette course.'];
+  }
+  const debt = getUserDebt(member.id);
+  if (debt > DEBT_LIMIT) return [false, `Tu es bloqué, ta dette dépasse ${DEBT_LIMIT.toLocaleString('fr-FR')} kamas.`];
+  return [true, null];
+}
+
+async function createDebtRecord(client, guildId, userId, horseIndex, amount = ENTRY_FEE, meta = {}) {
+  const logsChannelId = getLogsChannelId(guildId);
+  if (!logsChannelId) return null;
+  const channel = await client.channels.fetch(logsChannelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) return null;
+
+  const recordId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const safeAmount = Number(amount || ENTRY_FEE);
+  const futureTotal = getUserDebt(userId) + safeAmount;
+  const formulaText = meta.formulaLabel ? `**Formule :** ${meta.formulaLabel}\n` : '';
+
+  const embed = new EmbedBuilder()
+    .setTitle('💰 Engagement de participation')
+    .setDescription(
+      `**Joueur :** <@${userId}>\n` +
+      `**Montant :** ${safeAmount.toLocaleString('fr-FR')} kamas\n` +
+      formulaText +
+      `**Cheval :** ${HORSES[horseIndex].emoji} ${HORSES[horseIndex].name}\n` +
+      `**Dette totale après inscription :** ${futureTotal.toLocaleString('fr-FR')} kamas\n` +
+      `**Statut :** En attente de paiement`
+    )
+    .setColor(0xFFA500)
+    .setTimestamp();
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dragodinde:debtpay:${recordId}`).setLabel('Valider le paiement').setStyle(ButtonStyle.Success)
+  );
+
+  const msg = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
+  if (!msg) return null;
+
+  const db = loadDebtRecords();
+  db[recordId] = {
+    recordId,
+    guildId,
+    userId: String(userId),
+    amount: safeAmount,
+    horseIndex,
+    formulaLabel: meta.formulaLabel || null,
+    mode: meta.mode || null,
+    status: 'unpaid',
+    channelId: channel.id,
+    messageId: msg.id,
+    createdAt: new Date().toISOString(),
+    paidAt: null,
+    paidByAdminId: null,
+    cancelledAt: null,
+    cancelledByUserId: null,
+  };
+  saveDebtRecords();
+  addUserDebt(userId, safeAmount);
+  return recordId;
+}
+
+async function markDebtCancelled(client, recordId, cancelledByUserId = null) {
+  const db = loadDebtRecords();
+  const record = db[recordId];
+  if (!record || record.status !== 'unpaid') return;
+  record.status = 'cancelled';
+  record.cancelledAt = new Date().toISOString();
+  record.cancelledByUserId = cancelledByUserId ? String(cancelledByUserId) : null;
+  saveDebtRecords();
+
+  const channel = await client.channels.fetch(record.channelId).catch(() => null);
+  const msg = channel && channel.isTextBased() ? await channel.messages.fetch(record.messageId).catch(() => null) : null;
+  if (msg?.embeds?.[0]) {
+    const embed = EmbedBuilder.from(msg.embeds[0])
+      .setColor(0x95A5A6)
+      .setDescription((msg.embeds[0].description || '').replace('En attente de paiement', 'Engagement annulé'))
+      .setFooter({ text: 'Participation annulée' });
+    await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
+  }
 }
 
 function getMainMessageContent() {
@@ -745,14 +913,26 @@ async function handleButtonInteraction(interaction) {
     const guildId = interaction.guild.id;
     const horse = HORSES[horseIndex];
 
+    const [allowedToPlay, blockedReason] = canUserPlay(interaction.member);
+    if (!allowedToPlay) {
+      await interaction.reply({ content: blockedReason, flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
     if (mode === 'ia') {
+      const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, ENTRY_FEE, { mode: 'ia', formulaLabel: 'Formule IA temporaire' });
+      if (!debtRecordId) {
+        await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
+        return true;
+      }
+
       await interaction.update({
         content: `✅ Tu as choisi **${horse.emoji} ${horse.name}** pour affronter l’IA. La course démarre...`,
         components: [],
       });
       raceStates.set(guildId, {
         creatorId: interaction.user.id,
-        players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now() }],
+        players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now(), debtRecordId }],
         expectedHumans: MAX_PLAYERS,
         started: false,
       });
@@ -773,7 +953,13 @@ async function handleButtonInteraction(interaction) {
         return true;
       }
 
-      existing.players.push({ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now() });
+      const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, ENTRY_FEE, { mode: 'players' });
+      if (!debtRecordId) {
+        await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
+        return true;
+      }
+
+      existing.players.push({ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now(), debtRecordId });
       raceStates.set(guildId, existing);
 
       await interaction.update({
@@ -795,10 +981,16 @@ async function handleButtonInteraction(interaction) {
       return true;
     }
 
+    const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, ENTRY_FEE, { mode: 'players' });
+    if (!debtRecordId) {
+      await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
     const expectedHumans = session.expectedHumans || 2;
     const state = {
       creatorId: interaction.user.id,
-      players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now() }],
+      players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now(), debtRecordId }],
       expectedHumans,
       started: false,
     };
@@ -845,6 +1037,9 @@ async function handleButtonInteraction(interaction) {
     }
 
     state.players = state.players.filter((p) => p.userId !== userId);
+    if (player.debtRecordId) {
+      await markDebtCancelled(interaction.client, player.debtRecordId, userId).catch(() => {});
+    }
 
     if (!state.players.length || state.creatorId === userId) {
       if (state.waitInterval) clearInterval(state.waitInterval);
@@ -863,6 +1058,50 @@ async function handleButtonInteraction(interaction) {
     raceStates.set(guildId, state);
     await interaction.update({ content: 'Ta participation a été annulée.', components: [] });
     await updateWaitingRaceMessage(interaction.channel, guildId);
+    return true;
+  }
+
+  if (interaction.customId.startsWith('dragodinde:debtpay:')) {
+    const [, , recordId] = interaction.customId.split(':');
+    const db = loadDebtRecords();
+    const record = db[recordId];
+    if (!record) {
+      await interaction.reply({ content: 'Enregistrement introuvable.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    const adminRoleId = getAdminRoleId(interaction.guild.id);
+    const allowed = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) || (adminRoleId && interaction.member?.roles?.cache?.has(adminRoleId));
+    if (!allowed) {
+      await interaction.reply({ content: 'Rôle admin requis.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    if (record.status === 'paid') {
+      await interaction.reply({ content: 'Ce paiement est déjà validé.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+    if (record.status === 'cancelled') {
+      await interaction.reply({ content: 'Cet engagement a déjà été annulé.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    record.status = 'paid';
+    record.paidAt = new Date().toISOString();
+    record.paidByAdminId = interaction.user.id;
+    saveDebtRecords();
+    applyUserPayment(record.userId, record.amount);
+
+    const existingEmbed = interaction.message.embeds?.[0];
+    if (existingEmbed) {
+      const embed = EmbedBuilder.from(existingEmbed)
+        .setColor(0x2ECC71)
+        .setDescription((existingEmbed.description || '').replace('En attente de paiement', 'Payé'))
+        .setFooter({ text: `Validé par ${interaction.user.displayName}` });
+      await interaction.update({ embeds: [embed], components: [] });
+    } else {
+      await interaction.update({ components: [] });
+    }
     return true;
   }
 
