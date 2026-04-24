@@ -694,6 +694,95 @@ async function startPlayersWait(channel, guildId) {
   }, WAIT_TIME_MS);
 }
 
+function generateTrack(contestants, positions) {
+  return contestants.map((entry, rank) => {
+    const horse = HORSES[entry.horseIndex];
+    const pos = Math.max(0, Math.min(12, positions[entry.horseIndex] || 0));
+    const before = '─'.repeat(pos);
+    const after = '─'.repeat(12 - pos);
+    const who = entry.userId ? `<@${entry.userId}>` : 'IA';
+    return `${rank + 1}. ${horse.emoji} **${horse.name}** ${before}${horse.emoji}${after} ${who}`;
+  }).join('\n');
+}
+
+function sortContestantsByProgress(contestants, positions) {
+  return [...contestants].sort((a, b) => (positions[b.horseIndex] || 0) - (positions[a.horseIndex] || 0));
+}
+
+async function runCountdown(channel, seconds) {
+  const msg = await channel.send({
+    embeds: [new EmbedBuilder()
+      .setTitle('⏳ Pré-départ')
+      .setDescription(`La course démarre dans **${seconds}** secondes...`)
+      .setColor(0x3498DB)
+      .setImage(RACE_BANNER_URL)
+      .setTimestamp()],
+  }).catch(() => null);
+
+  if (!msg) return;
+  for (let s = seconds - 1; s >= 1; s--) {
+    await new Promise((r) => setTimeout(r, 1000));
+    await msg.edit({
+      embeds: [new EmbedBuilder()
+        .setTitle('⏳ Pré-départ')
+        .setDescription(`La course démarre dans **${s}** secondes...`)
+        .setColor(0x3498DB)
+        .setImage(RACE_BANNER_URL)
+        .setTimestamp()],
+    }).catch(() => {});
+  }
+  await new Promise((r) => setTimeout(r, 1000));
+  await msg.delete().catch(() => {});
+}
+
+async function createPayoutRecord(client, guildId, winner, totalAmount, participantsSnapshot) {
+  const logsChannelId = getLogsChannelId(guildId);
+  if (!logsChannelId || !winner?.userId) return null;
+  const channel = await client.channels.fetch(logsChannelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) return null;
+
+  const recordId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const participantsText = participantsSnapshot.map((p) => `<@${p.userId}>`).join(', ') || 'Aucun';
+  const horse = HORSES[winner.horseIndex];
+
+  const embed = new EmbedBuilder()
+    .setTitle('🏆 Gain à remettre')
+    .setDescription(
+      `**Gagnant :** <@${winner.userId}>\n` +
+      `**Cheval :** ${horse.emoji} ${horse.name}\n` +
+      `**Total à remettre :** ${Number(totalAmount).toLocaleString('fr-FR')} kamas\n` +
+      `**Participants :** ${participantsText}\n` +
+      `**Statut :** En attente de remise`
+    )
+    .setColor(0x2ECC71)
+    .setTimestamp();
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dragodinde:payoutpay:${recordId}`).setLabel('Valider le gain').setStyle(ButtonStyle.Success)
+  );
+
+  const msg = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
+  if (!msg) return null;
+
+  const db = loadPayoutRecords();
+  db[recordId] = {
+    recordId,
+    guildId,
+    userId: String(winner.userId),
+    horseIndex: winner.horseIndex,
+    totalAmount: Number(totalAmount),
+    participants: participantsSnapshot.map((p) => String(p.userId)),
+    status: 'pending',
+    channelId: channel.id,
+    messageId: msg.id,
+    createdAt: new Date().toISOString(),
+    paidAt: null,
+    paidByAdminId: null,
+  };
+  savePayoutRecords();
+  return recordId;
+}
+
 async function runSimpleRace(channel, guildId) {
   const state = raceStates.get(guildId);
   if (!state) return;
@@ -706,23 +795,50 @@ async function runSimpleRace(channel, guildId) {
     const used = new Set(contestants.map((p) => p.horseIndex));
     const available = HORSES.map((_, i) => i).filter((i) => !used.has(i));
     const horseIndex = available[Math.floor(Math.random() * available.length)] ?? 0;
-    contestants.push({ userId: null, horseIndex, ai: true });
+    contestants.push({ userId: null, horseIndex, ai: true, joinedAt: Date.now() });
   }
 
   await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 2000));
-  await channel.send({ embeds: [buildRaceStatusEmbed('running', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 2500));
+  await runCountdown(channel, 5);
 
-  const winner = contestants[Math.floor(Math.random() * contestants.length)];
+  const positions = Object.fromEntries(contestants.map((c) => [c.horseIndex, 0]));
+  const raceMsg = await channel.send({
+    content: `🏇 **Départ** 🏇\n${generateTrack(sortContestantsByProgress(contestants, positions), positions)}`,
+  }).catch(() => null);
+
+  let winner = null;
+  while (!winner) {
+    for (const contestant of contestants.sort(() => Math.random() - 0.5)) {
+      positions[contestant.horseIndex] += Math.floor(Math.random() * 3) + 1;
+      if (positions[contestant.horseIndex] >= 12) {
+        positions[contestant.horseIndex] = 12;
+        winner = contestant;
+        break;
+      }
+    }
+
+    const ordered = sortContestantsByProgress(contestants, positions);
+    if (raceMsg) {
+      await raceMsg.edit({
+        content: `🏇 **Course en cours** 🏇\n${generateTrack(ordered, positions)}`,
+      }).catch(() => {});
+    }
+    if (!winner) await new Promise((r) => setTimeout(r, 1500));
+  }
+
+  const pot = REAL_BET * state.players.length;
   await channel.send({
     embeds: [buildRaceStatusEmbed('finished', {
       humans: state.players,
-      pot: REAL_BET * state.players.length,
+      pot,
       winnerId: winner.userId,
       winnerName: HORSES[winner.horseIndex].name,
     })],
   }).catch(() => {});
+
+  if (winner.userId) {
+    await createPayoutRecord(channel.client, guildId, winner, pot, state.players).catch(() => {});
+  }
 
   raceStates.delete(guildId);
 }
@@ -1098,6 +1214,45 @@ async function handleButtonInteraction(interaction) {
         .setColor(0x2ECC71)
         .setDescription((existingEmbed.description || '').replace('En attente de paiement', 'Payé'))
         .setFooter({ text: `Validé par ${interaction.user.displayName}` });
+      await interaction.update({ embeds: [embed], components: [] });
+    } else {
+      await interaction.update({ components: [] });
+    }
+    return true;
+  }
+
+  if (interaction.customId.startsWith('dragodinde:payoutpay:')) {
+    const [, , recordId] = interaction.customId.split(':');
+    const db = loadPayoutRecords();
+    const record = db[recordId];
+    if (!record) {
+      await interaction.reply({ content: 'Enregistrement de gain introuvable.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    const adminRoleId = getAdminRoleId(interaction.guild.id);
+    const allowed = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) || (adminRoleId && interaction.member?.roles?.cache?.has(adminRoleId));
+    if (!allowed) {
+      await interaction.reply({ content: 'Rôle admin requis.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    if (record.status === 'paid') {
+      await interaction.reply({ content: 'Ce gain est déjà validé.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    record.status = 'paid';
+    record.paidAt = new Date().toISOString();
+    record.paidByAdminId = interaction.user.id;
+    savePayoutRecords();
+
+    const existingEmbed = interaction.message.embeds?.[0];
+    if (existingEmbed) {
+      const embed = EmbedBuilder.from(existingEmbed)
+        .setColor(0x3498DB)
+        .setDescription((existingEmbed.description || '').replace('En attente de remise', 'Gain remis'))
+        .setFooter({ text: `Gain validé par ${interaction.user.displayName}` });
       await interaction.update({ embeds: [embed], components: [] });
     } else {
       await interaction.update({ components: [] });
