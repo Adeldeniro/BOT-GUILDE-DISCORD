@@ -368,7 +368,7 @@ function horseChoiceRows(userId, mode, waiting = false, guildId = null) {
 
   return [new ActionRowBuilder().addComponents(
     ...HORSES.map((horse, i) => new ButtonBuilder()
-      .setCustomId(`dragodinde:horse:${mode}:${i}:${userId}`)
+      .setCustomId(`dragodinde:horse:${mode}:${userId}:${i}`)
       .setLabel(horse.name)
       .setEmoji(horse.emoji)
       .setStyle(ButtonStyle.Primary)
@@ -1111,7 +1111,7 @@ async function handleButtonInteraction(interaction) {
   }
 
   if (interaction.customId.startsWith('dragodinde:horse:')) {
-    const [, , , mode, horseIndexRaw, userId] = interaction.customId.split(':');
+    const [, , mode, userId, horseIndexRaw] = interaction.customId.split(':');
     if (interaction.user.id !== userId) {
       await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
       return true;
