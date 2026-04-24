@@ -275,8 +275,35 @@ async function safeDeleteConfiguredMessage(client, channelId, messageId) {
   await msg.delete().catch(() => {});
 }
 
-async function onReady() {
+async function refreshGuildMessages(client, guildId, cfg) {
+  if (cfg.mainChannelId && cfg.mainMessageId) {
+    const raceChannel = await client.channels.fetch(cfg.mainChannelId).catch(() => null);
+    if (raceChannel && raceChannel.isTextBased()) {
+      const raceMsg = await raceChannel.messages.fetch(cfg.mainMessageId).catch(() => null);
+      if (raceMsg) {
+        await raceMsg.edit({ embeds: [buildPanelEmbed()], components: joinButtonRow() }).catch(() => {});
+      }
+    }
+  }
+
+  if (cfg.dashboardChannelId && cfg.dashboardMessageId) {
+    const dashChannel = await client.channels.fetch(cfg.dashboardChannelId).catch(() => null);
+    if (dashChannel && dashChannel.isTextBased()) {
+      const dashMsg = await dashChannel.messages.fetch(cfg.dashboardMessageId).catch(() => null);
+      if (dashMsg) {
+        await dashMsg.edit({ embeds: [buildDashboardAdminEmbed(guildId)], components: [] }).catch(() => {});
+      }
+    }
+  }
+}
+
+async function onReady(client) {
   ensureDataDir();
+  const config = loadConfig();
+  const guildIds = Object.keys(config || {});
+  for (const guildId of guildIds) {
+    await refreshGuildMessages(client, guildId, config[guildId] || {}).catch(() => {});
+  }
   return true;
 }
 
