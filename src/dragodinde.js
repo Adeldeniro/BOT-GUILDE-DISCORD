@@ -42,6 +42,8 @@ const WAIT_TIME_MS = 45_000;
 const CANCEL_WINDOW_MS = 15_000;
 const REOPEN_COUNTDOWN_MS = 15_000;
 const THREAD_LIFETIME_MS = 25_000;
+const MAIN_COUNTDOWN_MS = 5_000;
+const RACE_TICK_MS = 2_500;
 const DEBT_LIMIT = 1_000_000;
 let debtRecords = null;
 let payoutRecords = null;
@@ -848,30 +850,30 @@ function sortContestantsByProgress(contestants, positions) {
   return [...contestants].sort((a, b) => (positions[b.horseIndex] || 0) - (positions[a.horseIndex] || 0));
 }
 
-async function runCountdown(channel, seconds) {
+async function runCountdown(channel, seconds, title = '⏳ Pré-départ', textPrefix = 'La course démarre dans') {
   const msg = await channel.send({
     embeds: [new EmbedBuilder()
-      .setTitle('⏳ Pré-départ')
-      .setDescription(`La course démarre dans **${seconds}** secondes...`)
+      .setTitle(title)
+      .setDescription(`${textPrefix} **${seconds}** secondes...`)
       .setColor(0x3498DB)
       .setImage(RACE_BANNER_URL)
       .setTimestamp()],
   }).catch(() => null);
 
-  if (!msg) return;
+  if (!msg) return null;
   for (let s = seconds - 1; s >= 1; s--) {
     await new Promise((r) => setTimeout(r, 1000));
     await msg.edit({
       embeds: [new EmbedBuilder()
-        .setTitle('⏳ Pré-départ')
-        .setDescription(`La course démarre dans **${s}** secondes...`)
+        .setTitle(title)
+        .setDescription(`${textPrefix} **${s}** secondes...`)
         .setColor(0x3498DB)
         .setImage(RACE_BANNER_URL)
         .setTimestamp()],
     }).catch(() => {});
   }
   await new Promise((r) => setTimeout(r, 1000));
-  await msg.delete().catch(() => {});
+  return msg;
 }
 
 async function createPayoutRecord(client, guildId, winner, totalAmount, participantsSnapshot) {
@@ -940,7 +942,9 @@ async function runSimpleRace(channel, guildId) {
   }
 
   const pot = state.iaPrize || (REAL_BET * state.players.length);
-  await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot })] }).catch(() => {});
+  const launchingMsg = await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot })] }).catch(() => null);
+  const mainCountdownMsg = await runCountdown(channel, Math.ceil(MAIN_COUNTDOWN_MS / 1000), '📣 Mise en piste', 'Ouverture du fil de course dans');
+  if (mainCountdownMsg) await mainCountdownMsg.delete().catch(() => {});
 
   const made = await createRaceThread(channel, contestants.some((c) => c.userId) && contestants.some((c) => !c.userId) ? 'course-mixte' : 'course');
   const starter = made.starter;
@@ -960,7 +964,8 @@ async function runSimpleRace(channel, guildId) {
     }).catch(() => {});
   }
 
-  await runCountdown(raceRoom, 5);
+  const threadCountdownMsg = await runCountdown(raceRoom, 5, '⏳ Pré-départ', 'La course démarre dans');
+  if (threadCountdownMsg) await threadCountdownMsg.delete().catch(() => {});
 
   const positions = Object.fromEntries(contestants.map((c) => [c.horseIndex, 0]));
   const raceMsg = await raceRoom.send({
@@ -970,7 +975,7 @@ async function runSimpleRace(channel, guildId) {
   let winner = null;
   while (!winner) {
     for (const contestant of contestants.sort(() => Math.random() - 0.5)) {
-      positions[contestant.horseIndex] += Math.floor(Math.random() * 3) + 1;
+      positions[contestant.horseIndex] += Math.floor(Math.random() * 2) + 1;
       if (positions[contestant.horseIndex] >= 12) {
         positions[contestant.horseIndex] = 12;
         winner = contestant;
@@ -984,7 +989,7 @@ async function runSimpleRace(channel, guildId) {
         content: `🏇 **Course en cours** 🏇\n${generateTrack(ordered, positions)}`,
       }).catch(() => {});
     }
-    if (!winner) await new Promise((r) => setTimeout(r, 1500));
+    if (!winner) await new Promise((r) => setTimeout(r, RACE_TICK_MS));
   }
 
   await raceRoom.send({
@@ -998,7 +1003,7 @@ async function runSimpleRace(channel, guildId) {
 
   const winnerAnnouncement = winner.userId
     ? `🏆 <@${winner.userId}> remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**.`
-    : `🤖 L’IA remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}**. Vous êtes venus pour briller, vous repartez avec la honte.`;
+    : `🤖 L’IA remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Vous êtes venus pour briller, vous repartez avec la honte.`;
   const winnerMsg = await channel.send({ content: winnerAnnouncement }).catch(() => null);
 
   if (winner.userId) {
@@ -1016,6 +1021,11 @@ async function runSimpleRace(channel, guildId) {
       if (watchMsg) await watchMsg.delete().catch(() => {});
     }
     if (winnerMsg) await winnerMsg.delete().catch(() => {});
+    if (launchingMsg) await launchingMsg.delete().catch(() => {});
+    if (state.waitingMessageId) {
+      const waitingMsg = await channel.messages.fetch(state.waitingMessageId).catch(() => null);
+      if (waitingMsg) await waitingMsg.delete().catch(() => {});
+    }
     await deleteRecentSystemMessages(channel).catch(() => {});
   }, THREAD_LIFETIME_MS);
 }
