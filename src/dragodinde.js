@@ -553,19 +553,104 @@ async function ensurePinnedRaceMessage(channel, guildId) {
   return msg;
 }
 
+function sumAmounts(records, predicate = () => true, field = 'amount') {
+  return Object.values(records || {}).reduce((sum, record) => {
+    if (!predicate(record)) return sum;
+    return sum + Number(record?.[field] || 0);
+  }, 0);
+}
+
+function formatMoney(value) {
+  return `${Number(value || 0).toLocaleString('fr-FR')} kamas`;
+}
+
+function topEntriesFromFinance(selector, limit = 5) {
+  return Object.entries(loadFinance())
+    .map(([userId, data]) => ({ userId, value: Number(selector(data) || 0) }))
+    .filter((entry) => entry.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit);
+}
+
+function formatTopList(entries, formatter = (entry) => formatMoney(entry.value)) {
+  if (!entries.length) return 'Aucun';
+  return entries.map((entry, index) => `${index + 1}. <@${entry.userId}> , ${formatter(entry)}`).join('\n');
+}
+
+function pendingDebtLines() {
+  const debts = Object.values(loadDebtRecords())
+    .filter((record) => record.status === 'unpaid')
+    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
+    .slice(0, 10);
+
+  if (!debts.length) return 'Aucune dette en attente';
+  return debts.map((record) => {
+    const formula = record.formulaLabel ? `, ${record.formulaLabel}` : record.mode ? `, ${record.mode}` : '';
+    return `• <@${record.userId}> , ${formatMoney(record.amount)}${formula}`;
+  }).join('\n');
+}
+
+function pendingPayoutLines() {
+  const payouts = Object.values(loadPayoutRecords())
+    .filter((record) => record.status === 'pending')
+    .sort((a, b) => Number(b.totalAmount || 0) - Number(a.totalAmount || 0))
+    .slice(0, 10);
+
+  if (!payouts.length) return 'Aucun gain en attente';
+  return payouts.map((record) => `• <@${record.userId}> , ${formatMoney(record.totalAmount)}`).join('\n');
+}
+
 function buildDashboardAdminEmbed(guildId) {
   const cfg = getGuildConfig(guildId);
+  const debts = loadDebtRecords();
+  const payouts = loadPayoutRecords();
+  const financeDb = loadFinance();
+  const state = raceStates.get(guildId);
+
+  const unpaidDebtCount = Object.values(debts).filter((record) => record.status === 'unpaid' && record.guildId === guildId).length;
+  const unpaidDebtTotal = sumAmounts(debts, (record) => record.status === 'unpaid' && record.guildId === guildId, 'amount');
+  const pendingPayoutCount = Object.values(payouts).filter((record) => record.status === 'pending' && record.guildId === guildId).length;
+  const pendingPayoutTotal = sumAmounts(payouts, (record) => record.status === 'pending' && record.guildId === guildId, 'totalAmount');
+  const paidPayoutTotal = sumAmounts(payouts, (record) => record.status === 'paid' && record.guildId === guildId, 'totalAmount');
+  const totalBets = Object.values(financeDb).reduce((sum, item) => sum + Number(item.betsCount || 0), 0);
+  const totalPayments = Object.values(financeDb).reduce((sum, item) => sum + Number(item.paymentsCount || 0), 0);
+  const totalWinnings = Object.values(financeDb).reduce((sum, item) => sum + Number(item.totalWinnings || 0), 0);
+
+  const topDebtors = topEntriesFromFinance((data) => data.totalDebt, 5);
+  const topWinners = topEntriesFromFinance((data) => data.totalWinnings, 5);
+  const topActive = topEntriesFromFinance((data) => data.betsCount, 5);
+
+  const liveState = !state
+    ? 'Repos'
+    : state.started
+      ? 'Course en cours'
+      : state.players?.length
+        ? `Préparation / attente (${state.players.length} inscrit(s))`
+        : 'Préparation';
+
   return new EmbedBuilder()
     .setColor(0x3498DB)
     .setTitle('📋 Dashboard admin Dragodinde')
-    .setDescription('Vue admin de configuration du PMU Dragodinde.')
+    .setDescription('Vue globale finance + état live du PMU Dragodinde.')
     .addFields(
+      { name: 'État live', value: liveState, inline: true },
       { name: 'Salon course / annonce', value: cfg.mainChannelId ? `<#${cfg.mainChannelId}>` : '—', inline: true },
-      { name: 'Message principal', value: cfg.mainMessageId || '—', inline: true },
       { name: 'Salon logs', value: cfg.logsChannelId ? `<#${cfg.logsChannelId}>` : '—', inline: true },
-      { name: 'Salon dashboard admin', value: cfg.dashboardChannelId ? `<#${cfg.dashboardChannelId}>` : '—', inline: true },
+      { name: 'Dette totale en attente', value: formatMoney(unpaidDebtTotal), inline: true },
+      { name: 'Dettes impayées', value: String(unpaidDebtCount), inline: true },
+      { name: 'Gains en attente', value: `${pendingPayoutCount} , ${formatMoney(pendingPayoutTotal)}`, inline: true },
+      { name: 'Gains validés', value: formatMoney(paidPayoutTotal), inline: true },
+      { name: 'Total redistribué', value: formatMoney(totalWinnings), inline: true },
+      { name: 'Participations loggées', value: String(totalBets), inline: true },
+      { name: 'Paiements validés', value: String(totalPayments), inline: true },
+      { name: 'Dettes en attente (personnes concernées)', value: pendingDebtLines(), inline: false },
+      { name: 'Gains en attente (personnes concernées)', value: pendingPayoutLines(), inline: false },
+      { name: 'Top débiteurs', value: formatTopList(topDebtors), inline: false },
+      { name: 'Top gagnants', value: formatTopList(topWinners), inline: false },
+      { name: 'Joueurs les plus actifs', value: formatTopList(topActive, (entry) => `${entry.value} participation(s)`), inline: false },
       { name: 'Rôle admin', value: cfg.adminRoleId ? `<@&${cfg.adminRoleId}>` : '—', inline: true },
       { name: 'Rôle autorisé', value: cfg.allowedRoleIds?.length ? cfg.allowedRoleIds.map((rid) => `<@&${rid}>`).join(', ') : '—', inline: true },
+      { name: 'Message principal', value: cfg.mainMessageId || '—', inline: true },
     )
     .setFooter({ text: 'Le message PMU public est séparé du dashboard admin.' });
 }
