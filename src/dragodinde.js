@@ -37,8 +37,11 @@ let HORSES = [
 const setupDrafts = new Map();
 const userSessions = new Map();
 const raceStates = new Map();
+const reopenCountdowns = new Map();
 const WAIT_TIME_MS = 45_000;
 const CANCEL_WINDOW_MS = 15_000;
+const REOPEN_COUNTDOWN_MS = 15_000;
+const THREAD_LIFETIME_MS = 25_000;
 const DEBT_LIMIT = 1_000_000;
 let debtRecords = null;
 let payoutRecords = null;
@@ -282,6 +285,42 @@ async function markDebtCancelled(client, recordId, cancelledByUserId = null) {
   }
 }
 
+async function deleteRecentSystemMessages(channel) {
+  if (!channel?.messages?.fetch) return;
+  const messages = await channel.messages.fetch({ limit: 10 }).catch(() => null);
+  if (!messages) return;
+  for (const msg of messages.values()) {
+    if (msg.system || msg.type !== 0) {
+      await msg.delete().catch(() => {});
+    }
+  }
+}
+
+async function reopenParticipationCountdown(channel, guildId) {
+  const existing = reopenCountdowns.get(guildId);
+  if (existing?.timeout) clearTimeout(existing.timeout);
+  if (existing?.interval) clearInterval(existing.interval);
+
+  let remaining = Math.ceil(REOPEN_COUNTDOWN_MS / 1000);
+  const msg = await channel.send({ content: `🎟️ Nouvelle participation disponible dans **${remaining}** secondes.` }).catch(() => null);
+  if (!msg) return;
+
+  const interval = setInterval(async () => {
+    remaining -= 1;
+    if (remaining <= 0) return;
+    await msg.edit({ content: `🎟️ Nouvelle participation disponible dans **${remaining}** secondes.` }).catch(() => {});
+  }, 1000);
+
+  const timeout = setTimeout(async () => {
+    clearInterval(interval);
+    reopenCountdowns.delete(guildId);
+    await msg.delete().catch(() => {});
+    await refreshGuildMessages(channel.client, guildId, getGuildConfig(guildId)).catch(() => {});
+  }, REOPEN_COUNTDOWN_MS);
+
+  reopenCountdowns.set(guildId, { interval, timeout, messageId: msg.id });
+}
+
 function getMainMessageContent() {
   return [
     '**Type de jeu : Course de Dragodinde**',
@@ -355,6 +394,14 @@ function playerCountRows(userId) {
     new ButtonBuilder().setCustomId(`dragodinde:count:1:${userId}`).setLabel('1 adversaire').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`dragodinde:count:2:${userId}`).setLabel('2 adversaires').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`dragodinde:count:3:${userId}`).setLabel('3 adversaires').setStyle(ButtonStyle.Primary)
+  )];
+}
+
+function iaBetRows(userId) {
+  return [new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dragodinde:iabet:1:${userId}`).setLabel('Double ta mise').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dragodinde:iabet:2:${userId}`).setLabel('Triple ta mise').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`dragodinde:iabet:3:${userId}`).setLabel('Jackpot 2M').setStyle(ButtonStyle.Danger)
   )];
 }
 
@@ -847,6 +894,7 @@ async function runSimpleRace(channel, guildId) {
 
   if (state.waitInterval) clearInterval(state.waitInterval);
   if (state.waitTimeout) clearTimeout(state.waitTimeout);
+  state.started = true;
 
   const contestants = [...state.players];
   while (contestants.length < state.expectedHumans) {
@@ -856,7 +904,8 @@ async function runSimpleRace(channel, guildId) {
     contestants.push({ userId: null, horseIndex, ai: true, joinedAt: Date.now() });
   }
 
-  await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot: REAL_BET * state.players.length })] }).catch(() => {});
+  const pot = state.iaPrize || (REAL_BET * state.players.length);
+  await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot })] }).catch(() => {});
 
   const made = await createRaceThread(channel, contestants.some((c) => c.userId) && contestants.some((c) => !c.userId) ? 'course-mixte' : 'course');
   const starter = made.starter;
@@ -864,7 +913,8 @@ async function runSimpleRace(channel, guildId) {
   const raceRoom = thread || channel;
 
   if (thread) {
-    await updateRaceWatchMessage(channel, thread, 'Regarder la course').catch(() => {});
+    const watchMsg = await updateRaceWatchMessage(channel, thread, 'Regarder la course').catch(() => null);
+    state.watchMessageId = watchMsg?.id || null;
     await raceRoom.send({
       embeds: [new EmbedBuilder()
         .setTitle('🏇 Course Dragodinde')
@@ -902,7 +952,6 @@ async function runSimpleRace(channel, guildId) {
     if (!winner) await new Promise((r) => setTimeout(r, 1500));
   }
 
-  const pot = REAL_BET * state.players.length;
   await raceRoom.send({
     embeds: [buildRaceStatusEmbed('finished', {
       humans: state.players,
@@ -912,19 +961,28 @@ async function runSimpleRace(channel, guildId) {
     })],
   }).catch(() => {});
 
+  const winnerAnnouncement = winner.userId
+    ? `🏆 <@${winner.userId}> remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**.`
+    : `🤖 L’IA remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}**. Vous êtes venus pour briller, vous repartez avec la honte.`;
+  const winnerMsg = await channel.send({ content: winnerAnnouncement }).catch(() => null);
+
   if (winner.userId) {
     await createPayoutRecord(channel.client, guildId, winner, pot, state.players).catch(() => {});
   }
 
-  if (thread) {
-    await raceRoom.send({ content: '🧹 Ce thread de course sera supprimé automatiquement dans 60 secondes.' }).catch(() => {});
-    setTimeout(async () => {
-      await thread.delete().catch(() => {});
-      if (starter) await starter.delete().catch(() => {});
-    }, 60_000);
-  }
-
   raceStates.delete(guildId);
+  await reopenParticipationCountdown(channel, guildId).catch(() => {});
+
+  setTimeout(async () => {
+    if (thread) await thread.delete().catch(() => {});
+    if (starter) await starter.delete().catch(() => {});
+    if (state.watchMessageId) {
+      const watchMsg = await channel.messages.fetch(state.watchMessageId).catch(() => null);
+      if (watchMsg) await watchMsg.delete().catch(() => {});
+    }
+    if (winnerMsg) await winnerMsg.delete().catch(() => {});
+    await deleteRecentSystemMessages(channel).catch(() => {});
+  }, THREAD_LIFETIME_MS);
 }
 
 async function handleChatInputCommand(interaction) {
@@ -1107,6 +1165,16 @@ async function handleButtonInteraction(interaction) {
   }
 
   if (interaction.customId === 'dragodinde:join:main') {
+    const state = raceStates.get(interaction.guild.id);
+    if (state?.started) {
+      await interaction.reply({ content: 'Une course est déjà en cours. Attends la fin avant de rejoindre la suivante.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+    if (reopenCountdowns.has(interaction.guild.id)) {
+      await interaction.reply({ content: 'Les inscriptions vont rouvrir dans quelques secondes. Patiente un instant.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
     userSessions.set(interaction.user.id, { guildId: interaction.guild.id });
     await interaction.reply({
       content: 'Choisis ton mode de jeu.',
@@ -1135,8 +1203,8 @@ async function handleButtonInteraction(interaction) {
     }
 
     await interaction.update({
-      content: `Mode sélectionné : **Contre l\'IA**\nChoisis maintenant ta Dragodinde.`,
-      components: horseChoiceRows(userId, mode),
+      content: 'Choisis maintenant ton pari contre l’IA.',
+      components: iaBetRows(userId),
     });
     return true;
   }
@@ -1153,6 +1221,27 @@ async function handleButtonInteraction(interaction) {
     await interaction.update({
       content: `Tu veux une course contre **${countRaw}** adversaire(s). Choisis maintenant ta Dragodinde.`,
       components: horseChoiceRows(userId, 'players'),
+    });
+    return true;
+  }
+
+  if (interaction.customId.startsWith('dragodinde:iabet:')) {
+    const [, , countRaw, userId] = interaction.customId.split(':');
+    if (interaction.user.id !== userId) {
+      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+    const iaCount = Math.max(1, Math.min(3, Number(countRaw)));
+    const session = userSessions.get(userId) || {};
+    session.iaCount = iaCount;
+    session.formulaLabel = iaCount === 1 ? 'Double ta mise' : iaCount === 2 ? 'Triple ta mise' : 'Jackpot 2M';
+    session.iaPrize = iaCount === 1 ? 100_000 : iaCount === 2 ? 300_000 : 2_000_000;
+    session.iaEntryFee = iaCount === 1 ? 55_000 : iaCount === 2 ? 105_000 : 220_000;
+    session.jackpotBias = iaCount === 3;
+    userSessions.set(userId, session);
+    await interaction.update({
+      content: `Pari IA sélectionné : **${session.formulaLabel}**. Choisis maintenant ta Dragodinde.`,
+      components: horseChoiceRows(userId, 'ia'),
     });
     return true;
   }
@@ -1174,20 +1263,24 @@ async function handleButtonInteraction(interaction) {
     }
 
     if (mode === 'ia') {
-      const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, ENTRY_FEE, { mode: 'ia', formulaLabel: 'Formule IA temporaire' });
+      const session = userSessions.get(userId) || {};
+      const entryFee = Number(session.iaEntryFee || ENTRY_FEE);
+      const formulaLabel = session.formulaLabel || 'Double ta mise';
+      const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, entryFee, { mode: 'ia', formulaLabel });
       if (!debtRecordId) {
         await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
         return true;
       }
 
       await interaction.update({
-        content: `✅ Tu as choisi **${horse.emoji} ${horse.name}** pour affronter l’IA. La course démarre...`,
+        content: `✅ Tu as choisi **${horse.emoji} ${horse.name}** pour affronter l’IA en mode **${formulaLabel}**. La course démarre...`,
         components: [],
       });
       raceStates.set(guildId, {
         creatorId: interaction.user.id,
         players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now(), debtRecordId }],
-        expectedHumans: MAX_PLAYERS,
+        expectedHumans: 1 + Number(session.iaCount || 1),
+        iaPrize: Number(session.iaPrize || (REAL_BET * 2)),
         started: false,
       });
       await runSimpleRace(interaction.channel, guildId);
