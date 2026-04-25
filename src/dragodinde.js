@@ -163,7 +163,7 @@ function getAdminRoleId(guildId) {
 function getUserFinance(userId) {
   const db = loadFinance();
   if (!db[userId]) {
-    db[userId] = { totalDebt: 0, betsCount: 0, paymentsCount: 0 };
+    db[userId] = { totalDebt: 0, betsCount: 0, paymentsCount: 0, payoutsPending: 0, payoutsValidated: 0, totalWinnings: 0 };
     saveFinance();
   }
   return db[userId];
@@ -187,6 +187,32 @@ function applyUserPayment(userId, amount) {
   const current = getUserFinance(String(userId));
   current.totalDebt = Math.max(0, Number(current.totalDebt || 0) - Number(amount || 0));
   current.paymentsCount = Number(current.paymentsCount || 0) + 1;
+  db[String(userId)] = current;
+  saveFinance();
+}
+
+function removeUserDebt(userId, amount) {
+  const db = loadFinance();
+  const current = getUserFinance(String(userId));
+  current.totalDebt = Math.max(0, Number(current.totalDebt || 0) - Number(amount || 0));
+  db[String(userId)] = current;
+  saveFinance();
+}
+
+function registerPendingPayout(userId, amount) {
+  const db = loadFinance();
+  const current = getUserFinance(String(userId));
+  current.payoutsPending = Number(current.payoutsPending || 0) + 1;
+  db[String(userId)] = current;
+  saveFinance();
+}
+
+function validateUserPayout(userId, amount) {
+  const db = loadFinance();
+  const current = getUserFinance(String(userId));
+  current.payoutsPending = Math.max(0, Number(current.payoutsPending || 0) - 1);
+  current.payoutsValidated = Number(current.payoutsValidated || 0) + 1;
+  current.totalWinnings = Number(current.totalWinnings || 0) + Number(amount || 0);
   db[String(userId)] = current;
   saveFinance();
 }
@@ -273,6 +299,7 @@ async function markDebtCancelled(client, recordId, cancelledByUserId = null) {
   record.cancelledAt = new Date().toISOString();
   record.cancelledByUserId = cancelledByUserId ? String(cancelledByUserId) : null;
   saveDebtRecords();
+  removeUserDebt(record.userId, record.amount);
 
   const channel = await client.channels.fetch(record.channelId).catch(() => null);
   const msg = channel && channel.isTextBased() ? await channel.messages.fetch(record.messageId).catch(() => null) : null;
@@ -426,6 +453,13 @@ function horseChoiceRows(userId, mode, waiting = false, guildId = null) {
 function cancelParticipationRows(userId) {
   return [new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`dragodinde:cancel:${userId}`).setLabel('Annuler ma participation').setStyle(ButtonStyle.Danger)
+  )];
+}
+
+function iaConfirmRows(userId, horseIndex) {
+  return [new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`dragodinde:iaconfirm:yes:${userId}:${horseIndex}`).setLabel('Confirmer la mise').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`dragodinde:iaconfirm:no:${userId}`).setLabel('Annuler').setStyle(ButtonStyle.Secondary)
   )];
 }
 
@@ -885,6 +919,7 @@ async function createPayoutRecord(client, guildId, winner, totalAmount, particip
     paidByAdminId: null,
   };
   savePayoutRecords();
+  registerPendingPayout(winner.userId, totalAmount);
   return recordId;
 }
 
@@ -1266,24 +1301,13 @@ async function handleButtonInteraction(interaction) {
       const session = userSessions.get(userId) || {};
       const entryFee = Number(session.iaEntryFee || ENTRY_FEE);
       const formulaLabel = session.formulaLabel || 'Double ta mise';
-      const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, entryFee, { mode: 'ia', formulaLabel });
-      if (!debtRecordId) {
-        await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
-        return true;
-      }
+      session.pendingHorseIndex = horseIndex;
+      userSessions.set(userId, session);
 
       await interaction.update({
-        content: `✅ Tu as choisi **${horse.emoji} ${horse.name}** pour affronter l’IA en mode **${formulaLabel}**. La course démarre...`,
-        components: [],
+        content: `Tu as choisi **${horse.emoji} ${horse.name}** pour **${formulaLabel}**.\nConfirme ta participation pour **${entryFee.toLocaleString('fr-FR')} kamas** avant de lancer la course.`,
+        components: iaConfirmRows(userId, horseIndex),
       });
-      raceStates.set(guildId, {
-        creatorId: interaction.user.id,
-        players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now(), debtRecordId }],
-        expectedHumans: 1 + Number(session.iaCount || 1),
-        iaPrize: Number(session.iaPrize || (REAL_BET * 2)),
-        started: false,
-      });
-      await runSimpleRace(interaction.channel, guildId);
       return true;
     }
 
@@ -1355,6 +1379,45 @@ async function handleButtonInteraction(interaction) {
       components: cancelParticipationRows(userId),
       flags: MessageFlags.Ephemeral,
     }).catch(() => {});
+    return true;
+  }
+
+  if (interaction.customId.startsWith('dragodinde:iaconfirm:')) {
+    const [, , action, userId, horseIndexRaw] = interaction.customId.split(':');
+    if (interaction.user.id !== userId) {
+      await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    if (action === 'no') {
+      await interaction.update({ content: 'Participation IA annulée.', components: [] });
+      return true;
+    }
+
+    const guildId = interaction.guild.id;
+    const session = userSessions.get(userId) || {};
+    const horseIndex = Number(horseIndexRaw ?? session.pendingHorseIndex ?? 0);
+    const horse = HORSES[horseIndex];
+    const entryFee = Number(session.iaEntryFee || ENTRY_FEE);
+    const formulaLabel = session.formulaLabel || 'Double ta mise';
+    const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, entryFee, { mode: 'ia', formulaLabel });
+    if (!debtRecordId) {
+      await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    await interaction.update({
+      content: `✅ Participation confirmée avec **${horse.emoji} ${horse.name}** pour **${formulaLabel}**. La course démarre...`,
+      components: [],
+    });
+    raceStates.set(guildId, {
+      creatorId: interaction.user.id,
+      players: [{ userId: interaction.user.id, horseIndex, ai: false, joinedAt: Date.now(), debtRecordId }],
+      expectedHumans: 1 + Number(session.iaCount || 1),
+      iaPrize: Number(session.iaPrize || (REAL_BET * 2)),
+      started: false,
+    });
+    await runSimpleRace(interaction.channel, guildId);
     return true;
   }
 
@@ -1477,6 +1540,7 @@ async function handleButtonInteraction(interaction) {
     record.paidAt = new Date().toISOString();
     record.paidByAdminId = interaction.user.id;
     savePayoutRecords();
+    validateUserPayout(record.userId, record.totalAmount);
 
     const existingEmbed = interaction.message.embeds?.[0];
     if (existingEmbed) {
