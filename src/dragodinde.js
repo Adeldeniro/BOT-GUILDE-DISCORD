@@ -516,6 +516,7 @@ async function importGuildEmoji(guild, rawEmoji, fallbackName) {
 function joinButtonRow() {
   return [new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('dragodinde:join:main').setLabel('Participer').setEmoji('🐎').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('dragodinde:wallet:me').setLabel('Mes gains').setEmoji('💰').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('dragodinde:notify:toggle').setLabel('Notifications').setEmoji('🔔').setStyle(ButtonStyle.Secondary)
   )];
 }
@@ -1539,6 +1540,34 @@ async function handleButtonInteraction(interaction) {
         await interaction.reply({ content: `Impossible d'ouvrir la recherche de salon: ${error.message}`, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
     }
+    return true;
+  }
+
+  if (interaction.customId === 'dragodinde:wallet:me') {
+    const [allowedToPlay, blockedReason] = canUserPlay(interaction.member);
+    if (!allowedToPlay && !String(blockedReason || '').includes('dette dépasse')) {
+      await interaction.reply({ content: blockedReason || 'Accès refusé.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    const userId = interaction.user.id;
+    const debts = Object.values(loadDebtRecords()).filter((record) => record.userId === userId && record.status === 'unpaid');
+    const payouts = Object.values(loadPayoutRecords()).filter((record) => record.userId === userId && record.status === 'pending');
+    const debtTotal = debts.reduce((sum, record) => sum + Number(record.amount || 0), 0);
+    const payoutTotal = payouts.reduce((sum, record) => sum + Number(record.totalAmount || 0), 0);
+
+    const debtLine = debtTotal > 0
+      ? `Tu dois encore **${formatMoney(debtTotal)}** à l’organisation. Oui, ils n’ont pas oublié.`
+      : 'Tu ne dois rien à l’organisation. Pour une fois, ton ardoise est propre.';
+
+    const payoutLine = payoutTotal > 0
+      ? `Tu as **${formatMoney(payoutTotal)}** à récupérer. Passe à la caisse avant qu’ils prétendent ne plus te connaître.`
+      : 'Pas de gains en cours. Va donc tenter ta chance au lieu de contempler le vide.';
+
+    await interaction.reply({
+      content: `${debtLine}\n${payoutLine}`,
+      flags: MessageFlags.Ephemeral,
+    });
     return true;
   }
 
