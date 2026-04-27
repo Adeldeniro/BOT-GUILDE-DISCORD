@@ -27,6 +27,8 @@ const RESULT_IMAGE_URL = 'https://cdn.discordapp.com/attachments/148112712624898
 const RACE_BANNER_URL = 'https://cdn.discordapp.com/attachments/1481127126248984679/1495230856178962582/Gemini_Generated_Image_lxhg3glxhg3glxhg.png';
 const ENTRY_FEE = 55_000;
 const REAL_BET = 50_000;
+const PVP_ORG_FEE = 5_000;
+const PVP_DEBT_LIMIT = 100_000;
 const MAX_PLAYERS = 4;
 let HORSES = [
   { name: 'Tonnerre', emoji: '🐎' },
@@ -216,6 +218,12 @@ function getUserDebt(userId) {
   return Number(getUserFinance(String(userId)).totalDebt || 0);
 }
 
+function getUserDebtByMode(userId, mode) {
+  return Object.values(loadDebtRecords())
+    .filter((record) => record.userId === String(userId) && record.status === 'unpaid' && record.mode === mode)
+    .reduce((sum, record) => sum + Number(record.amount || 0), 0);
+}
+
 function addUserDebt(userId, amount) {
   const db = loadFinance();
   const current = getUserFinance(String(userId));
@@ -275,8 +283,10 @@ function canUserPlay(member) {
     }
   }
 
-  const debt = getUserDebt(member.id);
-  if (debt > DEBT_LIMIT) return [false, `Tu es bloqué, ta dette dépasse ${DEBT_LIMIT.toLocaleString('fr-FR')} kamas.`];
+  const totalDebt = getUserDebt(member.id);
+  const pvpDebt = getUserDebtByMode(member.id, 'players');
+  if (pvpDebt >= PVP_DEBT_LIMIT) return [false, `Tu es bloqué, ta dette joueur contre joueur atteint ${PVP_DEBT_LIMIT.toLocaleString('fr-FR')} kamas.`];
+  if (totalDebt > DEBT_LIMIT) return [false, `Tu es bloqué, ta dette dépasse ${DEBT_LIMIT.toLocaleString('fr-FR')} kamas.`];
   return [true, null];
 }
 
@@ -304,12 +314,14 @@ async function createDebtRecord(client, guildId, userId, horseIndex, amount = EN
     .setColor(0xFFA500)
     .setTimestamp();
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`dragodinde:debtpay:${recordId}`).setLabel('Valider le paiement').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`dragodinde:debtpaid:${recordId}`).setLabel('Dette payée').setStyle(ButtonStyle.Primary)
-  );
+  const buttons = [];
+  if (meta.mode !== 'players') {
+    buttons.push(new ButtonBuilder().setCustomId(`dragodinde:debtpay:${recordId}`).setLabel('Valider le paiement').setStyle(ButtonStyle.Success));
+  }
+  buttons.push(new ButtonBuilder().setCustomId(`dragodinde:debtpaid:${recordId}`).setLabel('Dette payée').setStyle(ButtonStyle.Primary));
+  const row = buttons.length ? new ActionRowBuilder().addComponents(...buttons) : null;
 
-  const msg = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
+  const msg = await channel.send({ embeds: [embed], components: row ? [row] : [] }).catch(() => null);
   if (!msg) return null;
 
   const db = loadDebtRecords();
@@ -1248,7 +1260,7 @@ async function runSimpleRace(channel, guildId) {
     : `🤖 L’IA remporte la course avec **${emojiForText(HORSES[winner.horseIndex].emoji)} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Votre mise est partie nourrir la machine, merci pour votre générosité involontaire.`;
   const winnerMsg = await channel.send({ content: winnerAnnouncement }).catch(() => null);
 
-  if (winner.userId) {
+  if (winner.userId && state.iaPrize) {
     await createPayoutRecord(channel.client, guildId, winner, pot, state.players).catch(() => {});
   }
 
@@ -1751,7 +1763,7 @@ async function handleButtonInteraction(interaction) {
         return true;
       }
 
-      const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, ENTRY_FEE, { mode: 'players' });
+      const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, PVP_ORG_FEE, { mode: 'players' });
       if (!debtRecordId) {
         await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
         return true;
@@ -1779,7 +1791,7 @@ async function handleButtonInteraction(interaction) {
       return true;
     }
 
-    const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, ENTRY_FEE, { mode: 'players' });
+    const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, PVP_ORG_FEE, { mode: 'players' });
     if (!debtRecordId) {
       await interaction.reply({ content: 'Impossible de créer l’engagement de paiement. Vérifie le salon logs.', flags: MessageFlags.Ephemeral });
       return true;
