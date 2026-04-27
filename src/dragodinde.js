@@ -1009,34 +1009,53 @@ async function startPlayersWait(channel, guildId) {
   }, WAIT_TIME_MS);
 }
 
-function buildTrackBar(emojiRaw, progress, length = 10) {
+function buildTrackBar(emojiRaw, progress, length = 14) {
   const horseEmoji = emojiForText(emojiRaw);
   const slot = Math.max(0, Math.min(length - 1, Math.round(progress * (length - 1))));
   const cells = Array.from({ length }, (_, index) => {
+    if (index === 0) return '🏁';
+    if (index === length - 1) return '💰';
     if (index === slot) return horseEmoji;
-    return '▱';
+    return '═';
   });
   return cells.join('');
 }
 
 function raceCommentary(rank, total, progress, isAi = false) {
-  if (progress >= 0.92) return isAi ? 'l’IA ricane déjà au guichet' : 'sent l’odeur des kamas et accélère';
-  if (rank === 0 && progress > 0.55) return 'prend la tête et fanfaronne sans honte';
-  if (rank === total - 1 && progress < 0.35) return 'traîne derrière comme une dette un soir de paie';
-  if (progress > 0.65) return 'recolle au chaos dans un nuage de poussière';
-  return 's’accroche à la piste avec plus d’orgueil que de grâce';
+  if (progress >= 0.95) return isAi ? 'flair l’arnaque jusqu’au coffre et ricane comme une perceptrice' : 'voit les kamas briller et oublie toute dignité';
+  if (rank === 0 && progress > 0.60) return 'mène la danse avec l’arrogance d’un riche qui n’a rien mérité';
+  if (rank === 1 && progress > 0.55) return 'colle au wagon de tête comme une dette qu’on refuse de payer';
+  if (rank === total - 1 && progress < 0.35) return 'laboure le fond du classement comme un champion de la loose';
+  if (progress > 0.70) return 'revient dans la bagarre et commence à faire transpirer le paddock';
+  if (progress > 0.45) return 'grignote la piste avec une audace presque déplacée';
+  return 's’accroche à la piste avec plus d’orgueil que de talent';
+}
+
+function raceEventLine(ordered, positions) {
+  const leader = ordered[0];
+  const chaser = ordered[1];
+  if (!leader) return 'Le silence règne, ce qui est mauvais signe pour tout le monde.';
+
+  const leaderHorse = HORSES[leader.horseIndex];
+  const leaderPct = Math.round(Math.max(0, Math.min(1, (positions[leader.horseIndex] || 0) / 20)) * 100);
+  if (!chaser) return `${emojiForText(leaderHorse.emoji)} **${leaderHorse.name}** trotte seule vers la caisse, quelle indécence.`;
+
+  const chaserHorse = HORSES[chaser.horseIndex];
+  const gap = (positions[leader.horseIndex] || 0) - (positions[chaser.horseIndex] || 0);
+  if (gap <= 1) return `⚠️ **${leaderHorse.name}** et **${chaserHorse.name}** sont roue dans roue, ça sent la panique et les paris de dernière minute.`;
+  if (leaderPct >= 80) return `🔥 **${leaderHorse.name}** approche du pactole pendant que **${chaserHorse.name}** découvre le goût du seum.`;
+  return `🎙️ **${leaderHorse.name}** tient la corde, mais **${chaserHorse.name}** refuse encore de mourir proprement.`;
 }
 
 function generateTrack(contestants, positions) {
-  const maxPosition = Math.max(1, ...contestants.map((entry) => positions[entry.horseIndex] || 0));
   return contestants.map((entry, rank) => {
     const horse = HORSES[entry.horseIndex];
-    const progress = Math.max(0, Math.min(1, (positions[entry.horseIndex] || 0) / 14));
+    const progress = Math.max(0, Math.min(1, (positions[entry.horseIndex] || 0) / 20));
     const who = entry.userId ? `<@${entry.userId}>` : 'IA';
     const pace = Math.round(progress * 100);
     const commentary = raceCommentary(rank, contestants.length, progress, !entry.userId);
     return [
-      `**${rank + 1}. ${emojiForText(horse.emoji)} ${horse.name}** , ${who}`,
+      `**${rank + 1}. ${horse.name}** , ${who}`,
       `${buildTrackBar(horse.emoji, progress)} **${pace}%**`,
       `_${commentary}_`,
     ].join('\n');
@@ -1164,27 +1183,31 @@ async function runSimpleRace(channel, guildId) {
   const threadCountdownMsg = await runCountdown(raceRoom, 5, '⏳ Pré-départ', 'La course démarre dans');
   if (threadCountdownMsg) await threadCountdownMsg.delete().catch(() => {});
 
+  const FINISH_LINE = 20;
   const positions = Object.fromEntries(contestants.map((c) => [c.horseIndex, 0]));
   const raceMsg = await raceRoom.send({
-    content: `🏇 **Départ** 🏇\n${generateTrack(sortContestantsByProgress(contestants, positions), positions)}`,
+    content: `🎬 **Les paris sont posés, les ego aussi**\n${generateTrack(sortContestantsByProgress(contestants, positions), positions)}\n\n🎙️ Le départ est donné, et déjà quelqu’un va regretter d’avoir ouvert son portefeuille.`,
   }).catch(() => null);
 
   let winner = null;
+  let tick = 0;
   while (!winner) {
+    tick += 1;
     const orderedBefore = sortContestantsByProgress(contestants, positions);
     for (const contestant of contestants.sort(() => Math.random() - 0.5)) {
-      let step = Math.floor(Math.random() * 3) + 1;
+      let step = Math.floor(Math.random() * 2) + 1;
       const current = positions[contestant.horseIndex] || 0;
       const leader = Math.max(...contestants.map((c) => positions[c.horseIndex] || 0));
       const gap = leader - current;
 
-      if (gap >= 3 && Math.random() < 0.55) step += 1;
-      if (current >= 9 && Math.random() < 0.35) step = Math.max(1, step - 1);
-      if (Math.random() < 0.18) step += 1;
+      if (gap >= 4 && Math.random() < 0.60) step += 2;
+      if (gap >= 2 && Math.random() < 0.45) step += 1;
+      if (current >= 14 && Math.random() < 0.40) step = Math.max(1, step - 1);
+      if (tick >= 5 && Math.random() < 0.22) step += 1;
 
       positions[contestant.horseIndex] += step;
-      if (positions[contestant.horseIndex] >= 14) {
-        positions[contestant.horseIndex] = 14;
+      if (positions[contestant.horseIndex] >= FINISH_LINE) {
+        positions[contestant.horseIndex] = FINISH_LINE;
         winner = contestant;
         break;
       }
@@ -1192,12 +1215,14 @@ async function runSimpleRace(channel, guildId) {
 
     const ordered = sortContestantsByProgress(contestants, positions);
     const leaderChanged = orderedBefore[0]?.horseIndex !== ordered[0]?.horseIndex;
+    const title = leaderChanged ? '💥 **Renversement de situation** 💥' : tick >= 6 ? '🔥 **Dernière ligne droite** 🔥' : '🏇 **La piste s’embrase** 🏇';
+    const eventText = raceEventLine(ordered, positions);
     if (raceMsg) {
       await raceMsg.edit({
-        content: `${leaderChanged ? '💥 **Renversement de situation** 💥' : '🏇 **Course en cours** 🏇'}\n${generateTrack(ordered, positions)}`,
+        content: `${title}\n${generateTrack(ordered, positions)}\n\n${eventText}`,
       }).catch(() => {});
     }
-    if (!winner) await new Promise((r) => setTimeout(r, RACE_TICK_MS));
+    if (!winner) await new Promise((r) => setTimeout(r, RACE_TICK_MS + 700));
   }
 
   await raceRoom.send({
