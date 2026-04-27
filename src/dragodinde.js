@@ -1038,7 +1038,7 @@ function raceEventLine(ordered, positions) {
 }
 
 function generateTrack(contestants, positions) {
-  const fence = '🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵';
+  const fence = '🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵';
   return contestants.map((entry, rank) => {
     const horse = HORSES[entry.horseIndex];
     const progress = Math.max(0, Math.min(1, (positions[entry.horseIndex] || 0) / 20));
@@ -1057,26 +1057,12 @@ function sortContestantsByProgress(contestants, positions) {
 }
 
 async function runCountdown(channel, seconds, title = '⏳ Pré-départ', textPrefix = 'La course démarre dans') {
-  const msg = await channel.send({
-    embeds: [new EmbedBuilder()
-      .setTitle(title)
-      .setDescription(`${textPrefix} **${seconds}** secondes...`)
-      .setColor(0x3498DB)
-      .setImage(RACE_BANNER_URL)
-      .setTimestamp()],
-  }).catch(() => null);
+  const msg = await channel.send({ content: `${title} ${textPrefix} **${seconds}** secondes...` }).catch(() => null);
 
   if (!msg) return null;
   for (let s = seconds - 1; s >= 1; s--) {
     await new Promise((r) => setTimeout(r, 1000));
-    await msg.edit({
-      embeds: [new EmbedBuilder()
-        .setTitle(title)
-        .setDescription(`${textPrefix} **${s}** secondes...`)
-        .setColor(0x3498DB)
-        .setImage(RACE_BANNER_URL)
-        .setTimestamp()],
-    }).catch(() => {});
+    await msg.edit({ content: `${title} ${textPrefix} **${s}** secondes...` }).catch(() => {});
   }
   await new Promise((r) => setTimeout(r, 1000));
   return msg;
