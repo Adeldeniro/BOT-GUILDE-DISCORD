@@ -146,11 +146,23 @@ function getAllowedRolesFromConfig(cfg) {
 function normalizeEmoji(raw) {
   const value = String(raw || '').trim();
   if (!value) return null;
-  const custom = value.match(/^<?a?:?([\w~]+):(\d+)>?$/);
-  if (custom) {
-    const animated = value.includes('<a:');
-    return { id: custom[2], name: custom[1], animated, mention: `<${animated ? 'a' : ''}:${custom[1]}:${custom[2]}>` };
+
+  const fullCustom = value.match(/^<(a?):([\w~]+):(\d+)>$/);
+  if (fullCustom) {
+    const animated = fullCustom[1] === 'a';
+    return { id: fullCustom[3], name: fullCustom[2], animated, mention: `<${animated ? 'a' : ''}:${fullCustom[2]}:${fullCustom[3]}>` };
   }
+
+  const looseCustom = value.match(/^:([\w~]+):$/);
+  if (looseCustom) {
+    return { name: looseCustom[1], mention: `:${looseCustom[1]}:` };
+  }
+
+  const idNameCustom = value.match(/^([\w~]+):(\d+)$/);
+  if (idNameCustom) {
+    return { id: idNameCustom[2], name: idNameCustom[1], animated: false, mention: `<:${idNameCustom[1]}:${idNameCustom[2]}>` };
+  }
+
   return { name: value, mention: value };
 }
 
@@ -1369,19 +1381,20 @@ async function handleChatInputCommand(interaction) {
 
     const guildId = interaction.guild.id;
     const cfg = getGuildConfig(guildId);
-    const emojis = [
+    const rawInputs = [
       interaction.options.getString('emoji1', true).trim(),
       interaction.options.getString('emoji2', true).trim(),
       interaction.options.getString('emoji3', true).trim(),
       interaction.options.getString('emoji4', true).trim(),
     ];
+    const emojis = rawInputs.map((value) => normalizeEmoji(value)?.mention || value);
 
     setGuildConfig(guildId, { ...cfg, horseEmojis: emojis });
     refreshHorseEmojisFromConfig(guildId);
     await refreshGuildMessages(interaction.client, guildId, getGuildConfig(guildId)).catch(() => {});
 
     await interaction.editReply({
-      content: `✅ Emojis Dragodinde mis à jour.\n1: ${emojis[0]}\n2: ${emojis[1]}\n3: ${emojis[2]}\n4: ${emojis[3]}`,
+      content: `✅ Emojis Dragodinde mis à jour.\n1: ${emojis[0]}\n2: ${emojis[1]}\n3: ${emojis[2]}\n4: ${emojis[3]}\n\nSi tu mets un emoji custom, utilise de préférence son format complet Discord, par exemple <:DD1:123456789>.`,
     });
     return true;
   }
