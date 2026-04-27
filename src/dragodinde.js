@@ -386,6 +386,23 @@ async function reopenParticipationCountdown(channel, guildId) {
     clearInterval(interval);
     reopenCountdowns.delete(guildId);
     await msg.delete().catch(() => {});
+    await deleteRecentSystemMessages(channel).catch(() => {});
+
+    const cfg = getGuildConfig(guildId);
+    if (cfg.mainMessageId) {
+      const mainMsg = await channel.messages.fetch(cfg.mainMessageId).catch(() => null);
+      if (mainMsg) {
+        const recent = await channel.messages.fetch({ limit: 20 }).catch(() => null);
+        if (recent) {
+          for (const candidate of recent.values()) {
+            if (candidate.id !== mainMsg.id && candidate.id !== msg.id && !candidate.pinned) {
+              await candidate.delete().catch(() => {});
+            }
+          }
+        }
+      }
+    }
+
     await refreshGuildMessages(channel.client, guildId, getGuildConfig(guildId)).catch(() => {});
   }, REOPEN_COUNTDOWN_MS);
 
