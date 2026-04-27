@@ -961,15 +961,38 @@ async function startPlayersWait(channel, guildId) {
   }, WAIT_TIME_MS);
 }
 
+function buildTrackBar(emojiRaw, progress, length = 10) {
+  const horseEmoji = emojiForText(emojiRaw);
+  const slot = Math.max(0, Math.min(length - 1, Math.round(progress * (length - 1))));
+  const cells = Array.from({ length }, (_, index) => {
+    if (index === slot) return horseEmoji;
+    return '▱';
+  });
+  return cells.join('');
+}
+
+function raceCommentary(rank, total, progress, isAi = false) {
+  if (progress >= 0.92) return isAi ? 'l’IA ricane déjà au guichet' : 'sent l’odeur des kamas et accélère';
+  if (rank === 0 && progress > 0.55) return 'prend la tête et fanfaronne sans honte';
+  if (rank === total - 1 && progress < 0.35) return 'traîne derrière comme une dette un soir de paie';
+  if (progress > 0.65) return 'recolle au chaos dans un nuage de poussière';
+  return 's’accroche à la piste avec plus d’orgueil que de grâce';
+}
+
 function generateTrack(contestants, positions) {
+  const maxPosition = Math.max(1, ...contestants.map((entry) => positions[entry.horseIndex] || 0));
   return contestants.map((entry, rank) => {
     const horse = HORSES[entry.horseIndex];
-    const pos = Math.max(0, Math.min(12, positions[entry.horseIndex] || 0));
-    const before = '─'.repeat(pos);
-    const after = '─'.repeat(12 - pos);
+    const progress = Math.max(0, Math.min(1, (positions[entry.horseIndex] || 0) / 14));
     const who = entry.userId ? `<@${entry.userId}>` : 'IA';
-    return `${rank + 1}. ${emojiForText(horse.emoji)} **${horse.name}** ${before}${emojiForText(horse.emoji)}${after} ${who}`;
-  }).join('\n');
+    const pace = Math.round(progress * 100);
+    const commentary = raceCommentary(rank, contestants.length, progress, !entry.userId);
+    return [
+      `**${rank + 1}. ${emojiForText(horse.emoji)} ${horse.name}** , ${who}`,
+      `${buildTrackBar(horse.emoji, progress)} **${pace}%**`,
+      `_${commentary}_`,
+    ].join('\n');
+  }).join('\n\n');
 }
 
 function sortContestantsByProgress(contestants, positions) {
@@ -1100,19 +1123,30 @@ async function runSimpleRace(channel, guildId) {
 
   let winner = null;
   while (!winner) {
+    const orderedBefore = sortContestantsByProgress(contestants, positions);
     for (const contestant of contestants.sort(() => Math.random() - 0.5)) {
-      positions[contestant.horseIndex] += Math.floor(Math.random() * 2) + 1;
-      if (positions[contestant.horseIndex] >= 12) {
-        positions[contestant.horseIndex] = 12;
+      let step = Math.floor(Math.random() * 3) + 1;
+      const current = positions[contestant.horseIndex] || 0;
+      const leader = Math.max(...contestants.map((c) => positions[c.horseIndex] || 0));
+      const gap = leader - current;
+
+      if (gap >= 3 && Math.random() < 0.55) step += 1;
+      if (current >= 9 && Math.random() < 0.35) step = Math.max(1, step - 1);
+      if (Math.random() < 0.18) step += 1;
+
+      positions[contestant.horseIndex] += step;
+      if (positions[contestant.horseIndex] >= 14) {
+        positions[contestant.horseIndex] = 14;
         winner = contestant;
         break;
       }
     }
 
     const ordered = sortContestantsByProgress(contestants, positions);
+    const leaderChanged = orderedBefore[0]?.horseIndex !== ordered[0]?.horseIndex;
     if (raceMsg) {
       await raceMsg.edit({
-        content: `🏇 **Course en cours** 🏇\n${generateTrack(ordered, positions)}`,
+        content: `${leaderChanged ? '💥 **Renversement de situation** 💥' : '🏇 **Course en cours** 🏇'}\n${generateTrack(ordered, positions)}`,
       }).catch(() => {});
     }
     if (!winner) await new Promise((r) => setTimeout(r, RACE_TICK_MS));
