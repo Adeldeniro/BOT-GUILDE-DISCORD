@@ -45,6 +45,11 @@ const REOPEN_COUNTDOWN_MS = 15_000;
 const THREAD_LIFETIME_MS = 25_000;
 const MAIN_COUNTDOWN_MS = 15_000;
 const RACE_TICK_MS = 2_500;
+const IA_BALANCE = {
+  1: { aiBoost: 0.15, humanNerf: 0.0 },
+  2: { aiBoost: 0.30, humanNerf: 0.05 },
+  3: { aiBoost: 0.55, humanNerf: 0.10 },
+};
 const DEBT_LIMIT = 1_000_000;
 let debtRecords = null;
 let payoutRecords = null;
@@ -1165,6 +1170,10 @@ async function runSimpleRace(channel, guildId) {
     content: `🎬 **Les paris sont posés, les ego aussi**\n${generateTrack(sortContestantsByProgress(contestants, positions), positions)}\n\n🎙️ Le départ est donné, et déjà quelqu’un va regretter d’avoir ouvert son portefeuille.`,
   }).catch(() => null);
 
+  const hasAiRace = !!state.iaPrize;
+  const iaTier = Number(state.expectedHumans || 2) - 1;
+  const iaBalance = IA_BALANCE[iaTier] || { aiBoost: 0, humanNerf: 0 };
+
   let winner = null;
   let tick = 0;
   while (!winner) {
@@ -1175,11 +1184,17 @@ async function runSimpleRace(channel, guildId) {
       const current = positions[contestant.horseIndex] || 0;
       const leader = Math.max(...contestants.map((c) => positions[c.horseIndex] || 0));
       const gap = leader - current;
+      const isAi = !contestant.userId;
 
       if (gap >= 4 && Math.random() < 0.60) step += 2;
       if (gap >= 2 && Math.random() < 0.45) step += 1;
       if (current >= 14 && Math.random() < 0.40) step = Math.max(1, step - 1);
       if (tick >= 5 && Math.random() < 0.22) step += 1;
+
+      if (hasAiRace) {
+        if (isAi && Math.random() < iaBalance.aiBoost) step += 1;
+        if (!isAi && Math.random() < iaBalance.humanNerf) step = Math.max(1, step - 1);
+      }
 
       positions[contestant.horseIndex] += step;
       if (positions[contestant.horseIndex] >= FINISH_LINE) {
