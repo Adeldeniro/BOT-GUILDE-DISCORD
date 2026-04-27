@@ -118,6 +118,7 @@ function getGuildConfig(guildId) {
     mainChannelId: null,
     mainMessageId: null,
     horseEmojis: null,
+    entriesClosed: false,
   };
 }
 
@@ -395,6 +396,21 @@ function buildCommands() {
       .setName('dragodinde_reset')
       .setDescription('Supprimer les messages Dragodinde créés par le setup et réinitialiser la config'),
     new SlashCommandBuilder()
+      .setName('dragodinde_refresh')
+      .setDescription('Rafraîchir l’annonce PMU et le dashboard admin'),
+    new SlashCommandBuilder()
+      .setName('dragodinde_close')
+      .setDescription('Fermer temporairement les participations Dragodinde'),
+    new SlashCommandBuilder()
+      .setName('dragodinde_open')
+      .setDescription('Rouvrir les participations Dragodinde'),
+    new SlashCommandBuilder()
+      .setName('dragodinde_cancel_race')
+      .setDescription('Annuler la course en attente en cours'),
+    new SlashCommandBuilder()
+      .setName('dragodinde_soft_reset')
+      .setDescription('Réinitialiser uniquement l’état temporaire de course'),
+    new SlashCommandBuilder()
       .setName('set_emojis_dragodinde')
       .setDescription('Modifier les emojis des 4 dragodindes')
       .addStringOption((option) => option.setName('emoji1').setDescription('Emoji dragodinde 1').setRequired(true))
@@ -620,13 +636,15 @@ function buildDashboardAdminEmbed(guildId) {
   const topWinners = topEntriesFromFinance((data) => data.totalWinnings, 5);
   const topActive = topEntriesFromFinance((data) => data.betsCount, 5);
 
-  const liveState = !state
-    ? 'Repos'
-    : state.started
-      ? 'Course en cours'
-      : state.players?.length
-        ? `Préparation / attente (${state.players.length} inscrit(s))`
-        : 'Préparation';
+  const liveState = cfg.entriesClosed
+    ? 'Fermé manuellement, le tiroir-caisse prend l’air'
+    : !state
+      ? 'Repos'
+      : state.started
+        ? 'Course en cours, les kamas transpirent'
+        : state.players?.length
+          ? `Préparation / attente (${state.players.length} inscrit(s))`
+          : 'Préparation';
 
   return new EmbedBuilder()
     .setColor(0x3498DB)
@@ -1087,8 +1105,8 @@ async function runSimpleRace(channel, guildId) {
   }).catch(() => {});
 
   const winnerAnnouncement = winner.userId
-    ? `🏆 <@${winner.userId}> remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**.`
-    : `🤖 L’IA remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Vous êtes venus pour briller, vous repartez avec la honte.`;
+    ? `🏆 <@${winner.userId}> remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**. Une insolente démonstration pendant que les autres comptent leurs regrets.`
+    : `🤖 L’IA remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Votre mise est partie nourrir la machine, merci pour votre générosité involontaire.`;
   const winnerMsg = await channel.send({ content: winnerAnnouncement }).catch(() => null);
 
   if (winner.userId) {
@@ -1203,6 +1221,87 @@ async function handleChatInputCommand(interaction) {
     return true;
   }
 
+  if (interaction.commandName === 'dragodinde_refresh') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour faire reluire la baraque.' });
+      return true;
+    }
+    await refreshGuildMessages(interaction.client, interaction.guild.id, getGuildConfig(interaction.guild.id)).catch(() => {});
+    await interaction.editReply({ content: '✅ Annonce et dashboard rafraîchis. Le PMU a remis son maquillage.' });
+    return true;
+  }
+
+  if (interaction.commandName === 'dragodinde_close') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour fermer le robinet à kamas.' });
+      return true;
+    }
+    const guildId = interaction.guild.id;
+    setGuildConfig(guildId, { ...getGuildConfig(guildId), entriesClosed: true });
+    await refreshGuildMessages(interaction.client, guildId, getGuildConfig(guildId)).catch(() => {});
+    await interaction.editReply({ content: '🔒 Participations fermées. Le PMU baisse le rideau pendant qu’on recompte les pertes.' });
+    return true;
+  }
+
+  if (interaction.commandName === 'dragodinde_open') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour rouvrir le piège à pigeons.' });
+      return true;
+    }
+    const guildId = interaction.guild.id;
+    setGuildConfig(guildId, { ...getGuildConfig(guildId), entriesClosed: false });
+    await refreshGuildMessages(interaction.client, guildId, getGuildConfig(guildId)).catch(() => {});
+    await interaction.editReply({ content: '🔓 Participations rouvertes. Les volontaires peuvent revenir offrir leurs kamas à la piste.' });
+    return true;
+  }
+
+  if (interaction.commandName === 'dragodinde_cancel_race') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour casser la table en plein pari.' });
+      return true;
+    }
+    const guildId = interaction.guild.id;
+    const state = raceStates.get(guildId);
+    if (!state || state.started) {
+      await interaction.editReply({ content: 'Aucune course en attente à annuler. Pour l’instant, le bazar est sous contrôle.' });
+      return true;
+    }
+    for (const player of state.players || []) {
+      if (player.debtRecordId) await markDebtCancelled(interaction.client, player.debtRecordId, interaction.user.id).catch(() => {});
+    }
+    if (state.waitInterval) clearInterval(state.waitInterval);
+    if (state.waitTimeout) clearTimeout(state.waitTimeout);
+    if (state.waitingMessageId) {
+      const msg = await interaction.channel.messages.fetch(state.waitingMessageId).catch(() => null);
+      if (msg) await msg.delete().catch(() => {});
+    }
+    raceStates.delete(guildId);
+    await refreshGuildMessages(interaction.client, guildId, getGuildConfig(guildId)).catch(() => {});
+    await interaction.editReply({ content: '🧹 Course en attente annulée. Les dettes ouvertes ont été remballées avec la dignité du paddock.' });
+    return true;
+  }
+
+  if (interaction.commandName === 'dragodinde_soft_reset') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour secouer la machine à paris.' });
+      return true;
+    }
+    const guildId = interaction.guild.id;
+    raceStates.delete(guildId);
+    const reopen = reopenCountdowns.get(guildId);
+    if (reopen?.interval) clearInterval(reopen.interval);
+    if (reopen?.timeout) clearTimeout(reopen.timeout);
+    reopenCountdowns.delete(guildId);
+    await refreshGuildMessages(interaction.client, guildId, getGuildConfig(guildId)).catch(() => {});
+    await interaction.editReply({ content: '♻️ État temporaire réinitialisé. On a remis un coup de balai sous le tapis.' });
+    return true;
+  }
+
   if (interaction.commandName === 'set_emojis_dragodinde') {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -1295,7 +1394,12 @@ async function handleButtonInteraction(interaction) {
   }
 
   if (interaction.customId === 'dragodinde:join:main') {
+    const cfg = getGuildConfig(interaction.guild.id);
     const state = raceStates.get(interaction.guild.id);
+    if (cfg.entriesClosed) {
+      await interaction.reply({ content: 'Les participations sont fermées. Le PMU est en pause, probablement le temps de ramasser les kamas et les ego froissés.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
     if (state?.started) {
       await interaction.reply({ content: 'Une course est déjà en cours. Attends la fin avant de rejoindre la suivante.', flags: MessageFlags.Ephemeral });
       return true;
