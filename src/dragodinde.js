@@ -42,7 +42,7 @@ const WAIT_TIME_MS = 45_000;
 const CANCEL_WINDOW_MS = 15_000;
 const REOPEN_COUNTDOWN_MS = 15_000;
 const THREAD_LIFETIME_MS = 25_000;
-const MAIN_COUNTDOWN_MS = 5_000;
+const MAIN_COUNTDOWN_MS = 15_000;
 const RACE_TICK_MS = 2_500;
 const DEBT_LIMIT = 1_000_000;
 let debtRecords = null;
@@ -1711,6 +1711,7 @@ async function handleButtonInteraction(interaction) {
     } else {
       await interaction.update({ components: [] });
     }
+    await refreshGuildMessages(interaction.client, interaction.guild.id, getGuildConfig(interaction.guild.id)).catch(() => {});
     return true;
   }
 
@@ -1751,6 +1752,7 @@ async function handleButtonInteraction(interaction) {
     } else {
       await interaction.update({ components: [] });
     }
+    await refreshGuildMessages(interaction.client, interaction.guild.id, getGuildConfig(interaction.guild.id)).catch(() => {});
     return true;
   }
 
