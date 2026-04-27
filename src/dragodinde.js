@@ -1021,16 +1021,6 @@ function buildTrackBar(emojiRaw, progress, length = 14) {
   return cells.join('');
 }
 
-function raceCommentary(rank, total, progress, isAi = false) {
-  if (progress >= 0.95) return isAi ? 'flair l’arnaque jusqu’au coffre et ricane comme une perceptrice' : 'voit les kamas briller et oublie toute dignité';
-  if (rank === 0 && progress > 0.60) return 'mène la danse avec l’arrogance d’un riche qui n’a rien mérité';
-  if (rank === 1 && progress > 0.55) return 'colle au wagon de tête comme une dette qu’on refuse de payer';
-  if (rank === total - 1 && progress < 0.35) return 'laboure le fond du classement comme un champion de la loose';
-  if (progress > 0.70) return 'revient dans la bagarre et commence à faire transpirer le paddock';
-  if (progress > 0.45) return 'grignote la piste avec une audace presque déplacée';
-  return 's’accroche à la piste avec plus d’orgueil que de talent';
-}
-
 function raceEventLine(ordered, positions) {
   const leader = ordered[0];
   const chaser = ordered[1];
@@ -1048,16 +1038,16 @@ function raceEventLine(ordered, positions) {
 }
 
 function generateTrack(contestants, positions) {
+  const fence = '🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵';
   return contestants.map((entry, rank) => {
     const horse = HORSES[entry.horseIndex];
     const progress = Math.max(0, Math.min(1, (positions[entry.horseIndex] || 0) / 20));
     const who = entry.userId ? `<@${entry.userId}>` : 'IA';
     const pace = Math.round(progress * 100);
-    const commentary = raceCommentary(rank, contestants.length, progress, !entry.userId);
     return [
       `**${rank + 1}. ${horse.name}** , ${who}`,
       `${buildTrackBar(horse.emoji, progress)} **${pace}%**`,
-      `_${commentary}_`,
+      fence,
     ].join('\n');
   }).join('\n\n');
 }
