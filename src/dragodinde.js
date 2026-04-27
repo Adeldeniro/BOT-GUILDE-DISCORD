@@ -143,6 +143,28 @@ function getAllowedRolesFromConfig(cfg) {
   ].filter(Boolean);
 }
 
+function normalizeEmoji(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+  const custom = value.match(/^<?a?:?([\w~]+):(\d+)>?$/);
+  if (custom) {
+    const animated = value.includes('<a:');
+    return { id: custom[2], name: custom[1], animated, mention: `<${animated ? 'a' : ''}:${custom[1]}:${custom[2]}>` };
+  }
+  return { name: value, mention: value };
+}
+
+function emojiForButton(raw) {
+  const emoji = normalizeEmoji(raw);
+  if (!emoji) return '🐎';
+  return emoji.id ? { id: emoji.id, name: emoji.name, animated: !!emoji.animated } : emoji.name;
+}
+
+function emojiForText(raw) {
+  const emoji = normalizeEmoji(raw);
+  return emoji?.mention || '🐎';
+}
+
 function refreshHorseEmojisFromConfig(guildId) {
   const cfg = getGuildConfig(guildId);
   const emojis = Array.isArray(cfg.horseEmojis) && cfg.horseEmojis.length === 4 ? cfg.horseEmojis : null;
@@ -257,7 +279,7 @@ async function createDebtRecord(client, guildId, userId, horseIndex, amount = EN
       `**Joueur :** <@${userId}>\n` +
       `**Montant :** ${safeAmount.toLocaleString('fr-FR')} kamas\n` +
       formulaText +
-      `**Cheval :** ${HORSES[horseIndex].emoji} ${HORSES[horseIndex].name}\n` +
+      `**Cheval :** ${emojiForText(HORSES[horseIndex].emoji)} ${HORSES[horseIndex].name}\n` +
       `**Dette totale après inscription :** ${futureTotal.toLocaleString('fr-FR')} kamas\n` +
       `**Statut :** En attente de paiement`
     )
@@ -265,7 +287,8 @@ async function createDebtRecord(client, guildId, userId, horseIndex, amount = EN
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`dragodinde:debtpay:${recordId}`).setLabel('Valider le paiement').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId(`dragodinde:debtpay:${recordId}`).setLabel('Valider le paiement').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`dragodinde:debtpaid:${recordId}`).setLabel('Dette payée').setStyle(ButtonStyle.Primary)
   );
 
   const msg = await channel.send({ embeds: [embed], components: [row] }).catch(() => null);
@@ -462,7 +485,7 @@ function horseChoiceRows(userId, mode, waiting = false, guildId = null) {
     ...HORSES.map((horse, i) => new ButtonBuilder()
       .setCustomId(`dragodinde:horse:${mode}:${userId}:${i}`)
       .setLabel(horse.name)
-      .setEmoji(horse.emoji)
+      .setEmoji(emojiForButton(horse.emoji))
       .setStyle(ButtonStyle.Primary)
       .setDisabled(waiting && taken.has(i)))
   )];
@@ -508,7 +531,7 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, w
       .setImage(RACE_BANNER_URL)
       .setDescription(`**<@${creatorId}>** cherche des adversaires.\nInscrits : **${humans.length}/${expectedHumans}**\nPlaces restantes : **${Math.max(0, expectedHumans - humans.length)}**`)
       .addFields(
-        { name: 'Joueurs engagés', value: humans.length ? humans.map((p) => `${HORSES[p.horseIndex].emoji} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n') : 'Aucun', inline: false },
+        { name: 'Joueurs engagés', value: humans.length ? humans.map((p) => `${emojiForText(HORSES[p.horseIndex].emoji)} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n') : 'Aucun', inline: false },
         { name: 'Cagnotte actuelle', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false },
         { name: 'Départ estimé', value: remainingSeconds !== null ? `${remainingSeconds} sec` : 'En attente', inline: true },
       );
@@ -945,7 +968,7 @@ function generateTrack(contestants, positions) {
     const before = '─'.repeat(pos);
     const after = '─'.repeat(12 - pos);
     const who = entry.userId ? `<@${entry.userId}>` : 'IA';
-    return `${rank + 1}. ${horse.emoji} **${horse.name}** ${before}${horse.emoji}${after} ${who}`;
+    return `${rank + 1}. ${emojiForText(horse.emoji)} **${horse.name}** ${before}${emojiForText(horse.emoji)}${after} ${who}`;
   }).join('\n');
 }
 
@@ -993,7 +1016,7 @@ async function createPayoutRecord(client, guildId, winner, totalAmount, particip
     .setTitle('🏆 Gain à remettre')
     .setDescription(
       `**Gagnant :** <@${winner.userId}>\n` +
-      `**Cheval :** ${horse.emoji} ${horse.name}\n` +
+      `**Cheval :** ${emojiForText(horse.emoji)} ${horse.name}\n` +
       `**Total à remettre :** ${Number(totalAmount).toLocaleString('fr-FR')} kamas\n` +
       `**Participants :** ${participantsText}\n` +
       `**Statut :** En attente de remise`
@@ -1060,7 +1083,7 @@ async function runSimpleRace(channel, guildId) {
     await raceRoom.send({
       embeds: [new EmbedBuilder()
         .setTitle('🏇 Course Dragodinde')
-        .setDescription(`Participants :\n${state.players.map((p) => `${HORSES[p.horseIndex].emoji} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n')}\n\nAdversaires IA : ${contestants.filter((c) => !c.userId).length}`)
+        .setDescription(`Participants :\n${state.players.map((p) => `${emojiForText(HORSES[p.horseIndex].emoji)} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n')}\n\nAdversaires IA : ${contestants.filter((c) => !c.userId).length}`)
         .setColor(0x3498DB)
         .setImage(RACE_BANNER_URL)
         .setTimestamp()],
@@ -1105,8 +1128,8 @@ async function runSimpleRace(channel, guildId) {
   }).catch(() => {});
 
   const winnerAnnouncement = winner.userId
-    ? `🏆 <@${winner.userId}> remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**. Une insolente démonstration pendant que les autres comptent leurs regrets.`
-    : `🤖 L’IA remporte la course avec **${HORSES[winner.horseIndex].emoji} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Votre mise est partie nourrir la machine, merci pour votre générosité involontaire.`;
+    ? `🏆 <@${winner.userId}> remporte la course avec **${emojiForText(HORSES[winner.horseIndex].emoji)} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**. Une insolente démonstration pendant que les autres comptent leurs regrets.`
+    : `🤖 L’IA remporte la course avec **${emojiForText(HORSES[winner.horseIndex].emoji)} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Votre mise est partie nourrir la machine, merci pour votre générosité involontaire.`;
   const winnerMsg = await channel.send({ content: winnerAnnouncement }).catch(() => null);
 
   if (winner.userId) {
@@ -1504,7 +1527,7 @@ async function handleButtonInteraction(interaction) {
       userSessions.set(userId, session);
 
       await interaction.update({
-        content: `Tu as choisi **${horse.emoji} ${horse.name}** pour **${formulaLabel}**.\nConfirme ta participation pour **${entryFee.toLocaleString('fr-FR')} kamas** avant de lancer la course.`,
+        content: `Tu as choisi **${emojiForText(horse.emoji)} ${horse.name}** pour **${formulaLabel}**.\nConfirme ta participation pour **${entryFee.toLocaleString('fr-FR')} kamas** avant de lancer la course.`,
         components: iaConfirmRows(userId, horseIndex),
       });
       return true;
@@ -1533,7 +1556,7 @@ async function handleButtonInteraction(interaction) {
       raceStates.set(guildId, existing);
 
       await interaction.update({
-        content: `✅ Tu rejoins la course en attente avec **${horse.emoji} ${horse.name}**.`,
+        content: `✅ Tu rejoins la course en attente avec **${emojiForText(horse.emoji)} ${horse.name}**.`,
         components: [],
       });
 
@@ -1567,7 +1590,7 @@ async function handleButtonInteraction(interaction) {
     raceStates.set(guildId, state);
 
     await interaction.update({
-      content: `✅ Tu es inscrit avec **${horse.emoji} ${horse.name}**.\nLa recherche de joueurs commence...`,
+      content: `✅ Tu es inscrit avec **${emojiForText(horse.emoji)} ${horse.name}**.\nLa recherche de joueurs commence...`,
       components: [],
     });
 
@@ -1606,7 +1629,7 @@ async function handleButtonInteraction(interaction) {
     }
 
     await interaction.update({
-      content: `✅ Participation confirmée avec **${horse.emoji} ${horse.name}** pour **${formulaLabel}**. La course démarre...`,
+      content: `✅ Participation confirmée avec **${emojiForText(horse.emoji)} ${horse.name}** pour **${formulaLabel}**. La course démarre...`,
       components: [],
     });
     raceStates.set(guildId, {
@@ -1707,6 +1730,51 @@ async function handleButtonInteraction(interaction) {
         .setColor(0x2ECC71)
         .setDescription((existingEmbed.description || '').replace('En attente de paiement', 'Payé'))
         .setFooter({ text: `Validé par ${interaction.user.displayName}` });
+      await interaction.update({ embeds: [embed], components: [] });
+    } else {
+      await interaction.update({ components: [] });
+    }
+    await refreshGuildMessages(interaction.client, interaction.guild.id, getGuildConfig(interaction.guild.id)).catch(() => {});
+    return true;
+  }
+
+  if (interaction.customId.startsWith('dragodinde:debtpaid:')) {
+    const [, , recordId] = interaction.customId.split(':');
+    const db = loadDebtRecords();
+    const record = db[recordId];
+    if (!record) {
+      await interaction.reply({ content: 'Dette introuvable.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    const adminRoleId = getAdminRoleId(interaction.guild.id);
+    const allowed = interaction.member?.permissions?.has(PermissionsBitField.Flags.Administrator) || (adminRoleId && interaction.member?.roles?.cache?.has(adminRoleId));
+    if (!allowed) {
+      await interaction.reply({ content: 'Rôle admin requis.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    if (record.status === 'paid') {
+      await interaction.reply({ content: 'Cette dette est déjà marquée comme payée.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+    if (record.status === 'cancelled') {
+      await interaction.reply({ content: 'Cette dette a déjà été annulée.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
+
+    record.status = 'paid';
+    record.paidAt = new Date().toISOString();
+    record.paidByAdminId = interaction.user.id;
+    saveDebtRecords();
+    applyUserPayment(record.userId, record.amount);
+
+    const existingEmbed = interaction.message.embeds?.[0];
+    if (existingEmbed) {
+      const embed = EmbedBuilder.from(existingEmbed)
+        .setColor(0x2ECC71)
+        .setDescription((existingEmbed.description || '').replace('En attente de paiement', 'Dette réglée'))
+        .setFooter({ text: `Dette réglée par ${interaction.user.displayName}` });
       await interaction.update({ embeds: [embed], components: [] });
     } else {
       await interaction.update({ components: [] });
