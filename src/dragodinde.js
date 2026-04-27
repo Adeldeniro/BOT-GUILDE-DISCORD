@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 const {
   SlashCommandBuilder,
   ActionRowBuilder,
@@ -452,7 +453,42 @@ function buildCommands() {
       .addStringOption((option) => option.setName('emoji2').setDescription('Emoji dragodinde 2').setRequired(true))
       .addStringOption((option) => option.setName('emoji3').setDescription('Emoji dragodinde 3').setRequired(true))
       .addStringOption((option) => option.setName('emoji4').setDescription('Emoji dragodinde 4').setRequired(true)),
+    new SlashCommandBuilder()
+      .setName('dragodinde_import_emojis')
+      .setDescription('Importer 4 emojis custom dans ce serveur et les assigner aux dragodindes')
+      .addStringOption((option) => option.setName('emoji1').setDescription('Emoji source 1, ex <:DD1:123>').setRequired(true))
+      .addStringOption((option) => option.setName('emoji2').setDescription('Emoji source 2, ex <:DD2:123>').setRequired(true))
+      .addStringOption((option) => option.setName('emoji3').setDescription('Emoji source 3, ex <:DD3:123>').setRequired(true))
+      .addStringOption((option) => option.setName('emoji4').setDescription('Emoji source 4, ex <:DD4:123>').setRequired(true)),
   ];
+}
+
+function downloadBuffer(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode}`));
+        return;
+      }
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+    }).on('error', reject);
+  });
+}
+
+async function importGuildEmoji(guild, rawEmoji, fallbackName) {
+  const parsed = normalizeEmoji(rawEmoji);
+  if (!parsed?.id || !parsed?.name) throw new Error(`Emoji source invalide: ${rawEmoji}`);
+
+  const existing = guild.emojis.cache.find((emoji) => emoji.name === parsed.name);
+  if (existing) return `<${existing.animated ? 'a' : ''}:${existing.name}:${existing.id}>`;
+
+  const ext = parsed.animated ? 'gif' : 'png';
+  const url = `https://cdn.discordapp.com/emojis/${parsed.id}.${ext}?quality=lossless`;
+  const buffer = await downloadBuffer(url);
+  const created = await guild.emojis.create({ attachment: buffer, name: parsed.name || fallbackName });
+  return `<${created.animated ? 'a' : ''}:${created.name}:${created.id}>`;
 }
 
 function joinButtonRow() {
@@ -1396,6 +1432,42 @@ async function handleChatInputCommand(interaction) {
     await interaction.editReply({
       content: `✅ Emojis Dragodinde mis à jour.\n1: ${emojis[0]}\n2: ${emojis[1]}\n3: ${emojis[2]}\n4: ${emojis[3]}\n\nSi tu mets un emoji custom, utilise de préférence son format complet Discord, par exemple <:DD1:123456789>.`,
     });
+    return true;
+  }
+
+  if (interaction.commandName === 'dragodinde_import_emojis') {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    if (!isAdmin(interaction)) {
+      await interaction.editReply({ content: 'Tu dois être administrateur pour importer des emojis.' });
+      return true;
+    }
+
+    const guildId = interaction.guild.id;
+    const cfg = getGuildConfig(guildId);
+    const inputs = [
+      interaction.options.getString('emoji1', true).trim(),
+      interaction.options.getString('emoji2', true).trim(),
+      interaction.options.getString('emoji3', true).trim(),
+      interaction.options.getString('emoji4', true).trim(),
+    ];
+
+    try {
+      const imported = [];
+      for (let i = 0; i < inputs.length; i++) {
+        imported.push(await importGuildEmoji(interaction.guild, inputs[i], `dragodinde_${i + 1}`));
+      }
+
+      setGuildConfig(guildId, { ...cfg, horseEmojis: imported });
+      refreshHorseEmojisFromConfig(guildId);
+      await refreshGuildMessages(interaction.client, guildId, getGuildConfig(guildId)).catch(() => {});
+
+      await interaction.editReply({
+        content: `✅ Emojis importés dans le serveur et assignés aux dragodindes.\n1: ${imported[0]}\n2: ${imported[1]}\n3: ${imported[2]}\n4: ${imported[3]}`,
+      });
+    } catch (error) {
+      await interaction.editReply({ content: `Impossible d'importer les emojis: ${error.message}` });
+    }
     return true;
   }
 
