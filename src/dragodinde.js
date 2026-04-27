@@ -1598,8 +1598,9 @@ async function handleButtonInteraction(interaction) {
   }
 
   if (interaction.customId === 'dragodinde:join:main') {
-    const cfg = getGuildConfig(interaction.guild.id);
-    const state = raceStates.get(interaction.guild.id);
+    const guildId = interaction.guild.id;
+    const cfg = getGuildConfig(guildId);
+    const state = raceStates.get(guildId);
     if (cfg.entriesClosed) {
       await interaction.reply({ content: 'Les participations sont fermées. Le PMU est en pause, probablement le temps de ramasser les kamas et les ego froissés.', flags: MessageFlags.Ephemeral });
       return true;
@@ -1608,12 +1609,35 @@ async function handleButtonInteraction(interaction) {
       await interaction.reply({ content: 'Une course est déjà en cours. Attends la fin avant de rejoindre la suivante.', flags: MessageFlags.Ephemeral });
       return true;
     }
-    if (reopenCountdowns.has(interaction.guild.id)) {
+    if (reopenCountdowns.has(guildId)) {
       await interaction.reply({ content: 'Les inscriptions vont rouvrir dans quelques secondes. Patiente un instant.', flags: MessageFlags.Ephemeral });
       return true;
     }
 
-    userSessions.set(interaction.user.id, { guildId: interaction.guild.id });
+    if (state && !state.started) {
+      if (state.players.length >= state.expectedHumans) {
+        await interaction.reply({ content: 'La file est déjà complète. Attends le départ ou la prochaine ouverture.', flags: MessageFlags.Ephemeral });
+        return true;
+      }
+      if (state.players.find((p) => p.userId === interaction.user.id)) {
+        await interaction.reply({ content: 'Tu es déjà inscrit dans la file actuelle.', flags: MessageFlags.Ephemeral });
+        return true;
+      }
+
+      userSessions.set(interaction.user.id, {
+        guildId,
+        mode: 'players-join-existing',
+        expectedHumans: state.expectedHumans,
+      });
+      await interaction.reply({
+        content: `Une recherche de **${state.expectedHumans - 1}** adversaire(s) est déjà en cours. Choisis simplement ta Dragodinde pour rejoindre la file.`,
+        components: horseChoiceRows(interaction.user.id, 'players', true, guildId),
+        flags: MessageFlags.Ephemeral,
+      });
+      return true;
+    }
+
+    userSessions.set(interaction.user.id, { guildId });
     await interaction.reply({
       content: 'Choisis ton mode de jeu.',
       components: modeChoiceRows(interaction.user.id),
