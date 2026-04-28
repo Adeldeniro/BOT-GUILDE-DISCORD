@@ -14,6 +14,78 @@ const stuffGen = require('./stuffGenerator');
 const metiers = require('./metiers');
 const dragodinde = require('./dragodinde');
 
+const GTO_WARNINGS_FILE = path.join(__dirname, '..', 'data', 'gto-warnings.json');
+
+function ensureJsonFile(filePath, fallback) {
+  try {
+    const dir = path.dirname(filePath);
+    fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, JSON.stringify(fallback, null, 2), 'utf8');
+    }
+  } catch {}
+}
+
+function readJsonSafe(filePath, fallback) {
+  try {
+    ensureJsonFile(filePath, fallback);
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJsonSafe(filePath, value) {
+  try {
+    const dir = path.dirname(filePath);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf8');
+  } catch {}
+}
+
+function loadGtoWarnings() {
+  return readJsonSafe(GTO_WARNINGS_FILE, {});
+}
+
+function saveGtoWarnings(data) {
+  writeJsonSafe(GTO_WARNINGS_FILE, data);
+}
+
+function getUserWarnings(userId) {
+  const data = loadGtoWarnings();
+  return Number(data[String(userId)]?.count || 0);
+}
+
+function incrementUserWarning(userId) {
+  const data = loadGtoWarnings();
+  const current = data[String(userId)] || { count: 0, updatedAt: null };
+  current.count = Number(current.count || 0) + 1;
+  current.updatedAt = new Date().toISOString();
+  data[String(userId)] = current;
+  saveGtoWarnings(data);
+  return current.count;
+}
+
+function buildGtoMemberWarningEmbed(member) {
+  const count = getUserWarnings(member.id);
+  return new EmbedBuilder()
+    .setColor(count >= 3 ? 0xE74C3C : 0xF39C12)
+    .setTitle(`⚠️ Suivi GTO , ${member.displayName}`)
+    .setDescription(`**Membre :** ${member}\n**Avertissements :** **${count}**\n\nOn garde un œil dessus avant de sortir le balai.`)
+    .setThumbnail(member.displayAvatarURL?.({ size: 256 }) || null)
+    .setFooter({ text: `ID ${member.id}` })
+    .setTimestamp();
+}
+
+function buildGtoMemberWarningRow(memberId) {
+  return [new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`gto:warn:${memberId}`)
+      .setLabel('Avertissement')
+      .setStyle(ButtonStyle.Danger)
+  )];
+}
+
 // Stuff generator (DofusBook Touch)
 const STUFF_GEN_CHANNEL_ID = '1480657603779362963';
 const stuffSessions = new Map(); // sessionId -> { criteria } and per-user shown in `${sessionId}:${userId}`
@@ -1462,6 +1534,12 @@ async function registerCommands(client) {
       .setName('setup_activity_logs')
       .setDescription('Configurer le salon des logs activité (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription('Salon logs activité (edit/delete/commands)').addChannelTypes(0,5).setRequired(true)),
+
+    new SlashCommandBuilder()
+      .setName('gto_avertissements')
+      .setDescription('Créer les fiches avertissements des membres GTO dans un salon')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster les fiches').addChannelTypes(0,5).setRequired(true))
+      .addRoleOption(o => o.setName('role').setDescription('Rôle à suivre, ex: GTO').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_events')
@@ -3252,6 +3330,40 @@ async function main() {
             return interaction.reply({ content: `OK. Activity logs configurés dans <#${salon.id}>.`, ephemeral: true });
           }
 
+          if (interaction.commandName === 'gto_avertissements') {
+            const salon = interaction.options.getChannel('salon', true);
+            const role = interaction.options.getRole('role', true);
+
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour poster les fiches.', ephemeral: true });
+            }
+
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+            const members = await interaction.guild.members.fetch().catch(() => null);
+            if (!members) {
+              return interaction.editReply({ content: 'Impossible de charger les membres du serveur.' }).catch(() => {});
+            }
+
+            const targets = [...members.values()]
+              .filter((member) => !member.user.bot && member.roles.cache.has(role.id))
+              .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+
+            if (!targets.length) {
+              return interaction.editReply({ content: `Aucun membre trouvé avec le rôle ${role}.` }).catch(() => {});
+            }
+
+            for (const member of targets) {
+              await salon.send({
+                embeds: [buildGtoMemberWarningEmbed(member)],
+                components: buildGtoMemberWarningRow(member.id),
+                allowedMentions: { parse: [] },
+              }).catch(() => {});
+            }
+
+            return interaction.editReply({ content: `✅ ${targets.length} fiche${targets.length > 1 ? 's' : ''} avertissement postée${targets.length > 1 ? 's' : ''} dans <#${salon.id}> pour le rôle ${role}.` }).catch(() => {});
+          }
+
           if (interaction.commandName === 'setup_events') {
             // Avoid Discord's 3s timeout: ack first
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
@@ -4135,6 +4247,38 @@ ${info}`.slice(0, 1900),
 
       if (interaction.isButton()) {
         if (await dragodinde.handleButtonInteraction(interaction).catch(() => false)) return;
+
+        if (interaction.customId.startsWith('gto:warn:')) {
+          const memberId = interaction.customId.split(':')[2];
+          const member = await interaction.guild.members.fetch(memberId).catch(() => null);
+          if (!member) {
+            return interaction.reply({ content: 'Membre introuvable.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(interaction.guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageGuild)
+            || interaction.memberPermissions?.has(PermissionsBitField.Flags.KickMembers)
+            || !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)))
+            || (rc.adminRoleId && clicker?.roles.cache.has(rc.adminRoleId));
+
+          if (!allowed) {
+            return interaction.reply({ content: 'Réservé au staff.', ephemeral: true }).catch(() => {});
+          }
+
+          const count = incrementUserWarning(memberId);
+          await interaction.update({
+            embeds: [buildGtoMemberWarningEmbed(member)],
+            components: buildGtoMemberWarningRow(memberId),
+          }).catch(() => {});
+
+          return interaction.followUp({
+            content: `⚠️ ${member} passe à **${count}** avertissement${count > 1 ? 's' : ''}.`,
+            ephemeral: true,
+            allowedMentions: { parse: [] },
+          }).catch(() => {});
+        }
+
         // Métiers buttons
         if (interaction.customId === 'mj:open') {
           const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
