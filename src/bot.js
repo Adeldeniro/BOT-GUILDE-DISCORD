@@ -3550,7 +3550,7 @@ async function main() {
           return interaction.reply({ content: 'Commande setup inconnue.', ephemeral: true });
         } else {
           // Allow some admin utilities anywhere
-          const anywhere = new Set(['clean', 'lock_write', 'role_id', 'dragodinde_setup', 'dragodinde_panel', 'dragodinde_status', 'dragodinde_reset']);
+          const anywhere = new Set(['clean', 'lock_write', 'role_id', 'dragodinde_setup', 'dragodinde_panel', 'dragodinde_status', 'dragodinde_reset', 'gto_avertissements']);
           if (!anywhere.has(interaction.commandName)) {
             // Command restriction: only allow admin commands in the panel channel
             if (rc.panelChannelId && interaction.channelId !== rc.panelChannelId) {
