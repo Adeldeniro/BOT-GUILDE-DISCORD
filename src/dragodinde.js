@@ -1103,6 +1103,30 @@ async function runCountdown(channel, seconds, title = '⏳ Pré-départ', textPr
   return msg;
 }
 
+async function createRaceHistoryRecord(client, guildId, state, winner, pot) {
+  const logsChannelId = getLogsChannelId(guildId);
+  if (!logsChannelId) return null;
+  const channel = await client.channels.fetch(logsChannelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) return null;
+
+  const participantsText = (state.players || []).length
+    ? state.players.map((p) => `${emojiForText(HORSES[p.horseIndex].emoji)} <@${p.userId}> , **${HORSES[p.horseIndex].name}**`).join('\n')
+    : 'Aucun';
+
+  const embed = new EmbedBuilder()
+    .setTitle('🏁 Historique de course')
+    .setColor(0x5865F2)
+    .addFields(
+      { name: 'Type', value: state.iaPrize ? 'Course contre l’IA' : 'Course entre joueurs', inline: true },
+      { name: 'Gagnant', value: winner?.userId ? `<@${winner.userId}> , **${HORSES[winner.horseIndex].name}**` : `IA , **${HORSES[winner.horseIndex].name}**`, inline: true },
+      { name: 'Montant en jeu', value: formatMoney(pot), inline: true },
+      { name: 'Participants', value: participantsText, inline: false },
+    )
+    .setTimestamp();
+
+  return channel.send({ embeds: [embed] }).catch(() => null);
+}
+
 async function createPayoutRecord(client, guildId, winner, totalAmount, participantsSnapshot) {
   const logsChannelId = getLogsChannelId(guildId);
   if (!logsChannelId || !winner?.userId) return null;
@@ -1259,6 +1283,8 @@ async function runSimpleRace(channel, guildId) {
     ? `🏆 <@${winner.userId}> remporte la course avec **${emojiForText(HORSES[winner.horseIndex].emoji)} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**. Une insolente démonstration pendant que les autres comptent leurs regrets.`
     : `🤖 L’IA remporte la course avec **${emojiForText(HORSES[winner.horseIndex].emoji)} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Votre mise est partie nourrir la machine, merci pour votre générosité involontaire.`;
   const winnerMsg = await channel.send({ content: winnerAnnouncement }).catch(() => null);
+
+  await createRaceHistoryRecord(channel.client, guildId, state, winner, pot).catch(() => {});
 
   if (winner.userId && state.iaPrize) {
     await createPayoutRecord(channel.client, guildId, winner, pot, state.players).catch(() => {});
