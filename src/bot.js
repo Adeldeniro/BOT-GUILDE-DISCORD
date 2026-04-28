@@ -3338,44 +3338,47 @@ async function main() {
               return interaction.reply({ content: 'Choisis un **salon texte** pour poster les fiches.', ephemeral: true });
             }
 
-            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: `⏳ Génération des fiches GTO en cours dans <#${salon.id}>...`, ephemeral: true }).catch(() => {});
 
-            try {
-              const members = await interaction.guild.members.fetch().catch(() => null);
-              if (!members) {
-                return interaction.editReply({ content: 'Impossible de charger les membres du serveur.' }).catch(() => {});
+            setTimeout(async () => {
+              try {
+                const roleMembers = [...role.members.values()]
+                  .filter((member) => !member.user.bot)
+                  .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+
+                if (!roleMembers.length) {
+                  await interaction.editReply({ content: `Aucun membre trouvé avec le rôle ${role}.` }).catch(() => {});
+                  return;
+                }
+
+                let sent = 0;
+                let failed = 0;
+                for (const member of roleMembers) {
+                  const ok = await salon.send({
+                    embeds: [buildGtoMemberWarningEmbed(member)],
+                    components: buildGtoMemberWarningRow(member.id),
+                    allowedMentions: { parse: [] },
+                  }).then(() => true).catch((error) => {
+                    console.error('[gto_avertissements] send failed', member.id, error);
+                    return false;
+                  });
+
+                  if (ok) sent += 1;
+                  else failed += 1;
+
+                  await new Promise((resolve) => setTimeout(resolve, 350));
+                }
+
+                await interaction.editReply({
+                  content: `✅ ${sent} fiche${sent > 1 ? 's' : ''} avertissement postée${sent > 1 ? 's' : ''} dans <#${salon.id}> pour le rôle ${role}.${failed ? ` Échecs: ${failed}.` : ''}`,
+                }).catch(() => {});
+              } catch (error) {
+                console.error('[gto_avertissements] failed', error);
+                await interaction.editReply({ content: '❌ La génération des fiches a échoué. Vérifie les permissions du bot et réessaie.' }).catch(() => {});
               }
+            }, 0);
 
-              const targets = [...members.values()]
-                .filter((member) => !member.user.bot && member.roles.cache.has(role.id))
-                .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
-
-              if (!targets.length) {
-                return interaction.editReply({ content: `Aucun membre trouvé avec le rôle ${role}.` }).catch(() => {});
-              }
-
-              let sent = 0;
-              let failed = 0;
-              for (const member of targets) {
-                const ok = await salon.send({
-                  embeds: [buildGtoMemberWarningEmbed(member)],
-                  components: buildGtoMemberWarningRow(member.id),
-                  allowedMentions: { parse: [] },
-                }).then(() => true).catch(() => false);
-
-                if (ok) sent += 1;
-                else failed += 1;
-
-                await new Promise((resolve) => setTimeout(resolve, 250));
-              }
-
-              return interaction.editReply({
-                content: `✅ ${sent} fiche${sent > 1 ? 's' : ''} avertissement postée${sent > 1 ? 's' : ''} dans <#${salon.id}> pour le rôle ${role}.${failed ? ` Échecs: ${failed}.` : ''}`,
-              }).catch(() => {});
-            } catch (error) {
-              console.error('[gto_avertissements] failed', error);
-              return interaction.editReply({ content: '❌ La génération des fiches a échoué. Vérifie les permissions du bot et réessaie.' }).catch(() => {});
-            }
+            return;
           }
 
           if (interaction.commandName === 'setup_events') {
