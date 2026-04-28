@@ -45,30 +45,97 @@ function writeJsonSafe(filePath, value) {
 }
 
 function loadGtoWarnings() {
-  return readJsonSafe(GTO_WARNINGS_FILE, {});
+  return readJsonSafe(GTO_WARNINGS_FILE, { guilds: {} });
 }
 
 function saveGtoWarnings(data) {
   writeJsonSafe(GTO_WARNINGS_FILE, data);
 }
 
-function getUserWarnings(userId) {
+function getGuildWarningStore(guildId) {
   const data = loadGtoWarnings();
-  return Number(data[String(userId)]?.count || 0);
+  if (!data.guilds) data.guilds = {};
+  if (!data.guilds[guildId]) {
+    data.guilds[guildId] = {
+      roleId: null,
+      channelId: null,
+      members: {},
+    };
+    saveGtoWarnings(data);
+  }
+  return data.guilds[guildId];
 }
 
-function incrementUserWarning(userId) {
+function setGuildWarningConfig(guildId, patch) {
   const data = loadGtoWarnings();
-  const current = data[String(userId)] || { count: 0, updatedAt: null };
+  if (!data.guilds) data.guilds = {};
+  const current = data.guilds[guildId] || { roleId: null, channelId: null, members: {} };
+  data.guilds[guildId] = { ...current, ...patch, members: current.members || {} };
+  saveGtoWarnings(data);
+  return data.guilds[guildId];
+}
+
+function getMemberWarningEntry(guildId, userId) {
+  const store = getGuildWarningStore(guildId);
+  if (!store.members[userId]) {
+    store.members[userId] = { count: 0, updatedAt: null, messageId: null };
+    const data = loadGtoWarnings();
+    data.guilds[guildId] = store;
+    saveGtoWarnings(data);
+  }
+  return store.members[userId];
+}
+
+function getUserWarnings(guildId, userId) {
+  return Number(getMemberWarningEntry(guildId, String(userId)).count || 0);
+}
+
+function setWarningMessageId(guildId, userId, messageId) {
+  const data = loadGtoWarnings();
+  if (!data.guilds) data.guilds = {};
+  const store = data.guilds[guildId] || { roleId: null, channelId: null, members: {} };
+  const entry = store.members[String(userId)] || { count: 0, updatedAt: null, messageId: null };
+  entry.messageId = messageId || null;
+  store.members[String(userId)] = entry;
+  data.guilds[guildId] = store;
+  saveGtoWarnings(data);
+}
+
+function removeMemberWarningEntry(guildId, userId) {
+  const data = loadGtoWarnings();
+  if (!data.guilds?.[guildId]?.members?.[String(userId)]) return;
+  delete data.guilds[guildId].members[String(userId)];
+  saveGtoWarnings(data);
+}
+
+function incrementUserWarning(guildId, userId) {
+  const data = loadGtoWarnings();
+  if (!data.guilds) data.guilds = {};
+  const store = data.guilds[guildId] || { roleId: null, channelId: null, members: {} };
+  const current = store.members[String(userId)] || { count: 0, updatedAt: null, messageId: null };
   current.count = Number(current.count || 0) + 1;
   current.updatedAt = new Date().toISOString();
-  data[String(userId)] = current;
+  store.members[String(userId)] = current;
+  data.guilds[guildId] = store;
   saveGtoWarnings(data);
   return current.count;
 }
 
-function buildGtoMemberWarningEmbed(member) {
-  const count = getUserWarnings(member.id);
+function decrementUserWarning(guildId, userId) {
+  const data = loadGtoWarnings();
+  if (!data.guilds) data.guilds = {};
+  const store = data.guilds[guildId] || { roleId: null, channelId: null, members: {} };
+  const current = store.members[String(userId)] || { count: 0, updatedAt: null, messageId: null };
+  current.count = Math.max(0, Number(current.count || 0) - 1);
+  current.updatedAt = new Date().toISOString();
+  store.members[String(userId)] = current;
+  data.guilds[guildId] = store;
+  saveGtoWarnings(data);
+  return current.count;
+}
+
+function buildGtoMemberWarningEmbed(member, guildId) {
+  const count = getUserWarnings(guildId, member.id);
   return new EmbedBuilder()
     .setColor(count >= 3 ? 0xE74C3C : 0xF39C12)
     .setTitle(`⚠️ Suivi GTO , ${member.displayName}`)
@@ -83,6 +150,14 @@ function buildGtoMemberWarningRow(memberId) {
     new ButtonBuilder()
       .setCustomId(`gto:warn:${memberId}`)
       .setLabel('Avertissement')
+      .setStyle(ButtonStyle.Danger),
+    new ButtonBuilder()
+      .setCustomId(`gto:unwarn:${memberId}`)
+      .setLabel('Retirer')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`gto:kick:${memberId}`)
+      .setLabel('Kick')
       .setStyle(ButtonStyle.Danger)
   )];
 }
@@ -100,11 +175,7 @@ async function handleGtoWarningsCommand(interaction) {
 
   const guild = interaction.guild;
   const rc = getConfigForGuild(guild.id);
-  const isOwner = guild && interaction.user && guild.ownerId === interaction.user.id;
-  const memberRoles = interaction.member?.roles;
-  const hasLegacyAdmin = !!(memberRoles && rc.adminRoleIdsLegacy.some(rid => memberRoles.cache?.has(rid)));
-  const hasConfiguredAdmin = !!(rc.adminRoleId && memberRoles && memberRoles.cache?.has(rc.adminRoleId));
-  const isAdmin = isOwner || hasLegacyAdmin || hasConfiguredAdmin;
+  const isAdmin = isGtoWarningsAdmin(interaction.member, guild, rc);
 
   if (!isAdmin) {
     await interaction.reply({ content: "Permissions insuffisantes (réservé à l'Owner ou rôle admin configuré).", ephemeral: true }).catch(() => {});
@@ -124,6 +195,8 @@ async function handleGtoWarningsCommand(interaction) {
   const targets = [...members.values()]
     .filter((member) => !member.user.bot && member.roles.cache.has(role.id))
     .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+
+  setGuildWarningConfig(guild.id, { roleId: role.id, channelId: salon.id });
 
   if (!targets.length) {
     await interaction.reply({ content: `Aucun membre trouvé avec le rôle ${role}.`, ephemeral: true }).catch(() => {});
@@ -153,18 +226,67 @@ async function handleGtoWarningsCommand(interaction) {
   return true;
 }
 
+function isGtoWarningsAdmin(interactionOrMember, guild, rc) {
+  const userId = interactionOrMember?.user?.id || interactionOrMember?.id;
+  const memberRoles = interactionOrMember?.roles;
+  const isOwner = guild && userId && guild.ownerId === userId;
+  const hasLegacyAdmin = !!(memberRoles && rc.adminRoleIdsLegacy.some(rid => memberRoles.cache?.has(rid)));
+  const hasConfiguredAdmin = !!(rc.adminRoleId && memberRoles && memberRoles.cache?.has(rc.adminRoleId));
+  return isOwner || hasLegacyAdmin || hasConfiguredAdmin;
+}
+
+async function createOrRefreshGtoWarningCard(channel, member) {
+  const guildId = member.guild.id;
+  const store = getGuildWarningStore(guildId);
+  const entry = getMemberWarningEntry(guildId, member.id);
+  let msg = null;
+
+  if (entry.messageId) {
+    msg = await channel.messages.fetch(entry.messageId).catch(() => null);
+  }
+
+  const payload = {
+    embeds: [buildGtoMemberWarningEmbed(member, guildId)],
+    components: buildGtoMemberWarningRow(member.id),
+    allowedMentions: { parse: [] },
+  };
+
+  if (msg) {
+    await msg.edit(payload).catch(() => null);
+    return msg;
+  }
+
+  msg = await channel.send(payload).catch(() => null);
+  if (msg) {
+    setWarningMessageId(guildId, member.id, msg.id);
+  }
+  return msg;
+}
+
+async function deleteGtoWarningCard(guild, userId) {
+  const store = getGuildWarningStore(guild.id);
+  if (!store.channelId) {
+    removeMemberWarningEntry(guild.id, userId);
+    return;
+  }
+  const channel = await guild.client.channels.fetch(store.channelId).catch(() => null);
+  const entry = store.members?.[String(userId)];
+  if (channel && channel.isTextBased() && entry?.messageId) {
+    const msg = await channel.messages.fetch(entry.messageId).catch(() => null);
+    if (msg) await msg.delete().catch(() => {});
+  }
+  removeMemberWarningEntry(guild.id, userId);
+}
+
 async function postGtoWarningEmbedsSequentially(channel, members) {
   let sent = 0;
   let failed = 0;
 
   for (const member of members) {
     try {
-      await channel.send({
-        embeds: [buildGtoMemberWarningEmbed(member)],
-        components: buildGtoMemberWarningRow(member.id),
-        allowedMentions: { parse: [] },
-      });
-      sent += 1;
+      const msg = await createOrRefreshGtoWarningCard(channel, member);
+      if (msg) sent += 1;
+      else failed += 1;
     } catch (error) {
       failed += 1;
       console.error('[gto_avertissements] send failed', member.id, error);
@@ -2139,6 +2261,7 @@ async function main() {
   client.on('guildMemberRemove', async (member) => { 
     // Surveillance + cleanup profiles when someone leaves / is kicked
     try {
+      await deleteGtoWarningCard(member.guild, member.id).catch(() => {});
       const rc = getConfigForGuild(member.guild.id);
       const userId = member?.user?.id || member?.id;
       console.log('[surveillance] guildMemberRemove', { guildId: member.guild.id, userId });
@@ -2178,6 +2301,23 @@ async function main() {
 
   client.on('guildMemberUpdate', async (oldMember, newMember) => {
     try {
+      const warningStore = getGuildWarningStore(newMember.guild.id);
+      if (warningStore.roleId && warningStore.channelId) {
+        const gainedWarningRole = !oldMember.roles.cache.has(warningStore.roleId) && newMember.roles.cache.has(warningStore.roleId);
+        const lostWarningRole = oldMember.roles.cache.has(warningStore.roleId) && !newMember.roles.cache.has(warningStore.roleId);
+
+        if (gainedWarningRole) {
+          const warningChannel = await newMember.client.channels.fetch(warningStore.channelId).catch(() => null);
+          if (warningChannel && warningChannel.isTextBased()) {
+            await createOrRefreshGtoWarningCard(warningChannel, newMember).catch(() => {});
+          }
+        }
+
+        if (lostWarningRole) {
+          await deleteGtoWarningCard(newMember.guild, newMember.id).catch(() => {});
+        }
+      }
+
       // If someone gains the guildeux role, ensure they're listed (0 score) and refresh board
       const rc = getConfigForGuild(newMember.guild.id);
       if (!rc.guildeuxRoleId || !rc.scoreboardChannelId) return;
@@ -4304,35 +4444,78 @@ ${info}`.slice(0, 1900),
       if (interaction.isButton()) {
         if (await dragodinde.handleButtonInteraction(interaction).catch(() => false)) return;
 
-        if (interaction.customId.startsWith('gto:warn:')) {
-          const memberId = interaction.customId.split(':')[2];
+        if (interaction.customId.startsWith('gto:')) {
+          const [, action, memberId] = interaction.customId.split(':');
+          const rc = getConfigForGuild(interaction.guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          const allowed = clicker && isGtoWarningsAdmin(clicker, interaction.guild, rc);
+
+          if (!allowed) {
+            return interaction.reply({ content: 'Commande réservée à l’owner ou à l’admin configuré.', ephemeral: true }).catch(() => {});
+          }
+
           const member = await interaction.guild.members.fetch(memberId).catch(() => null);
+          const guildId = interaction.guild.id;
+
+          if (action === 'kickconfirm') {
+            if (!member) {
+              return interaction.update({ content: 'Membre introuvable ou déjà parti.', embeds: [], components: [] }).catch(() => {});
+            }
+            try {
+              await member.kick(`Kick GTO confirmé par ${interaction.user.tag || interaction.user.id}`);
+              await interaction.update({ content: `👢 ${member.user.tag || member.displayName} a été expulsé du serveur.`, embeds: [], components: [] }).catch(() => {});
+            } catch (error) {
+              console.error('[gto_kick] failed', error);
+              await interaction.reply({ content: 'Impossible de kick ce membre. Vérifie les permissions et la hiérarchie des rôles.', ephemeral: true }).catch(() => {});
+            }
+            return true;
+          }
+
+          if (action === 'kick') {
+            return interaction.reply({
+              content: `⚠️ Confirmer l’expulsion de <@${memberId}> ?`,
+              components: [new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`gto:kickconfirm:${memberId}`).setLabel('Confirmer le kick').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId(`gto:kickcancel:${memberId}`).setLabel('Annuler').setStyle(ButtonStyle.Secondary),
+              )],
+              ephemeral: true,
+              allowedMentions: { parse: [] },
+            }).catch(() => {});
+          }
+
+          if (action === 'kickcancel') {
+            return interaction.update({ content: 'Kick annulé.', components: [] }).catch(() => {});
+          }
+
           if (!member) {
             return interaction.reply({ content: 'Membre introuvable.', ephemeral: true }).catch(() => {});
           }
 
-          const rc = getConfigForGuild(interaction.guildId);
-          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-          const allowed = interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageGuild)
-            || interaction.memberPermissions?.has(PermissionsBitField.Flags.KickMembers)
-            || !!(clicker && (rc.validationStaffRoleIds || []).some(rid => clicker.roles.cache.has(rid)))
-            || (rc.adminRoleId && clicker?.roles.cache.has(rc.adminRoleId));
-
-          if (!allowed) {
-            return interaction.reply({ content: 'Réservé au staff.', ephemeral: true }).catch(() => {});
+          if (action === 'warn') {
+            const count = incrementUserWarning(guildId, memberId);
+            await interaction.update({
+              embeds: [buildGtoMemberWarningEmbed(member, guildId)],
+              components: buildGtoMemberWarningRow(memberId),
+            }).catch(() => {});
+            return interaction.followUp({
+              content: `⚠️ ${member} passe à **${count}** avertissement${count > 1 ? 's' : ''}.`,
+              ephemeral: true,
+              allowedMentions: { parse: [] },
+            }).catch(() => {});
           }
 
-          const count = incrementUserWarning(memberId);
-          await interaction.update({
-            embeds: [buildGtoMemberWarningEmbed(member)],
-            components: buildGtoMemberWarningRow(memberId),
-          }).catch(() => {});
-
-          return interaction.followUp({
-            content: `⚠️ ${member} passe à **${count}** avertissement${count > 1 ? 's' : ''}.`,
-            ephemeral: true,
-            allowedMentions: { parse: [] },
-          }).catch(() => {});
+          if (action === 'unwarn') {
+            const count = decrementUserWarning(guildId, memberId);
+            await interaction.update({
+              embeds: [buildGtoMemberWarningEmbed(member, guildId)],
+              components: buildGtoMemberWarningRow(memberId),
+            }).catch(() => {});
+            return interaction.followUp({
+              content: `↩️ ${member} redescend à **${count}** avertissement${count > 1 ? 's' : ''}.`,
+              ephemeral: true,
+              allowedMentions: { parse: [] },
+            }).catch(() => {});
+          }
         }
 
         // Métiers buttons
