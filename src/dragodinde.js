@@ -118,6 +118,7 @@ function getGuildConfig(guildId) {
   const config = loadConfig();
   return config[guildId] || {
     logsChannelId: null,
+    historyChannelId: null,
     dashboardChannelId: null,
     adminRoleId: null,
     notificationRoleId: null,
@@ -199,6 +200,10 @@ function refreshHorseEmojisFromConfig(guildId) {
 
 function getLogsChannelId(guildId) {
   return getGuildConfig(guildId).logsChannelId || null;
+}
+
+function getHistoryChannelId(guildId) {
+  return getGuildConfig(guildId).historyChannelId || null;
 }
 
 function getAdminRoleId(guildId) {
@@ -760,6 +765,7 @@ function buildDashboardAdminEmbed(guildId) {
       { name: 'État live', value: liveState, inline: true },
       { name: 'Salon course / annonce', value: cfg.mainChannelId ? `<#${cfg.mainChannelId}>` : '—', inline: true },
       { name: 'Salon logs', value: cfg.logsChannelId ? `<#${cfg.logsChannelId}>` : '—', inline: true },
+      { name: 'Salon historique', value: cfg.historyChannelId ? `<#${cfg.historyChannelId}>` : '—', inline: true },
       { name: 'Dette totale en attente', value: formatMoney(unpaidDebtTotal), inline: true },
       { name: 'Dettes impayées', value: String(unpaidDebtCount), inline: true },
       { name: 'Gains en attente', value: `${pendingPayoutCount} , ${formatMoney(pendingPayoutTotal)}`, inline: true },
@@ -879,6 +885,10 @@ function buildSetupComponents(guild) {
         .setLabel('Rechercher salon logs')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
+        .setCustomId(`dragodinde:setupsearch:history:${guild.id}`)
+        .setLabel('Rechercher salon historique')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
         .setCustomId(`dragodinde:setupsearch:dashboard:${guild.id}`)
         .setLabel('Rechercher salon dashboard')
         .setStyle(ButtonStyle.Secondary)
@@ -915,17 +925,22 @@ function buildSetupComponents(guild) {
 }
 
 async function showChannelSearchModal(interaction, type, guildId) {
-  const safeType = type === 'logs' ? 'logs' : 'dashboard';
+  const safeType = ['logs', 'history', 'dashboard'].includes(type) ? type : 'dashboard';
+  const titleMap = {
+    logs: 'Rechercher salon logs',
+    history: 'Rechercher salon historique',
+    dashboard: 'Rechercher salon dashboard',
+  };
   const modal = new ModalBuilder()
     .setCustomId(`dragodinde:modalsearch:${safeType}:${guildId}`)
-    .setTitle(safeType === 'logs' ? 'Rechercher salon logs' : 'Rechercher salon dashboard');
+    .setTitle(titleMap[safeType]);
 
   const input = new TextInputBuilder()
     .setCustomId('query')
     .setLabel('Nom du salon')
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
-    .setPlaceholder(safeType === 'logs' ? 'logs, pmu, courses...' : 'dashboard, dragodinde...')
+    .setPlaceholder(safeType === 'logs' ? 'logs, pmu, courses...' : safeType === 'history' ? 'historique, courses, résultats...' : 'dashboard, dragodinde...')
     .setMaxLength(100);
 
   modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -1104,9 +1119,9 @@ async function runCountdown(channel, seconds, title = '⏳ Pré-départ', textPr
 }
 
 async function createRaceHistoryRecord(client, guildId, state, winner, pot) {
-  const logsChannelId = getLogsChannelId(guildId);
-  if (!logsChannelId) return null;
-  const channel = await client.channels.fetch(logsChannelId).catch(() => null);
+  const historyChannelId = getHistoryChannelId(guildId) || getLogsChannelId(guildId);
+  if (!historyChannelId) return null;
+  const channel = await client.channels.fetch(historyChannelId).catch(() => null);
   if (!channel || !channel.isTextBased()) return null;
 
   const participantsText = (state.players || []).length
@@ -1317,6 +1332,7 @@ async function handleChatInputCommand(interaction) {
       content:
         'État Dragodinde actuel.\n' +
         `• Logs: ${cfg.logsChannelId ? `<#${cfg.logsChannelId}>` : '—'}\n` +
+        `• Historique: ${cfg.historyChannelId ? `<#${cfg.historyChannelId}>` : '—'}\n` +
         `• Dashboard: ${cfg.dashboardChannelId ? `<#${cfg.dashboardChannelId}>` : '—'}\n` +
         `• Admin: ${cfg.adminRoleId ? `<@&${cfg.adminRoleId}>` : '—'}\n` +
         `• Panneau: ${cfg.dashboardMessageId || '—'}`,
@@ -1384,6 +1400,7 @@ async function handleChatInputCommand(interaction) {
 
     setGuildConfig(guildId, {
       logsChannelId: null,
+      historyChannelId: null,
       dashboardChannelId: null,
       adminRoleId: null,
       notificationRoleId: null,
@@ -1554,6 +1571,7 @@ async function handleConfigSelect(interaction) {
   const draft = getDraft(guildId);
   const value = interaction.values?.[0] || null;
   if (key === 'logs' && value !== '__none__') draft.logsChannelId = value;
+  if (key === 'history' && value !== '__none__') draft.historyChannelId = value;
   if (key === 'dashboard' && value !== '__none__') draft.dashboardChannelId = value;
   if (key === 'admin' && value !== '__none__') draft.adminRoleId = value;
   if (key === 'allowed') {
