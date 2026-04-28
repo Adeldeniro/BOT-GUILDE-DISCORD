@@ -1,5 +1,6 @@
 ﻿const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
 const path = require('path');
+const fs = require('fs');
 const sharp = require('sharp');
 const config = require('./config');
 const db = require('./db');
@@ -202,7 +203,6 @@ const cooldown = new Map(); // key: buttonKey -> lastTs
 const pendingEventFix = new Map(); // key: `${userId}:${sid}` -> { participantIds, defenders }
 
 // Prevent double-running (two bot instances => double pings)
-const fs = require('fs');
 const lockPath = path.join(__dirname, '..', 'bot.lock');
 try {
   if (fs.existsSync(lockPath)) {
