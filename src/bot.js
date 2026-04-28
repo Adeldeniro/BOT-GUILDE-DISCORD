@@ -87,6 +87,72 @@ function buildGtoMemberWarningRow(memberId) {
   )];
 }
 
+async function handleGtoWarningsCommand(interaction) {
+  if (interaction.commandName !== 'gto_avertissements') return false;
+
+  const salon = interaction.options.getChannel('salon', true);
+  const role = interaction.options.getRole('role', true);
+
+  if (!salon?.isTextBased?.()) {
+    await interaction.reply({ content: 'Choisis un **salon texte** pour poster les fiches.', ephemeral: true }).catch(() => {});
+    return true;
+  }
+
+  const guild = interaction.guild;
+  const rc = getConfigForGuild(guild.id);
+  const isOwner = guild && interaction.user && guild.ownerId === interaction.user.id;
+  const memberRoles = interaction.member?.roles;
+  const hasLegacyAdmin = !!(memberRoles && rc.adminRoleIdsLegacy.some(rid => memberRoles.cache?.has(rid)));
+  const hasConfiguredAdmin = !!(rc.adminRoleId && memberRoles && memberRoles.cache?.has(rc.adminRoleId));
+  const isAdmin = isOwner || hasLegacyAdmin || hasConfiguredAdmin;
+
+  if (!isAdmin) {
+    await interaction.reply({ content: "Permissions insuffisantes (réservé à l'Owner ou rôle admin configuré).", ephemeral: true }).catch(() => {});
+    return true;
+  }
+
+  const members = await interaction.guild.members.fetch().catch((error) => {
+    console.error('[gto_avertissements] members.fetch failed', error);
+    return null;
+  });
+
+  if (!members) {
+    await interaction.reply({ content: 'Impossible de charger les membres du serveur.', ephemeral: true }).catch(() => {});
+    return true;
+  }
+
+  const targets = [...members.values()]
+    .filter((member) => !member.user.bot && member.roles.cache.has(role.id))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+
+  if (!targets.length) {
+    await interaction.reply({ content: `Aucun membre trouvé avec le rôle ${role}.`, ephemeral: true }).catch(() => {});
+    return true;
+  }
+
+  await interaction.reply({
+    content: `⏳ Je poste les fiches une par une dans <#${salon.id}> pour le rôle ${role}.`,
+    ephemeral: true,
+  }).catch(() => {});
+
+  postGtoWarningEmbedsSequentially(salon, targets)
+    .then(async ({ sent, failed }) => {
+      await interaction.followUp({
+        content: `✅ Terminé. ${sent} fiche${sent > 1 ? 's' : ''} postée${sent > 1 ? 's' : ''}.${failed ? ` Échecs: ${failed}.` : ''}`,
+        ephemeral: true,
+      }).catch(() => {});
+    })
+    .catch(async (error) => {
+      console.error('[gto_avertissements] background failed', error);
+      await interaction.followUp({
+        content: '❌ La génération des fiches a échoué en cours de route.',
+        ephemeral: true,
+      }).catch(() => {});
+    });
+
+  return true;
+}
+
 async function postGtoWarningEmbedsSequentially(channel, members) {
   let sent = 0;
   let failed = 0;
@@ -2246,6 +2312,7 @@ async function main() {
       // Activity log: slash commands usage (no pings)
       if (interaction.isChatInputCommand && interaction.isChatInputCommand()) {
         if (await dragodinde.handleChatInputCommand(interaction).catch(() => false)) return;
+        if (await handleGtoWarningsCommand(interaction).catch(() => false)) return;
         // Avoid logging the logger setup itself before it exists
         if (interaction.commandName !== 'setup_activity_logs') {
           const rc = getConfigForGuild(interaction.guildId);
@@ -3351,59 +3418,6 @@ async function main() {
             const rc2 = getConfigForGuild(guild.id);
             await ensureActivityLogHeader(guild, rc2);
             return interaction.reply({ content: `OK. Activity logs configurés dans <#${salon.id}>.`, ephemeral: true });
-          }
-
-          if (interaction.commandName === 'gto_avertissements') {
-            const salon = interaction.options.getChannel('salon', true);
-            const role = interaction.options.getRole('role', true);
-
-            if (!salon.isTextBased?.()) {
-              return interaction.reply({ content: 'Choisis un **salon texte** pour poster les fiches.', ephemeral: true });
-            }
-
-            try {
-              const members = await interaction.guild.members.fetch().catch((error) => {
-                console.error('[gto_avertissements] members.fetch failed', error);
-                return null;
-              });
-
-              if (!members) {
-                return interaction.reply({ content: 'Impossible de charger les membres du serveur.', ephemeral: true }).catch(() => {});
-              }
-
-              const targets = [...members.values()]
-                .filter((member) => !member.user.bot && member.roles.cache.has(role.id))
-                .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
-
-              if (!targets.length) {
-                return interaction.reply({ content: `Aucun membre trouvé avec le rôle ${role}.`, ephemeral: true }).catch(() => {});
-              }
-
-              await interaction.reply({
-                content: `⏳ Je poste les fiches une par une dans <#${salon.id}> pour le rôle ${role}.`,
-                ephemeral: true,
-              }).catch(() => {});
-
-              postGtoWarningEmbedsSequentially(salon, targets)
-                .then(async ({ sent, failed }) => {
-                  await interaction.followUp({
-                    content: `✅ Terminé. ${sent} fiche${sent > 1 ? 's' : ''} postée${sent > 1 ? 's' : ''}.${failed ? ` Échecs: ${failed}.` : ''}`,
-                    ephemeral: true,
-                  }).catch(() => {});
-                })
-                .catch(async (error) => {
-                  console.error('[gto_avertissements] background failed', error);
-                  await interaction.followUp({
-                    content: '❌ La génération des fiches a échoué en cours de route.',
-                    ephemeral: true,
-                  }).catch(() => {});
-                });
-
-              return;
-            } catch (error) {
-              console.error('[gto_avertissements] failed', error);
-              return interaction.reply({ content: '❌ La génération des fiches a échoué. Vérifie les permissions du bot et réessaie.', ephemeral: true }).catch(() => {});
-            }
           }
 
           if (interaction.commandName === 'setup_events') {
