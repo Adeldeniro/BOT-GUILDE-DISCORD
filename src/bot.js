@@ -87,6 +87,29 @@ function buildGtoMemberWarningRow(memberId) {
   )];
 }
 
+async function postGtoWarningEmbedsSequentially(channel, members) {
+  let sent = 0;
+  let failed = 0;
+
+  for (const member of members) {
+    try {
+      await channel.send({
+        embeds: [buildGtoMemberWarningEmbed(member)],
+        components: buildGtoMemberWarningRow(member.id),
+        allowedMentions: { parse: [] },
+      });
+      sent += 1;
+    } catch (error) {
+      failed += 1;
+      console.error('[gto_avertissements] send failed', member.id, error);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  }
+
+  return { sent, failed };
+}
+
 // Stuff generator (DofusBook Touch)
 const STUFF_GEN_CHANNEL_ID = '1480657603779362963';
 const stuffSessions = new Map(); // sessionId -> { criteria } and per-user shown in `${sessionId}:${userId}`
@@ -3338,8 +3361,6 @@ async function main() {
               return interaction.reply({ content: 'Choisis un **salon texte** pour poster les fiches.', ephemeral: true });
             }
 
-            await interaction.deferReply({ ephemeral: true }).catch(() => {});
-
             try {
               const members = await interaction.guild.members.fetch().catch((error) => {
                 console.error('[gto_avertissements] members.fetch failed', error);
@@ -3347,7 +3368,7 @@ async function main() {
               });
 
               if (!members) {
-                return interaction.editReply({ content: 'Impossible de charger les membres du serveur.' }).catch(() => {});
+                return interaction.reply({ content: 'Impossible de charger les membres du serveur.', ephemeral: true }).catch(() => {});
               }
 
               const targets = [...members.values()]
@@ -3355,32 +3376,33 @@ async function main() {
                 .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
 
               if (!targets.length) {
-                return interaction.editReply({ content: `Aucun membre trouvé avec le rôle ${role}.` }).catch(() => {});
+                return interaction.reply({ content: `Aucun membre trouvé avec le rôle ${role}.`, ephemeral: true }).catch(() => {});
               }
 
-              let sent = 0;
-              let failed = 0;
-
-              for (const member of targets) {
-                try {
-                  await salon.send({
-                    embeds: [buildGtoMemberWarningEmbed(member)],
-                    components: buildGtoMemberWarningRow(member.id),
-                    allowedMentions: { parse: [] },
-                  });
-                  sent += 1;
-                } catch (error) {
-                  failed += 1;
-                  console.error('[gto_avertissements] send failed', member.id, error);
-                }
-              }
-
-              return interaction.editReply({
-                content: `✅ ${sent} fiche${sent > 1 ? 's' : ''} avertissement postée${sent > 1 ? 's' : ''} dans <#${salon.id}> pour le rôle ${role}.${failed ? ` Échecs: ${failed}.` : ''}`,
+              await interaction.reply({
+                content: `⏳ Je poste les fiches une par une dans <#${salon.id}> pour le rôle ${role}.`,
+                ephemeral: true,
               }).catch(() => {});
+
+              postGtoWarningEmbedsSequentially(salon, targets)
+                .then(async ({ sent, failed }) => {
+                  await interaction.followUp({
+                    content: `✅ Terminé. ${sent} fiche${sent > 1 ? 's' : ''} postée${sent > 1 ? 's' : ''}.${failed ? ` Échecs: ${failed}.` : ''}`,
+                    ephemeral: true,
+                  }).catch(() => {});
+                })
+                .catch(async (error) => {
+                  console.error('[gto_avertissements] background failed', error);
+                  await interaction.followUp({
+                    content: '❌ La génération des fiches a échoué en cours de route.',
+                    ephemeral: true,
+                  }).catch(() => {});
+                });
+
+              return;
             } catch (error) {
               console.error('[gto_avertissements] failed', error);
-              return interaction.editReply({ content: '❌ La génération des fiches a échoué. Vérifie les permissions du bot et réessaie.' }).catch(() => {});
+              return interaction.reply({ content: '❌ La génération des fiches a échoué. Vérifie les permissions du bot et réessaie.', ephemeral: true }).catch(() => {});
             }
           }
 
