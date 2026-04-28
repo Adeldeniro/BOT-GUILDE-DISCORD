@@ -3340,28 +3340,42 @@ async function main() {
 
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
-            const members = await interaction.guild.members.fetch().catch(() => null);
-            if (!members) {
-              return interaction.editReply({ content: 'Impossible de charger les membres du serveur.' }).catch(() => {});
-            }
+            try {
+              const members = await interaction.guild.members.fetch().catch(() => null);
+              if (!members) {
+                return interaction.editReply({ content: 'Impossible de charger les membres du serveur.' }).catch(() => {});
+              }
 
-            const targets = [...members.values()]
-              .filter((member) => !member.user.bot && member.roles.cache.has(role.id))
-              .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+              const targets = [...members.values()]
+                .filter((member) => !member.user.bot && member.roles.cache.has(role.id))
+                .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
 
-            if (!targets.length) {
-              return interaction.editReply({ content: `Aucun membre trouvé avec le rôle ${role}.` }).catch(() => {});
-            }
+              if (!targets.length) {
+                return interaction.editReply({ content: `Aucun membre trouvé avec le rôle ${role}.` }).catch(() => {});
+              }
 
-            for (const member of targets) {
-              await salon.send({
-                embeds: [buildGtoMemberWarningEmbed(member)],
-                components: buildGtoMemberWarningRow(member.id),
-                allowedMentions: { parse: [] },
+              let sent = 0;
+              let failed = 0;
+              for (const member of targets) {
+                const ok = await salon.send({
+                  embeds: [buildGtoMemberWarningEmbed(member)],
+                  components: buildGtoMemberWarningRow(member.id),
+                  allowedMentions: { parse: [] },
+                }).then(() => true).catch(() => false);
+
+                if (ok) sent += 1;
+                else failed += 1;
+
+                await new Promise((resolve) => setTimeout(resolve, 250));
+              }
+
+              return interaction.editReply({
+                content: `✅ ${sent} fiche${sent > 1 ? 's' : ''} avertissement postée${sent > 1 ? 's' : ''} dans <#${salon.id}> pour le rôle ${role}.${failed ? ` Échecs: ${failed}.` : ''}`,
               }).catch(() => {});
+            } catch (error) {
+              console.error('[gto_avertissements] failed', error);
+              return interaction.editReply({ content: '❌ La génération des fiches a échoué. Vérifie les permissions du bot et réessaie.' }).catch(() => {});
             }
-
-            return interaction.editReply({ content: `✅ ${targets.length} fiche${targets.length > 1 ? 's' : ''} avertissement postée${targets.length > 1 ? 's' : ''} dans <#${salon.id}> pour le rôle ${role}.` }).catch(() => {});
           }
 
           if (interaction.commandName === 'setup_events') {
