@@ -25,6 +25,8 @@ const FINANCE_FILE = path.join(DATA_DIR, 'finance.json');
 const IMAGE_URL = 'https://media.discordapp.net/attachments/1481127126248984679/1494762706899701891/980ba366-2d5c-46c4-b4a9-df92e4e90f70.png?ex=69e3c9c0&is=69e27840&hm=c6652dfdc2999cacc80d9f8df4c6ef01de1a36b28c9e8fd2d3d13b112d7014a8&=&format=webp&quality=lossless';
 const RESULT_IMAGE_URL = 'https://cdn.discordapp.com/attachments/1481127126248984679/1495225714117447710/0436af6e-f2de-4962-8e0d-0451f6a9e493.png';
 const RACE_BANNER_URL = 'https://cdn.discordapp.com/attachments/1481127126248984679/1495230856178962582/Gemini_Generated_Image_lxhg3glxhg3glxhg.png';
+const START_COUNTDOWN_IMAGE_URL = 'attachment://dragodinde-start-countdown.png';
+const START_COUNTDOWN_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'dragodinde-start-countdown.png');
 const ENTRY_FEE = 55_000;
 const REAL_BET = 50_000;
 const PVP_ORG_FEE = 5_000;
@@ -625,7 +627,7 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, w
       );
   } else if (phase === 'launching') {
     embed
-      .setImage(RACE_BANNER_URL)
+      .setImage(START_COUNTDOWN_IMAGE_URL)
       .setDescription('La grille s’ouvre, les sabots frappent le sol, la course se prépare...');
   } else if (phase === 'running') {
     embed
@@ -1208,7 +1210,10 @@ async function runSimpleRace(channel, guildId) {
   }
 
   const pot = state.iaPrize || (REAL_BET * state.players.length);
-  const launchingMsg = await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot })] }).catch(() => null);
+  const launchFiles = fs.existsSync(START_COUNTDOWN_IMAGE_PATH)
+    ? [{ attachment: START_COUNTDOWN_IMAGE_PATH, name: 'dragodinde-start-countdown.png' }]
+    : [];
+  const launchingMsg = await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot })], files: launchFiles }).catch(() => null);
   const mainCountdownMsg = await runCountdown(channel, Math.ceil(MAIN_COUNTDOWN_MS / 1000), '📣 Mise en piste', 'Ouverture du fil de course dans');
   if (mainCountdownMsg) await mainCountdownMsg.delete().catch(() => {});
 
