@@ -1827,9 +1827,7 @@ async function registerCommands(client) {
 
     new SlashCommandBuilder()
       .setName('setup_defense_screens')
-      .setDescription('Configurer le panneau de dépôt des screens de défense')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster le panneau').addChannelTypes(0,5).setRequired(true))
-      .addChannelOption(o => o.setName('thread_archive').setDescription('Thread unique définitif qui recevra les screens').addChannelTypes(ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread).setRequired(true)),
+      .setDescription('Configurer le panneau de dépôt des screens de défense'),
 
     new SlashCommandBuilder()
       .setName('setup_events')
@@ -3725,14 +3723,30 @@ async function main() {
           }
 
           if (interaction.commandName === 'setup_defense_screens') {
-            const salon = interaction.options.getChannel('salon', true);
-            const threadArchive = interaction.options.getChannel('thread_archive', true);
+            const salon = interaction.channel;
 
-            if (!salon.isTextBased?.()) {
-              return interaction.reply({ content: 'Choisis un **salon texte** pour le panneau.', ephemeral: true });
+            if (!salon?.isTextBased?.() || salon.isThread?.()) {
+              return interaction.reply({ content: 'Lance cette commande dans un **salon texte classique**.', ephemeral: true });
             }
-            if (!threadArchive?.isThread?.()) {
-              return interaction.reply({ content: 'Le salon d’archive doit être un **thread**.', ephemeral: true });
+
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+            let threadArchive = null;
+            const rcExisting = getConfigForGuild(guild.id);
+            if (rcExisting.defenseArchiveThreadId) {
+              threadArchive = await interaction.client.channels.fetch(rcExisting.defenseArchiveThreadId).catch(() => null);
+            }
+
+            if (!threadArchive || !threadArchive.isThread?.()) {
+              threadArchive = await salon.threads.create({
+                name: '🥊 Deuxième défense perco',
+                autoArchiveDuration: 10080,
+                reason: 'Archive permanente des screens de défense',
+              }).catch(() => null);
+            }
+
+            if (!threadArchive) {
+              return interaction.editReply({ content: '❌ Impossible de créer le thread d’archive automatiquement.' }).catch(() => {});
             }
 
             updateGuildConfig(guild.id, {
@@ -3741,7 +3755,7 @@ async function main() {
             });
 
             const msg = await ensureDefensePercoPanel(guild, salon, threadArchive);
-            return interaction.reply({ content: `✅ Panneau défense configuré dans <#${salon.id}>. Archive liée : <#${threadArchive.id}>.${msg ? ` Message ${msg.id}.` : ''}`, ephemeral: true });
+            return interaction.editReply({ content: `✅ Panneau défense configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>.${msg ? ` Message ${msg.id}.` : ''}` }).catch(() => {});
           }
 
           if (interaction.commandName === 'setup_events') {
