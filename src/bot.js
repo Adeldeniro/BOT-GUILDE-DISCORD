@@ -345,11 +345,28 @@ async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
   }
 
   if (existing) {
-    await existing.edit(payload).catch(() => {});
-    return existing;
+    const edited = await existing.edit(payload).catch(() => null);
+    if (edited) return edited;
   }
 
-  const msg = await panelChannel.send(payload).catch(() => null);
+  const recent = await panelChannel.messages.fetch({ limit: 15 }).catch(() => null);
+  const priorPanel = recent?.find((m) => m.author?.id === guild.client.user.id && m.components?.some((row) => row.components?.some((c) => c.customId === `defscreen:open:${guild.id}`)));
+  if (priorPanel) {
+    const edited = await priorPanel.edit(payload).catch(() => null);
+    if (edited) {
+      updateGuildConfig(guild.id, {
+        defense_panel_channel_id: panelChannel.id,
+        defense_panel_message_id: priorPanel.id,
+        defense_archive_thread_id: archiveThread.id,
+      });
+      return edited;
+    }
+  }
+
+  const msg = await panelChannel.send(payload).catch((error) => {
+    console.error('[defense_panel] send failed', error);
+    return null;
+  });
   if (msg) {
     try { await msg.pin(); } catch {}
     updateGuildConfig(guild.id, {
