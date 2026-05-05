@@ -3739,7 +3739,7 @@ async function main() {
 
             if (!threadArchive || !threadArchive.isThread?.()) {
               threadArchive = await salon.threads.create({
-                name: '🥊 Deuxième défense perco',
+                name: '💀 Défense perco - preuve de guerre',
                 autoArchiveDuration: 10080,
                 reason: 'Archive permanente des screens de défense',
               }).catch(() => null);
