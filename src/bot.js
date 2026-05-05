@@ -16,6 +16,8 @@ const metiers = require('./metiers');
 const dragodinde = require('./dragodinde');
 
 const GTO_WARNINGS_FILE = path.join(__dirname, '..', 'data', 'gto-warnings.json');
+const DEFENSE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'defense-perco-panel.png');
+const defenseSubmissionSessions = new Map();
 
 function ensureJsonFile(filePath, fallback) {
   try {
@@ -296,6 +298,77 @@ async function postGtoWarningEmbedsSequentially(channel, members) {
   }
 
   return { sent, failed };
+}
+
+function buildDefensePercoPanelEmbed() {
+  return new EmbedBuilder()
+    .setColor(0xE67E22)
+    .setTitle('🛡️ Défense des percepteurs')
+    .setDescription([
+      'Les screens de guerre se déposent ici, proprement, sans roman ni fumée inutile.',
+      '',
+      'Clique sur **Poster une défense** puis :',
+      '• indique la **guilde abattue**',
+      '• ajoute les **teammates** si tu veux',
+      '• envoie ensuite **1 à 3 screens dans un seul message**',
+      '',
+      'Le tout partira dans le thread d’archives avec un peu de sale esprit, comme il se doit.'
+    ].join('\n'))
+    .setImage('attachment://defense-perco-panel.png')
+    .setFooter({ text: 'Une défense documentée vaut mieux qu’un grand discours.' });
+}
+
+function buildDefensePercoPanelRow(guildId) {
+  return [new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`defscreen:open:${guildId}`)
+      .setLabel('Poster une défense')
+      .setStyle(ButtonStyle.Primary)
+  )];
+}
+
+async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
+  const rc = getConfigForGuild(guild.id);
+  const files = fs.existsSync(DEFENSE_PANEL_IMAGE_PATH)
+    ? [{ attachment: DEFENSE_PANEL_IMAGE_PATH, name: 'defense-perco-panel.png' }]
+    : [];
+  const payload = {
+    embeds: [buildDefensePercoPanelEmbed()],
+    components: buildDefensePercoPanelRow(guild.id),
+    files,
+    allowedMentions: { parse: [] },
+  };
+
+  let existing = null;
+  if (rc.defensePanelChannelId === panelChannel.id && rc.defensePanelMessageId) {
+    existing = await panelChannel.messages.fetch(rc.defensePanelMessageId).catch(() => null);
+  }
+
+  if (existing) {
+    await existing.edit(payload).catch(() => {});
+    return existing;
+  }
+
+  const msg = await panelChannel.send(payload).catch(() => null);
+  if (msg) {
+    try { await msg.pin(); } catch {}
+    updateGuildConfig(guild.id, {
+      defense_panel_channel_id: panelChannel.id,
+      defense_panel_message_id: msg.id,
+      defense_archive_thread_id: archiveThread.id,
+    });
+  }
+  return msg;
+}
+
+function buildDefensePercoResultText(authorId, enemyGuild, teammates) {
+  const mates = String(teammates || '').trim();
+  const mateLine = mates ? `\n**Teammates déclarés :** ${mates}` : '';
+  return [
+    `💥 <@${authorId}> a encore renvoyé **${enemyGuild}** au chenil, preuves à l'appui.`,
+    mates ? `Les complices du carnage : ${mates}` : 'Pas de teammates annoncés, donc soit il a tout porté, soit les autres se cachent déjà.',
+    'Les screens tombent, les excuses aussi.',
+  ].join('\n') + mateLine;
 }
 
 // Stuff generator (DofusBook Touch)
@@ -1753,6 +1826,12 @@ async function registerCommands(client) {
       .addRoleOption(o => o.setName('role').setDescription('Rôle à suivre, ex: GTO').setRequired(true)),
 
     new SlashCommandBuilder()
+      .setName('setup_defense_screens')
+      .setDescription('Configurer le panneau de dépôt des screens de défense')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster le panneau').addChannelTypes(0,5).setRequired(true))
+      .addChannelOption(o => o.setName('thread_archive').setDescription('Thread unique définitif qui recevra les screens').addChannelTypes(ChannelType.PublicThread, ChannelType.PrivateThread, ChannelType.AnnouncementThread).setRequired(true)),
+
+    new SlashCommandBuilder()
       .setName('setup_events')
       .setDescription('Configurer le système d\'événements perco (owner only)')
       .addChannelOption(o => o.setName('preuves').setDescription('Salon où les joueurs postent les screens').addChannelTypes(0,5).setRequired(true))
@@ -1881,6 +1960,58 @@ async function main() {
   client.on('messageCreate', async (message) => {
     try {
       if (!message.guild || message.author.bot) return;
+
+      const defenseSessionKey = `${message.guild.id}:${message.author.id}`;
+      const defenseSession = defenseSubmissionSessions.get(defenseSessionKey);
+      if (defenseSession && defenseSession.channelId === message.channelId) {
+        const rcDefense = getConfigForGuild(message.guild.id);
+        const images = [...message.attachments.values()].filter((a) => (a.contentType || '').startsWith('image/'));
+
+        if (images.length < 1 || images.length > 3) {
+          await message.reply({ content: '⚠️ Envoie **1 à 3 images maximum dans un seul message**.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const archiveThread = rcDefense.defenseArchiveThreadId
+          ? await message.client.channels.fetch(rcDefense.defenseArchiveThreadId).catch(() => null)
+          : null;
+
+        if (!archiveThread || !archiveThread.isThread?.()) {
+          defenseSubmissionSessions.delete(defenseSessionKey);
+          await message.reply({ content: '❌ Thread d’archive introuvable. Préviens un admin.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const files = [];
+        for (let i = 0; i < images.length; i++) {
+          const att = images[i];
+          try {
+            const resp = await fetch(att.url);
+            if (!resp.ok) continue;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            files.push({ attachment: buf, name: `defense-screen-${i + 1}.png` });
+          } catch (error) {
+            console.warn('[defscreen] download failed', error?.message || error);
+          }
+        }
+
+        if (!files.length) {
+          await message.reply({ content: '❌ Impossible de récupérer tes images. Réessaie avec un nouvel envoi.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const finalText = buildDefensePercoResultText(message.author.id, defenseSession.enemyGuild, defenseSession.teammates);
+        await archiveThread.send({
+          content: finalText,
+          files,
+          allowedMentions: { parse: ['users'] },
+        }).catch(() => {});
+
+        defenseSubmissionSessions.delete(defenseSessionKey);
+        await message.reply({ content: '✅ Défense archivée. Le thread permanent vient de recevoir ton œuvre de guerre.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        return;
+      }
+
       const rc = getConfigForGuild(message.guild.id);
       if (!rc.eventProofsChannelId) return;
 
@@ -2475,6 +2606,39 @@ async function main() {
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
 
         if (await dragodinde.handleModalSubmit?.(interaction).catch(() => false)) return;
+
+        if (interaction.customId.startsWith('defscreen:submit:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const enemyGuild = (interaction.fields.getTextInputValue('enemy_guild') || '').trim();
+          const teammates = (interaction.fields.getTextInputValue('teammates') || '').trim();
+
+          if (!enemyGuild) {
+            return interaction.reply({ content: 'Le nom de la guilde abattue est obligatoire.', ephemeral: true }).catch(() => {});
+          }
+
+          if (!rc.defensePanelChannelId || !rc.defenseArchiveThreadId) {
+            return interaction.reply({ content: 'Le système de défense n’est pas encore configuré.', ephemeral: true }).catch(() => {});
+          }
+
+          defenseSubmissionSessions.set(`${guildId}:${interaction.user.id}`, {
+            guildId,
+            userId: interaction.user.id,
+            channelId: interaction.channelId,
+            enemyGuild,
+            teammates,
+            createdAt: Date.now(),
+          });
+
+          return interaction.reply({
+            content: '✅ Infos reçues. Envoie maintenant **1 à 3 images dans un seul message** dans ce salon.',
+            ephemeral: true,
+          }).catch(() => {});
+        }
 
         if (interaction.customId.startsWith('dbp:add_submit:')) {
           const guildId = interaction.customId.split(':')[2];
@@ -3560,6 +3724,26 @@ async function main() {
             return interaction.reply({ content: `OK. Activity logs configurés dans <#${salon.id}>.`, ephemeral: true });
           }
 
+          if (interaction.commandName === 'setup_defense_screens') {
+            const salon = interaction.options.getChannel('salon', true);
+            const threadArchive = interaction.options.getChannel('thread_archive', true);
+
+            if (!salon.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis un **salon texte** pour le panneau.', ephemeral: true });
+            }
+            if (!threadArchive?.isThread?.()) {
+              return interaction.reply({ content: 'Le salon d’archive doit être un **thread**.', ephemeral: true });
+            }
+
+            updateGuildConfig(guild.id, {
+              defense_panel_channel_id: salon.id,
+              defense_archive_thread_id: threadArchive.id,
+            });
+
+            const msg = await ensureDefensePercoPanel(guild, salon, threadArchive);
+            return interaction.reply({ content: `✅ Panneau défense configuré dans <#${salon.id}>. Archive liée : <#${threadArchive.id}>.${msg ? ` Message ${msg.id}.` : ''}`, ephemeral: true });
+          }
+
           if (interaction.commandName === 'setup_events') {
             // Avoid Discord's 3s timeout: ack first
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
@@ -4443,6 +4627,39 @@ ${info}`.slice(0, 1900),
 
       if (interaction.isButton()) {
         if (await dragodinde.handleButtonInteraction(interaction).catch(() => false)) return;
+
+        if (interaction.customId.startsWith('defscreen:open:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const modal = new ModalBuilder()
+            .setCustomId(`defscreen:submit:${guildId}`)
+            .setTitle('Poster une défense');
+
+          const enemyGuildInput = new TextInputBuilder()
+            .setCustomId('enemy_guild')
+            .setLabel('Nom de la guilde abattue')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMaxLength(80);
+
+          const teammatesInput = new TextInputBuilder()
+            .setCustomId('teammates')
+            .setLabel('Teammates (optionnel)')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+            .setMaxLength(300)
+            .setPlaceholder('Ex: Panda, Iop, Enu...');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(enemyGuildInput),
+            new ActionRowBuilder().addComponents(teammatesInput),
+          );
+
+          return interaction.showModal(modal).catch(() => {});
+        }
 
         if (interaction.customId.startsWith('gto:')) {
           const [, action, memberId] = interaction.customId.split(':');
