@@ -2046,8 +2046,13 @@ async function main() {
         }).catch(() => {});
 
         defenseSubmissionSessions.delete(defenseSessionKey);
-        await message.reply({ content: '✅ Défense archivée. Le thread permanent vient de recevoir ton œuvre de guerre.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        const confirmMsg = await message.reply({ content: '✅ Défense archivée. Le thread permanent vient de recevoir ton œuvre de guerre.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
         await message.delete().catch(() => {});
+        if (confirmMsg) {
+          setTimeout(() => {
+            confirmMsg.delete().catch(() => {});
+          }, 5000);
+        }
         return;
       }
 
