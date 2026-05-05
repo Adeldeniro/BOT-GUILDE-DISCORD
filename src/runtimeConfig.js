@@ -82,6 +82,10 @@ function getConfigForGuild(guildId) {
     defensePanelChannelId: pick(gc.defense_panel_channel_id, null),
     defensePanelMessageId: pick(gc.defense_panel_message_id, null),
     defenseArchiveThreadId: pick(gc.defense_archive_thread_id, null),
+
+    attackPanelChannelId: pick(gc.attack_panel_channel_id, null),
+    attackPanelMessageId: pick(gc.attack_panel_message_id, null),
+    attackArchiveThreadId: pick(gc.attack_archive_thread_id, null),
   };
 }
 

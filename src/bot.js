@@ -17,7 +17,9 @@ const dragodinde = require('./dragodinde');
 
 const GTO_WARNINGS_FILE = path.join(__dirname, '..', 'data', 'gto-warnings.json');
 const DEFENSE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'defense-perco-panel.png');
+const ATTACK_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'attack-perco-panel.png');
 const defenseSubmissionSessions = new Map();
+const attackSubmissionSessions = new Map();
 
 function ensureJsonFile(filePath, fallback) {
   try {
@@ -408,6 +410,111 @@ function buildDefensePercoResultText(authorId, enemyGuild, teammates) {
     `💥 <@${authorId}> a encore renvoyé **${enemyGuild}** au chenil, preuves à l'appui.`,
     mates ? `Les complices du carnage : ${mates}` : 'Pas de teammates annoncés, donc soit il a tout porté, soit les autres se cachent déjà.',
     'Les screens tombent, les excuses aussi.',
+  ].join('\n') + mateLine;
+}
+
+function buildAttackPercoPanelEmbed({ withImage = true } = {}) {
+  const embed = new EmbedBuilder()
+    .setColor(0xC0392B)
+    .setTitle('⚔️ Attaque des percepteurs')
+    .setDescription([
+      'Ici, on archive les agressions propres, les descentes violentes et les humiliations bien cadrées.',
+      '',
+      'Clique sur **Poster une attaque** puis :',
+      '• indique la **guilde abattue**',
+      '• ajoute les **teammates** si tu veux',
+      '• envoie ensuite **1 à 3 screens dans un seul message**',
+      '',
+      'Le tout finira dans le thread d’archives, avec la petite dose de venin qui va bien.'
+    ].join('\n'))
+    .setFooter({ text: 'Aucune pitié. Aucune merci. Aucune issue.' });
+
+  if (withImage) {
+    embed.setImage('attachment://attack-perco-panel.png');
+  }
+
+  return embed;
+}
+
+function buildAttackPercoPanelRow(guildId) {
+  return [new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`attscreen:open:${guildId}`)
+      .setLabel('Poster une attaque')
+      .setStyle(ButtonStyle.Danger)
+  )];
+}
+
+async function ensureAttackPercoPanel(guild, panelChannel, archiveThread) {
+  const rc = getConfigForGuild(guild.id);
+  const files = fs.existsSync(ATTACK_PANEL_IMAGE_PATH)
+    ? [{ attachment: ATTACK_PANEL_IMAGE_PATH, name: 'attack-perco-panel.png' }]
+    : [];
+
+  const buildPayload = (withImage) => ({
+    embeds: [buildAttackPercoPanelEmbed({ withImage })],
+    components: buildAttackPercoPanelRow(guild.id),
+    files: withImage ? files : [],
+    allowedMentions: { parse: [] },
+  });
+
+  const tryEditOrSend = async (targetMessage = null) => {
+    for (const withImage of [true, false]) {
+      const payload = buildPayload(withImage);
+      if (targetMessage) {
+        const edited = await targetMessage.edit(payload).catch(() => null);
+        if (edited) return edited;
+      } else {
+        const sent = await panelChannel.send(payload).catch(() => null);
+        if (sent) return sent;
+      }
+    }
+    return null;
+  };
+
+  let existing = null;
+  if (rc.attackPanelChannelId === panelChannel.id && rc.attackPanelMessageId) {
+    existing = await panelChannel.messages.fetch(rc.attackPanelMessageId).catch(() => null);
+  }
+
+  if (existing) {
+    const edited = await tryEditOrSend(existing);
+    if (edited) return edited;
+  }
+
+  const recent = await panelChannel.messages.fetch({ limit: 15 }).catch(() => null);
+  const priorPanel = recent?.find((m) => m.author?.id === guild.client.user.id && m.components?.some((row) => row.components?.some((c) => c.customId === `attscreen:open:${guild.id}`)));
+  if (priorPanel) {
+    const edited = await tryEditOrSend(priorPanel);
+    if (edited) {
+      updateGuildConfig(guild.id, {
+        attack_panel_channel_id: panelChannel.id,
+        attack_panel_message_id: priorPanel.id,
+        attack_archive_thread_id: archiveThread.id,
+      });
+      return edited;
+    }
+  }
+
+  const msg = await tryEditOrSend(null);
+  if (msg) {
+    try { await msg.pin(); } catch {}
+    updateGuildConfig(guild.id, {
+      attack_panel_channel_id: panelChannel.id,
+      attack_panel_message_id: msg.id,
+      attack_archive_thread_id: archiveThread.id,
+    });
+  }
+  return msg;
+}
+
+function buildAttackPercoResultText(authorId, enemyGuild, teammates) {
+  const mates = String(teammates || '').trim();
+  const mateLine = mates ? `\n**Teammates déclarés :** ${mates}` : '';
+  return [
+    `☠️ <@${authorId}> a découpé **${enemyGuild}** en morceaux bien visibles.`,
+    mates ? `La bande d'assoiffés derrière le carnage : ${mates}` : 'Aucun teammate annoncé, donc soit c’était un raid fantôme, soit il a tout fait pendant que les autres respiraient fort.',
+    'Les screens parlent, les adversaires bégayent.',
   ].join('\n') + mateLine;
 }
 
@@ -1870,6 +1977,10 @@ async function registerCommands(client) {
       .setDescription('Configurer le panneau de dépôt des screens de défense'),
 
     new SlashCommandBuilder()
+      .setName('setup_attack_screens')
+      .setDescription('Configurer le panneau de dépôt des screens d’attaque'),
+
+    new SlashCommandBuilder()
       .setName('setup_events')
       .setDescription('Configurer le système d\'événements perco (owner only)')
       .addChannelOption(o => o.setName('preuves').setDescription('Salon où les joueurs postent les screens').addChannelTypes(0,5).setRequired(true))
@@ -2047,6 +2158,63 @@ async function main() {
 
         defenseSubmissionSessions.delete(defenseSessionKey);
         const confirmMsg = await message.reply({ content: '✅ Défense archivée. Le thread permanent vient de recevoir ton œuvre de guerre.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
+        await message.delete().catch(() => {});
+        if (confirmMsg) {
+          setTimeout(() => {
+            confirmMsg.delete().catch(() => {});
+          }, 5000);
+        }
+        return;
+      }
+
+      const attackSessionKey = `${message.guild.id}:${message.author.id}`;
+      const attackSession = attackSubmissionSessions.get(attackSessionKey);
+      if (attackSession && attackSession.channelId === message.channelId) {
+        const rcAttack = getConfigForGuild(message.guild.id);
+        const images = [...message.attachments.values()].filter((a) => (a.contentType || '').startsWith('image/'));
+
+        if (images.length < 1 || images.length > 3) {
+          await message.reply({ content: '⚠️ Envoie **1 à 3 images maximum dans un seul message**.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const archiveThread = rcAttack.attackArchiveThreadId
+          ? await message.client.channels.fetch(rcAttack.attackArchiveThreadId).catch(() => null)
+          : null;
+
+        if (!archiveThread || !archiveThread.isThread?.()) {
+          attackSubmissionSessions.delete(attackSessionKey);
+          await message.reply({ content: '❌ Thread d’archive introuvable. Préviens un admin.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const files = [];
+        for (let i = 0; i < images.length; i++) {
+          const att = images[i];
+          try {
+            const resp = await fetch(att.url);
+            if (!resp.ok) continue;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            files.push({ attachment: buf, name: `attack-screen-${i + 1}.png` });
+          } catch (error) {
+            console.warn('[attscreen] download failed', error?.message || error);
+          }
+        }
+
+        if (!files.length) {
+          await message.reply({ content: '❌ Impossible de récupérer tes images. Réessaie avec un nouvel envoi.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const finalText = buildAttackPercoResultText(message.author.id, attackSession.enemyGuild, attackSession.teammates);
+        await archiveThread.send({
+          content: finalText,
+          files,
+          allowedMentions: { parse: ['users'] },
+        }).catch(() => {});
+
+        attackSubmissionSessions.delete(attackSessionKey);
+        const confirmMsg = await message.reply({ content: '✅ Attaque archivée. Le thread permanent vient de recevoir ta boucherie réglementaire.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
         await message.delete().catch(() => {});
         if (confirmMsg) {
           setTimeout(() => {
@@ -2670,6 +2838,39 @@ async function main() {
           }
 
           defenseSubmissionSessions.set(`${guildId}:${interaction.user.id}`, {
+            guildId,
+            userId: interaction.user.id,
+            channelId: interaction.channelId,
+            enemyGuild,
+            teammates,
+            createdAt: Date.now(),
+          });
+
+          return interaction.reply({
+            content: '✅ Infos reçues. Envoie maintenant **1 à 3 images dans un seul message** dans ce salon.',
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('attscreen:submit:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const enemyGuild = (interaction.fields.getTextInputValue('enemy_guild') || '').trim();
+          const teammates = (interaction.fields.getTextInputValue('teammates') || '').trim();
+
+          if (!enemyGuild) {
+            return interaction.reply({ content: 'Le nom de la guilde abattue est obligatoire.', ephemeral: true }).catch(() => {});
+          }
+
+          if (!rc.attackPanelChannelId || !rc.attackArchiveThreadId) {
+            return interaction.reply({ content: 'Le système d’attaque n’est pas encore configuré.', ephemeral: true }).catch(() => {});
+          }
+
+          attackSubmissionSessions.set(`${guildId}:${interaction.user.id}`, {
             guildId,
             userId: interaction.user.id,
             channelId: interaction.channelId,
@@ -3816,6 +4017,54 @@ async function main() {
             }
           }
 
+          if (interaction.commandName === 'setup_attack_screens') {
+            const salon = interaction.channel;
+
+            if (!salon?.isTextBased?.() || salon.isThread?.()) {
+              return interaction.reply({ content: 'Lance cette commande dans un **salon texte classique**.', ephemeral: true });
+            }
+
+            await interaction.reply({ content: '⏳ Je mets en place le panneau d’attaque...', ephemeral: true }).catch(() => {});
+
+            try {
+              let threadArchive = null;
+              const rcExisting = getConfigForGuild(guild.id);
+              if (rcExisting.attackArchiveThreadId) {
+                threadArchive = await interaction.client.channels.fetch(rcExisting.attackArchiveThreadId).catch(() => null);
+              }
+
+              if (!threadArchive || !threadArchive.isThread?.()) {
+                threadArchive = await salon.threads.create({
+                  name: '☠️ Attaque perco - preuve de guerre',
+                  autoArchiveDuration: 10080,
+                  reason: 'Archive permanente des screens d’attaque',
+                }).catch((error) => {
+                  console.error('[setup_attack_screens] thread create failed', error);
+                  return null;
+                });
+              }
+
+              if (!threadArchive) {
+                return interaction.editReply({ content: '❌ Impossible de créer le thread d’archive automatiquement.' }).catch(() => {});
+              }
+
+              updateGuildConfig(guild.id, {
+                attack_panel_channel_id: salon.id,
+                attack_archive_thread_id: threadArchive.id,
+              });
+
+              const msg = await ensureAttackPercoPanel(guild, salon, threadArchive);
+              if (!msg) {
+                return interaction.editReply({ content: `❌ Le thread a été créé (<#${threadArchive.id}>), mais le panneau n’a pas pu être posté dans <#${salon.id}>.` }).catch(() => {});
+              }
+
+              return interaction.editReply({ content: `✅ Panneau attaque configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>. Message ${msg.id}.` }).catch(() => {});
+            } catch (error) {
+              console.error('[setup_attack_screens] failed', error);
+              return interaction.editReply({ content: '❌ La mise en place du panneau attaque a échoué.' }).catch(() => {});
+            }
+          }
+
           if (interaction.commandName === 'setup_events') {
             // Avoid Discord's 3s timeout: ack first
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
@@ -4709,6 +4958,39 @@ ${info}`.slice(0, 1900),
           const modal = new ModalBuilder()
             .setCustomId(`defscreen:submit:${guildId}`)
             .setTitle('Poster une défense');
+
+          const enemyGuildInput = new TextInputBuilder()
+            .setCustomId('enemy_guild')
+            .setLabel('Nom de la guilde abattue')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true)
+            .setMaxLength(80);
+
+          const teammatesInput = new TextInputBuilder()
+            .setCustomId('teammates')
+            .setLabel('Teammates (optionnel)')
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(false)
+            .setMaxLength(300)
+            .setPlaceholder('Ex: Panda, Iop, Enu...');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(enemyGuildInput),
+            new ActionRowBuilder().addComponents(teammatesInput),
+          );
+
+          return interaction.showModal(modal).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('attscreen:open:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const modal = new ModalBuilder()
+            .setCustomId(`attscreen:submit:${guildId}`)
+            .setTitle('Poster une attaque');
 
           const enemyGuildInput = new TextInputBuilder()
             .setCustomId('enemy_guild')

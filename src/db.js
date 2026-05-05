@@ -303,6 +303,15 @@ if (!cfgCols.includes('defense_panel_message_id')) {
 if (!cfgCols.includes('defense_archive_thread_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN defense_archive_thread_id TEXT'); } catch {}
 }
+if (!cfgCols.includes('attack_panel_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN attack_panel_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('attack_panel_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN attack_panel_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('attack_archive_thread_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN attack_archive_thread_id TEXT'); } catch {}
+}
 
 // Migration for event_submissions
 const evCols = db.prepare(`PRAGMA table_info(event_submissions)`).all().map(r => r.name);
