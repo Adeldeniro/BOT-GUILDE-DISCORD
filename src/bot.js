@@ -3746,33 +3746,45 @@ async function main() {
               return interaction.reply({ content: 'Lance cette commande dans un **salon texte classique**.', ephemeral: true });
             }
 
-            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '⏳ Je mets en place le panneau de défense...', ephemeral: true }).catch(() => {});
 
-            let threadArchive = null;
-            const rcExisting = getConfigForGuild(guild.id);
-            if (rcExisting.defenseArchiveThreadId) {
-              threadArchive = await interaction.client.channels.fetch(rcExisting.defenseArchiveThreadId).catch(() => null);
+            try {
+              let threadArchive = null;
+              const rcExisting = getConfigForGuild(guild.id);
+              if (rcExisting.defenseArchiveThreadId) {
+                threadArchive = await interaction.client.channels.fetch(rcExisting.defenseArchiveThreadId).catch(() => null);
+              }
+
+              if (!threadArchive || !threadArchive.isThread?.()) {
+                threadArchive = await salon.threads.create({
+                  name: '💀 Défense perco - preuve de guerre',
+                  autoArchiveDuration: 10080,
+                  reason: 'Archive permanente des screens de défense',
+                }).catch((error) => {
+                  console.error('[setup_defense_screens] thread create failed', error);
+                  return null;
+                });
+              }
+
+              if (!threadArchive) {
+                return interaction.editReply({ content: '❌ Impossible de créer le thread d’archive automatiquement.' }).catch(() => {});
+              }
+
+              updateGuildConfig(guild.id, {
+                defense_panel_channel_id: salon.id,
+                defense_archive_thread_id: threadArchive.id,
+              });
+
+              const msg = await ensureDefensePercoPanel(guild, salon, threadArchive);
+              if (!msg) {
+                return interaction.editReply({ content: `❌ Le thread a été créé (<#${threadArchive.id}>), mais le panneau n’a pas pu être posté dans <#${salon.id}>.` }).catch(() => {});
+              }
+
+              return interaction.editReply({ content: `✅ Panneau défense configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>. Message ${msg.id}.` }).catch(() => {});
+            } catch (error) {
+              console.error('[setup_defense_screens] failed', error);
+              return interaction.editReply({ content: '❌ La mise en place du panneau défense a échoué.' }).catch(() => {});
             }
-
-            if (!threadArchive || !threadArchive.isThread?.()) {
-              threadArchive = await salon.threads.create({
-                name: '💀 Défense perco - preuve de guerre',
-                autoArchiveDuration: 10080,
-                reason: 'Archive permanente des screens de défense',
-              }).catch(() => null);
-            }
-
-            if (!threadArchive) {
-              return interaction.editReply({ content: '❌ Impossible de créer le thread d’archive automatiquement.' }).catch(() => {});
-            }
-
-            updateGuildConfig(guild.id, {
-              defense_panel_channel_id: salon.id,
-              defense_archive_thread_id: threadArchive.id,
-            });
-
-            const msg = await ensureDefensePercoPanel(guild, salon, threadArchive);
-            return interaction.editReply({ content: `✅ Panneau défense configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>.${msg ? ` Message ${msg.id}.` : ''}` }).catch(() => {});
           }
 
           if (interaction.commandName === 'setup_events') {
