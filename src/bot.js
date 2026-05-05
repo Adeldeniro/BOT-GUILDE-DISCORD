@@ -300,8 +300,8 @@ async function postGtoWarningEmbedsSequentially(channel, members) {
   return { sent, failed };
 }
 
-function buildDefensePercoPanelEmbed() {
-  return new EmbedBuilder()
+function buildDefensePercoPanelEmbed({ withImage = true } = {}) {
+  const embed = new EmbedBuilder()
     .setColor(0xE67E22)
     .setTitle('🛡️ Défense des percepteurs')
     .setDescription([
@@ -314,8 +314,13 @@ function buildDefensePercoPanelEmbed() {
       '',
       'Le tout partira dans le thread d’archives avec un peu de sale esprit, comme il se doit.'
     ].join('\n'))
-    .setImage('attachment://defense-perco-panel.png')
     .setFooter({ text: 'Une défense documentée vaut mieux qu’un grand discours.' });
+
+  if (withImage) {
+    embed.setImage('attachment://defense-perco-panel.png');
+  }
+
+  return embed;
 }
 
 function buildDefensePercoPanelRow(guildId) {
@@ -332,11 +337,32 @@ async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
   const files = fs.existsSync(DEFENSE_PANEL_IMAGE_PATH)
     ? [{ attachment: DEFENSE_PANEL_IMAGE_PATH, name: 'defense-perco-panel.png' }]
     : [];
-  const payload = {
-    embeds: [buildDefensePercoPanelEmbed()],
+
+  const buildPayload = (withImage) => ({
+    embeds: [buildDefensePercoPanelEmbed({ withImage })],
     components: buildDefensePercoPanelRow(guild.id),
-    files,
+    files: withImage ? files : [],
     allowedMentions: { parse: [] },
+  });
+
+  const tryEditOrSend = async (targetMessage = null) => {
+    for (const withImage of [true, false]) {
+      const payload = buildPayload(withImage);
+      if (targetMessage) {
+        const edited = await targetMessage.edit(payload).catch((error) => {
+          console.error('[defense_panel] edit failed', { withImage, error: error?.message || error });
+          return null;
+        });
+        if (edited) return edited;
+      } else {
+        const sent = await panelChannel.send(payload).catch((error) => {
+          console.error('[defense_panel] send failed', { withImage, error: error?.message || error });
+          return null;
+        });
+        if (sent) return sent;
+      }
+    }
+    return null;
   };
 
   let existing = null;
@@ -345,14 +371,14 @@ async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
   }
 
   if (existing) {
-    const edited = await existing.edit(payload).catch(() => null);
+    const edited = await tryEditOrSend(existing);
     if (edited) return edited;
   }
 
   const recent = await panelChannel.messages.fetch({ limit: 15 }).catch(() => null);
   const priorPanel = recent?.find((m) => m.author?.id === guild.client.user.id && m.components?.some((row) => row.components?.some((c) => c.customId === `defscreen:open:${guild.id}`)));
   if (priorPanel) {
-    const edited = await priorPanel.edit(payload).catch(() => null);
+    const edited = await tryEditOrSend(priorPanel);
     if (edited) {
       updateGuildConfig(guild.id, {
         defense_panel_channel_id: panelChannel.id,
@@ -363,10 +389,7 @@ async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
     }
   }
 
-  const msg = await panelChannel.send(payload).catch((error) => {
-    console.error('[defense_panel] send failed', error);
-    return null;
-  });
+  const msg = await tryEditOrSend(null);
   if (msg) {
     try { await msg.pin(); } catch {}
     updateGuildConfig(guild.id, {
