@@ -2047,6 +2047,7 @@ async function main() {
 
         defenseSubmissionSessions.delete(defenseSessionKey);
         await message.reply({ content: '✅ Défense archivée. Le thread permanent vient de recevoir ton œuvre de guerre.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+        await message.delete().catch(() => {});
         return;
       }
 
