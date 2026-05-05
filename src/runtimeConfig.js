@@ -78,6 +78,10 @@ function getConfigForGuild(guildId) {
 
     dofusbookPanelChannelId: pick(gc.dofusbook_panel_channel_id, null),
     dofusbookPanelMessageId: pick(gc.dofusbook_panel_message_id, null),
+
+    defensePanelChannelId: pick(gc.defense_panel_channel_id, null),
+    defensePanelMessageId: pick(gc.defense_panel_message_id, null),
+    defenseArchiveThreadId: pick(gc.defense_archive_thread_id, null),
   };
 }
 
