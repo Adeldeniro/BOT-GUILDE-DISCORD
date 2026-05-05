@@ -325,13 +325,24 @@ function buildDefensePercoPanelEmbed({ withImage = true } = {}) {
   return embed;
 }
 
-function buildDefensePercoPanelRow(guildId) {
-  return [new ActionRowBuilder().addComponents(
+function buildDefensePercoPanelRow(guildId, archiveThreadId = null) {
+  const buttons = [
     new ButtonBuilder()
       .setCustomId(`defscreen:open:${guildId}`)
       .setLabel('Poster une défense')
-      .setStyle(ButtonStyle.Primary)
-  )];
+      .setStyle(ButtonStyle.Primary),
+  ];
+
+  if (archiveThreadId) {
+    buttons.push(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setURL(`https://discord.com/channels/${guildId}/${archiveThreadId}`)
+        .setLabel('Voir les archives')
+    );
+  }
+
+  return [new ActionRowBuilder().addComponents(...buttons)];
 }
 
 async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
@@ -342,7 +353,7 @@ async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
 
   const buildPayload = (withImage) => ({
     embeds: [buildDefensePercoPanelEmbed({ withImage })],
-    components: buildDefensePercoPanelRow(guild.id),
+    components: buildDefensePercoPanelRow(guild.id, archiveThread?.id || null),
     files: withImage ? files : [],
     allowedMentions: { parse: [] },
   });
@@ -436,13 +447,24 @@ function buildAttackPercoPanelEmbed({ withImage = true } = {}) {
   return embed;
 }
 
-function buildAttackPercoPanelRow(guildId) {
-  return [new ActionRowBuilder().addComponents(
+function buildAttackPercoPanelRow(guildId, archiveThreadId = null) {
+  const buttons = [
     new ButtonBuilder()
       .setCustomId(`attscreen:open:${guildId}`)
       .setLabel('Poster une attaque')
-      .setStyle(ButtonStyle.Danger)
-  )];
+      .setStyle(ButtonStyle.Danger),
+  ];
+
+  if (archiveThreadId) {
+    buttons.push(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setURL(`https://discord.com/channels/${guildId}/${archiveThreadId}`)
+        .setLabel('Voir les archives')
+    );
+  }
+
+  return [new ActionRowBuilder().addComponents(...buttons)];
 }
 
 async function ensureAttackPercoPanel(guild, panelChannel, archiveThread) {
@@ -453,7 +475,7 @@ async function ensureAttackPercoPanel(guild, panelChannel, archiveThread) {
 
   const buildPayload = (withImage) => ({
     embeds: [buildAttackPercoPanelEmbed({ withImage })],
-    components: buildAttackPercoPanelRow(guild.id),
+    components: buildAttackPercoPanelRow(guild.id, archiveThread?.id || null),
     files: withImage ? files : [],
     allowedMentions: { parse: [] },
   });
@@ -3994,6 +4016,9 @@ async function main() {
                   console.error('[setup_defense_screens] thread create failed', error);
                   return null;
                 });
+                if (threadArchive) {
+                  await threadArchive.send({ content: '📚 Ici tombent toutes les preuves de guerre liées aux défenses percepteurs. Servez-vous, admirez, jugez.' }).catch(() => {});
+                }
               }
 
               if (!threadArchive) {
@@ -4042,6 +4067,9 @@ async function main() {
                   console.error('[setup_attack_screens] thread create failed', error);
                   return null;
                 });
+                if (threadArchive) {
+                  await threadArchive.send({ content: '📚 Ici tombent toutes les preuves de guerre liées aux attaques percepteurs. Venez contempler les dégâts.' }).catch(() => {});
+                }
               }
 
               if (!threadArchive) {
