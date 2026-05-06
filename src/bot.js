@@ -18,8 +18,10 @@ const dragodinde = require('./dragodinde');
 const GTO_WARNINGS_FILE = path.join(__dirname, '..', 'data', 'gto-warnings.json');
 const DEFENSE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'defense-perco-panel.png');
 const ATTACK_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'attack-perco-panel.png');
+const PERCO_PANEL_NOTIFS_FILE = path.join(__dirname, '..', 'data', 'perco-panel-notifs.json');
 const defenseSubmissionSessions = new Map();
 const attackSubmissionSessions = new Map();
+const percoNotifResetTimers = new Map();
 
 function ensureJsonFile(filePath, fallback) {
   try {
@@ -302,6 +304,86 @@ async function postGtoWarningEmbedsSequentially(channel, members) {
   return { sent, failed };
 }
 
+function loadPercoPanelNotifs() {
+  return readJsonSafe(PERCO_PANEL_NOTIFS_FILE, { guilds: {} });
+}
+
+function savePercoPanelNotifs(data) {
+  writeJsonSafe(PERCO_PANEL_NOTIFS_FILE, data);
+}
+
+function getPercoNotifState(guildId, kind) {
+  const data = loadPercoPanelNotifs();
+  if (!data.guilds) data.guilds = {};
+  if (!data.guilds[guildId]) data.guilds[guildId] = {};
+  if (!data.guilds[guildId][kind]) {
+    data.guilds[guildId][kind] = { count: 0, lastAt: null, messageId: null, channelId: null };
+    savePercoPanelNotifs(data);
+  }
+  return data.guilds[guildId][kind];
+}
+
+function setPercoNotifState(guildId, kind, patch) {
+  const data = loadPercoPanelNotifs();
+  if (!data.guilds) data.guilds = {};
+  if (!data.guilds[guildId]) data.guilds[guildId] = {};
+  const current = data.guilds[guildId][kind] || { count: 0, lastAt: null, messageId: null, channelId: null };
+  data.guilds[guildId][kind] = { ...current, ...patch };
+  savePercoPanelNotifs(data);
+  return data.guilds[guildId][kind];
+}
+
+function buildPercoNotifText(kind, count) {
+  if (!count) return `🔔 Aucun nouveau screen ${kind === 'defense' ? 'de défense' : 'd’attaque'} pour le moment.`;
+  return `🔔 ${count} nouveau${count > 1 ? 'x' : ''} screen${count > 1 ? 's' : ''} ${kind === 'defense' ? 'de défense' : 'd’attaque'} ajouté${count > 1 ? 's' : ''}.`;
+}
+
+async function ensurePercoNotifMessage(guild, channel, kind) {
+  const state = getPercoNotifState(guild.id, kind);
+  let msg = null;
+  if (state.messageId) {
+    msg = await channel.messages.fetch(state.messageId).catch(() => null);
+  }
+
+  const content = buildPercoNotifText(kind, Number(state.count || 0));
+  if (msg) {
+    await msg.edit({ content, allowedMentions: { parse: [] } }).catch(() => {});
+    return msg;
+  }
+
+  msg = await channel.send({ content, allowedMentions: { parse: [] } }).catch(() => null);
+  if (msg) {
+    setPercoNotifState(guild.id, kind, { messageId: msg.id, channelId: channel.id });
+  }
+  return msg;
+}
+
+async function bumpPercoNotif(guild, kind) {
+  const rc = getConfigForGuild(guild.id);
+  const channelId = kind === 'defense' ? rc.defensePanelChannelId : rc.attackPanelChannelId;
+  if (!channelId) return;
+  const channel = await guild.client.channels.fetch(channelId).catch(() => null);
+  if (!channel || !channel.isTextBased()) return;
+
+  const current = getPercoNotifState(guild.id, kind);
+  const nextCount = Number(current.count || 0) + 1;
+  setPercoNotifState(guild.id, kind, { count: nextCount, lastAt: Date.now(), channelId: channel.id });
+  await ensurePercoNotifMessage(guild, channel, kind).catch(() => {});
+
+  const timerKey = `${guild.id}:${kind}`;
+  const existingTimer = percoNotifResetTimers.get(timerKey);
+  if (existingTimer) clearTimeout(existingTimer);
+  const timer = setTimeout(async () => {
+    try {
+      setPercoNotifState(guild.id, kind, { count: 0, lastAt: Date.now() });
+      await ensurePercoNotifMessage(guild, channel, kind).catch(() => {});
+    } finally {
+      percoNotifResetTimers.delete(timerKey);
+    }
+  }, 60 * 60 * 1000);
+  percoNotifResetTimers.set(timerKey, timer);
+}
+
 function buildDefensePercoPanelEmbed({ withImage = true } = {}) {
   const embed = new EmbedBuilder()
     .setColor(0xE67E22)
@@ -338,7 +420,7 @@ function buildDefensePercoPanelRow(guildId, archiveThreadId = null) {
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
         .setURL(`https://discord.com/channels/${guildId}/${archiveThreadId}`)
-        .setLabel('Voir les archives')
+        .setLabel('Voir les screen')
     );
   }
 
@@ -347,6 +429,7 @@ function buildDefensePercoPanelRow(guildId, archiveThreadId = null) {
 
 async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
   const rc = getConfigForGuild(guild.id);
+  await ensurePercoNotifMessage(guild, panelChannel, 'defense').catch(() => {});
   const files = fs.existsSync(DEFENSE_PANEL_IMAGE_PATH)
     ? [{ attachment: DEFENSE_PANEL_IMAGE_PATH, name: 'defense-perco-panel.png' }]
     : [];
@@ -460,7 +543,7 @@ function buildAttackPercoPanelRow(guildId, archiveThreadId = null) {
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
         .setURL(`https://discord.com/channels/${guildId}/${archiveThreadId}`)
-        .setLabel('Voir les archives')
+        .setLabel('Voir les screen')
     );
   }
 
@@ -469,6 +552,7 @@ function buildAttackPercoPanelRow(guildId, archiveThreadId = null) {
 
 async function ensureAttackPercoPanel(guild, panelChannel, archiveThread) {
   const rc = getConfigForGuild(guild.id);
+  await ensurePercoNotifMessage(guild, panelChannel, 'attack').catch(() => {});
   const files = fs.existsSync(ATTACK_PANEL_IMAGE_PATH)
     ? [{ attachment: ATTACK_PANEL_IMAGE_PATH, name: 'attack-perco-panel.png' }]
     : [];
@@ -2177,6 +2261,7 @@ async function main() {
           files,
           allowedMentions: { parse: ['users'] },
         }).catch(() => {});
+        await bumpPercoNotif(message.guild, 'defense').catch(() => {});
 
         defenseSubmissionSessions.delete(defenseSessionKey);
         const confirmMsg = await message.reply({ content: '✅ Défense archivée. Le thread permanent vient de recevoir ton œuvre de guerre.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
@@ -2234,6 +2319,7 @@ async function main() {
           files,
           allowedMentions: { parse: ['users'] },
         }).catch(() => {});
+        await bumpPercoNotif(message.guild, 'attack').catch(() => {});
 
         attackSubmissionSessions.delete(attackSessionKey);
         const confirmMsg = await message.reply({ content: '✅ Attaque archivée. Le thread permanent vient de recevoir ta boucherie réglementaire.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
