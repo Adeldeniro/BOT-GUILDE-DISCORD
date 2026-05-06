@@ -387,7 +387,12 @@ async function bumpPercoNotif(guild, kind) {
 
 async function lockPanelChannelForMembers(channel) {
   try {
-    await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { SendMessages: false });
+    await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
+      SendMessages: false,
+      CreatePublicThreads: false,
+      CreatePrivateThreads: false,
+      SendMessagesInThreads: false,
+    });
   } catch (error) {
     console.error('[panel_lock] failed', error);
   }
