@@ -391,7 +391,7 @@ async function lockPanelChannelForMembers(channel) {
       SendMessages: false,
       CreatePublicThreads: false,
       CreatePrivateThreads: false,
-      SendMessagesInThreads: false,
+      SendMessagesInThreads: true,
     });
   } catch (error) {
     console.error('[panel_lock] failed', error);
