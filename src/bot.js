@@ -22,6 +22,7 @@ const PERCO_PANEL_NOTIFS_FILE = path.join(__dirname, '..', 'data', 'perco-panel-
 const defenseSubmissionSessions = new Map();
 const attackSubmissionSessions = new Map();
 const percoNotifResetTimers = new Map();
+const panelWriteGrantTimers = new Map();
 
 function ensureJsonFile(filePath, fallback) {
   try {
@@ -382,6 +383,43 @@ async function bumpPercoNotif(guild, kind) {
     }
   }, 60 * 60 * 1000);
   percoNotifResetTimers.set(timerKey, timer);
+}
+
+async function lockPanelChannelForMembers(channel) {
+  try {
+    await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { SendMessages: false });
+  } catch (error) {
+    console.error('[panel_lock] failed', error);
+  }
+}
+
+async function grantPanelWriteOnce(channel, userId, timeoutMs = 180000) {
+  const timerKey = `${channel.guild.id}:${channel.id}:${userId}`;
+  const existing = panelWriteGrantTimers.get(timerKey);
+  if (existing) clearTimeout(existing);
+
+  await channel.permissionOverwrites.edit(userId, { SendMessages: true }).catch((error) => {
+    console.error('[panel_grant] failed', error);
+  });
+
+  const timer = setTimeout(async () => {
+    try {
+      await channel.permissionOverwrites.delete(userId).catch(() => {});
+    } finally {
+      panelWriteGrantTimers.delete(timerKey);
+    }
+  }, timeoutMs);
+  panelWriteGrantTimers.set(timerKey, timer);
+}
+
+async function revokePanelWriteGrant(channel, userId) {
+  const timerKey = `${channel.guild.id}:${channel.id}:${userId}`;
+  const existing = panelWriteGrantTimers.get(timerKey);
+  if (existing) {
+    clearTimeout(existing);
+    panelWriteGrantTimers.delete(timerKey);
+  }
+  await channel.permissionOverwrites.delete(userId).catch(() => {});
 }
 
 function buildDefensePercoPanelEmbed({ withImage = true } = {}) {
@@ -2264,6 +2302,7 @@ async function main() {
         await bumpPercoNotif(message.guild, 'defense').catch(() => {});
 
         defenseSubmissionSessions.delete(defenseSessionKey);
+        await revokePanelWriteGrant(message.channel, message.author.id).catch(() => {});
         const confirmMsg = await message.reply({ content: '✅ Défense archivée. Le thread permanent vient de recevoir ton œuvre de guerre.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
         await message.delete().catch(() => {});
         if (confirmMsg) {
@@ -2322,6 +2361,7 @@ async function main() {
         await bumpPercoNotif(message.guild, 'attack').catch(() => {});
 
         attackSubmissionSessions.delete(attackSessionKey);
+        await revokePanelWriteGrant(message.channel, message.author.id).catch(() => {});
         const confirmMsg = await message.reply({ content: '✅ Attaque archivée. Le thread permanent vient de recevoir ta boucherie réglementaire.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
         await message.delete().catch(() => {});
         if (confirmMsg) {
@@ -2954,8 +2994,13 @@ async function main() {
             createdAt: Date.now(),
           });
 
+          const panelChannel = await interaction.client.channels.fetch(interaction.channelId).catch(() => null);
+          if (panelChannel?.isTextBased?.()) {
+            await grantPanelWriteOnce(panelChannel, interaction.user.id).catch(() => {});
+          }
+
           return interaction.reply({
-            content: '✅ Infos reçues. Envoie maintenant **1 à 3 images dans un seul message** dans ce salon.',
+            content: '✅ Infos reçues. Tu peux maintenant envoyer **1 à 3 images dans un seul message** dans ce salon. L’autorisation se refermera ensuite automatiquement.',
             ephemeral: true,
           }).catch(() => {});
         }
@@ -2987,8 +3032,13 @@ async function main() {
             createdAt: Date.now(),
           });
 
+          const panelChannel = await interaction.client.channels.fetch(interaction.channelId).catch(() => null);
+          if (panelChannel?.isTextBased?.()) {
+            await grantPanelWriteOnce(panelChannel, interaction.user.id).catch(() => {});
+          }
+
           return interaction.reply({
-            content: '✅ Infos reçues. Envoie maintenant **1 à 3 images dans un seul message** dans ce salon.',
+            content: '✅ Infos reçues. Tu peux maintenant envoyer **1 à 3 images dans un seul message** dans ce salon. L’autorisation se refermera ensuite automatiquement.',
             ephemeral: true,
           }).catch(() => {});
         }
@@ -4121,7 +4171,8 @@ async function main() {
                 return interaction.editReply({ content: `❌ Le thread a été créé (<#${threadArchive.id}>), mais le panneau n’a pas pu être posté dans <#${salon.id}>.` }).catch(() => {});
               }
 
-              return interaction.editReply({ content: `✅ Panneau défense configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>. Message ${msg.id}.` }).catch(() => {});
+              await lockPanelChannelForMembers(salon).catch(() => {});
+              return interaction.editReply({ content: `✅ Panneau défense configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>. Message ${msg.id}. Salon verrouillé hors flow bouton.` }).catch(() => {});
             } catch (error) {
               console.error('[setup_defense_screens] failed', error);
               return interaction.editReply({ content: '❌ La mise en place du panneau défense a échoué.' }).catch(() => {});
@@ -4172,7 +4223,8 @@ async function main() {
                 return interaction.editReply({ content: `❌ Le thread a été créé (<#${threadArchive.id}>), mais le panneau n’a pas pu être posté dans <#${salon.id}>.` }).catch(() => {});
               }
 
-              return interaction.editReply({ content: `✅ Panneau attaque configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>. Message ${msg.id}.` }).catch(() => {});
+              await lockPanelChannelForMembers(salon).catch(() => {});
+              return interaction.editReply({ content: `✅ Panneau attaque configuré dans <#${salon.id}>. Thread auto-créé : <#${threadArchive.id}>. Message ${msg.id}. Salon verrouillé hors flow bouton.` }).catch(() => {});
             } catch (error) {
               console.error('[setup_attack_screens] failed', error);
               return interaction.editReply({ content: '❌ La mise en place du panneau attaque a échoué.' }).catch(() => {});
