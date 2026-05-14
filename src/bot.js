@@ -540,14 +540,61 @@ async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
   return msg;
 }
 
+const percoFlavorRotation = {
+  defenseWith: 0,
+  defenseSolo: 0,
+  attackWith: 0,
+  attackSolo: 0,
+};
+
+const DEFENSE_WITH_MATES_VARIANTS = [
+  ({ authorId, enemyGuild, teammates }) => `🛡️ <@${authorId}> et **${teammates}** ont refermé le cercueil de **${enemyGuild}** avec la délicatesse d’une porte de donjon dans les dents.`,
+  ({ authorId, enemyGuild, teammates }) => `💥 **${enemyGuild}** est venue chercher une percée, <@${authorId}> et **${teammates}** leur ont surtout fourni une sortie de secours sans dignité.`,
+  ({ authorId, enemyGuild, teammates }) => `🧱 <@${authorId}> accompagné de **${teammates}** a rappelé à **${enemyGuild}** qu’attaquer une défense préparée, c’est souvent juste offrir des screens aux autres.`,
+  ({ authorId, enemyGuild, teammates }) => `⚰️ **${enemyGuild}** a tenté sa chance, <@${authorId}> et **${teammates}** ont répondu avec une pédagogie brutale et très bien documentée.`,
+  ({ authorId, enemyGuild, teammates }) => `🥶 <@${authorId}> et **${teammates}** ont congelé **${enemyGuild}** sur place. On remerciera les screens pour l’autopsie visuelle.`,
+  ({ authorId, enemyGuild, teammates }) => `🪵 Encore une belle défense où <@${authorId}> et **${teammates}** ont utilisé **${enemyGuild}** comme démonstration publique de mauvaise idée.`,
+  ({ authorId, enemyGuild, teammates }) => `📉 **${enemyGuild}** pensait forcer un passage, <@${authorId}> et **${teammates}** ont surtout forcé leur descente morale.`,
+  ({ authorId, enemyGuild, teammates }) => `🔨 <@${authorId}> avec **${teammates}** a traité **${enemyGuild}** comme un chantier à fermer avant midi. Mission accomplie, avec justificatifs.`,
+  ({ authorId, enemyGuild, teammates }) => `🫠 La défense a parlé, **${enemyGuild}** a fondu, et <@${authorId}> avec **${teammates}** ont gardé les images pour les nostalgiques du désastre.`,
+  ({ authorId, enemyGuild, teammates }) => `🧂 <@${authorId}> et **${teammates}** ont ajouté assez de sel sur **${enemyGuild}** pour nourrir les discussions du soir.`,
+  ({ authorId, enemyGuild, teammates }) => `📚 Nouvelle leçon du jour, animée par <@${authorId}> et **${teammates}** : comment faire regretter à **${enemyGuild}** d’avoir insisté.`,
+  ({ authorId, enemyGuild, teammates }) => `🎯 **${enemyGuild}** s’est présentée, <@${authorId}> et **${teammates}** ont fait le service après-vente de l’humiliation.`,
+  ({ authorId, enemyGuild, teammates }) => `🚪 <@${authorId}> et **${teammates}** ont tenu la porte tellement fort que **${enemyGuild}** a fini dehors avec les preuves collées au front.`,
+  ({ authorId, enemyGuild, teammates }) => `🪦 Défense validée : **${enemyGuild}** a été rangée proprement par <@${authorId}> et **${teammates}**, avec les screens pour éviter tout roman révisionniste.`,
+  ({ authorId, enemyGuild, teammates }) => `🥊 <@${authorId}> et **${teammates}** ont transformé **${enemyGuild}** en exemple local de surestimation collective.`,
+];
+
+const DEFENSE_SOLO_VARIANTS = [
+  ({ authorId, enemyGuild }) => `🛡️ <@${authorId}> a refermé la porte sur **${enemyGuild}** avec la grâce d’un garde qui n’a pas signé pour écouter les plaintes.`,
+  ({ authorId, enemyGuild }) => `💥 **${enemyGuild}** a tenté l’entrée, <@${authorId}> leur a surtout offert une sortie pleine de regrets.`,
+  ({ authorId, enemyGuild }) => `🧱 <@${authorId}> a rappelé à **${enemyGuild}** qu’une défense n’est pas un buffet en libre-service.`,
+  ({ authorId, enemyGuild }) => `⚰️ **${enemyGuild}** est tombée sur <@${authorId}> et a découvert que l’arrogance ne donne pas de résistances.`,
+  ({ authorId, enemyGuild }) => `🥶 <@${authorId}> a laissé **${enemyGuild}** refroidir sur place, puis a gardé les screens pour la collection.`,
+  ({ authorId, enemyGuild }) => `🪵 Encore une défense où <@${authorId}> a utilisé **${enemyGuild}** comme panneau d’avertissement pour les suivants.`,
+  ({ authorId, enemyGuild }) => `📉 **${enemyGuild}** voulait forcer, <@${authorId}> a surtout forcé leur retour à la réalité.`,
+  ({ authorId, enemyGuild }) => `🔨 <@${authorId}> a traité **${enemyGuild}** comme un dossier à classer rapidement. C’est archivé, comme la honte.`,
+  ({ authorId, enemyGuild }) => `🫠 La défense a parlé, **${enemyGuild}** a fondu, et <@${authorId}> a gardé les preuves pour les sceptiques.`,
+  ({ authorId, enemyGuild }) => `🧂 <@${authorId}> a salé **${enemyGuild}** juste ce qu’il faut pour nourrir les réactions du serveur.`,
+  ({ authorId, enemyGuild }) => `📚 Leçon du jour par <@${authorId}> : pourquoi **${enemyGuild}** aurait mieux fait de rester couchée.`,
+  ({ authorId, enemyGuild }) => `🎯 **${enemyGuild}** s’est présentée, <@${authorId}> a répondu avec une précision offensante et très bien illustrée.`,
+  ({ authorId, enemyGuild }) => `🚪 <@${authorId}> a tenu la porte si fort que **${enemyGuild}** a fini projetée dehors avec les screens comme reçu.`,
+  ({ authorId, enemyGuild }) => `🪦 Défense validée : **${enemyGuild}** a été rangée proprement par <@${authorId}>, sans besoin de commentaire supplémentaire.`,
+  ({ authorId, enemyGuild }) => `🥊 <@${authorId}> a transformé **${enemyGuild}** en démonstration ambulante de plan raté.`,
+];
+
+function nextPercoFlavor(kind, variants) {
+  const index = percoFlavorRotation[kind] || 0;
+  percoFlavorRotation[kind] = (index + 1) % variants.length;
+  return variants[index];
+}
+
 function buildDefensePercoResultText(authorId, enemyGuild, teammates) {
   const mates = String(teammates || '').trim();
-  const mateLine = mates ? `\n**Teammates déclarés :** ${mates}` : '';
-  return [
-    `💥 <@${authorId}> a encore renvoyé **${enemyGuild}** au chenil, preuves à l'appui.`,
-    mates ? `Les complices du carnage : ${mates}` : 'Pas de teammates annoncés, donc soit il a tout porté, soit les autres se cachent déjà.',
-    'Les screens tombent, les excuses aussi.',
-  ].join('\n') + mateLine;
+  if (mates) {
+    return nextPercoFlavor('defenseWith', DEFENSE_WITH_MATES_VARIANTS)({ authorId, enemyGuild, teammates: mates });
+  }
+  return nextPercoFlavor('defenseSolo', DEFENSE_SOLO_VARIANTS)({ authorId, enemyGuild });
 }
 
 function buildAttackPercoPanelEmbed({ withImage = true } = {}) {
@@ -657,14 +704,48 @@ async function ensureAttackPercoPanel(guild, panelChannel, archiveThread) {
   return msg;
 }
 
+const ATTACK_WITH_MATES_VARIANTS = [
+  ({ authorId, enemyGuild, teammates }) => `☠️ <@${authorId}> et **${teammates}** sont passés sur **${enemyGuild}** comme une facture qu’on n’avait pas envie d’ouvrir, mais qu’on a payée quand même.`,
+  ({ authorId, enemyGuild, teammates }) => `⚔️ **${enemyGuild}** a croisé <@${authorId}> et **${teammates}**. Mauvaise journée pour eux, excellente archive pour nous.`,
+  ({ authorId, enemyGuild, teammates }) => `💣 <@${authorId}> accompagné de **${teammates}** a fait de **${enemyGuild}** un petit exercice de démolition bien encadré.`,
+  ({ authorId, enemyGuild, teammates }) => `🩸 **${enemyGuild}** s’est faite ouvrir proprement par <@${authorId}> et **${teammates}**, avec les screens pour éviter les réécritures héroïques.`,
+  ({ authorId, enemyGuild, teammates }) => `📉 <@${authorId}> et **${teammates}** ont transformé **${enemyGuild}** en statistique triste mais très photogénique.`,
+  ({ authorId, enemyGuild, teammates }) => `🔪 Encore une attaque où <@${authorId}> et **${teammates}** ont découpé **${enemyGuild}** avec le sourire et le reçu visuel.`,
+  ({ authorId, enemyGuild, teammates }) => `🧨 **${enemyGuild}** espérait survivre à la visite, <@${authorId}> et **${teammates}** avaient visiblement un autre programme.`,
+  ({ authorId, enemyGuild, teammates }) => `🪦 <@${authorId}> et **${teammates}** ont laissé **${enemyGuild}** au sol avec juste assez de dignité pour qu’on hésite à en parler… puis on l’a posté quand même.`,
+  ({ authorId, enemyGuild, teammates }) => `🔥 **${enemyGuild}** a servi de combustible pendant que <@${authorId}> et **${teammates}** s’occupaient du reste.`,
+  ({ authorId, enemyGuild, teammates }) => `🥊 <@${authorId}> avec **${teammates}** a transformé **${enemyGuild}** en séance de rappel sur le thème “non, ce n’était pas jouable”.`,
+  ({ authorId, enemyGuild, teammates }) => `📚 Nouvelle archive de guerre : **${enemyGuild}** a voulu exister, <@${authorId}> et **${teammates}** ont préféré documenter sa chute.`,
+  ({ authorId, enemyGuild, teammates }) => `🧂 <@${authorId}> et **${teammates}** ont salé **${enemyGuild}** avec une régularité presque professionnelle.`,
+  ({ authorId, enemyGuild, teammates }) => `🎯 **${enemyGuild}** a été traitée comme une cible pédagogique par <@${authorId}> et **${teammates}**. Les screens confirment l’efficacité du cours.`,
+  ({ authorId, enemyGuild, teammates }) => `🪓 <@${authorId}> et **${teammates}** ont raccourci les ambitions de **${enemyGuild}** plus vite qu’un patch note mal lu.`,
+  ({ authorId, enemyGuild, teammates }) => `😈 **${enemyGuild}** a pris l’attaque, <@${authorId}> et **${teammates}** ont pris les screens. Chacun son rôle.`,
+];
+
+const ATTACK_SOLO_VARIANTS = [
+  ({ authorId, enemyGuild }) => `☠️ <@${authorId}> est passé sur **${enemyGuild}** comme un rappel brutal que certains combats sont perdus avant même l’échauffement.`,
+  ({ authorId, enemyGuild }) => `⚔️ **${enemyGuild}** a croisé <@${authorId}>. Ce n’était pas une rencontre, c’était un avertissement.`,
+  ({ authorId, enemyGuild }) => `💣 <@${authorId}> a fait de **${enemyGuild}** un exercice de démolition à ciel ouvert.`,
+  ({ authorId, enemyGuild }) => `🩸 **${enemyGuild}** s’est faite ouvrir proprement par <@${authorId}>, et les screens empêchent déjà toute tentative de roman.`,
+  ({ authorId, enemyGuild }) => `📉 <@${authorId}> a transformé **${enemyGuild}** en courbe descendante avec annexes visuelles.`,
+  ({ authorId, enemyGuild }) => `🔪 Encore une attaque où <@${authorId}> a découpé **${enemyGuild}** avec un calme franchement insultant.`,
+  ({ authorId, enemyGuild }) => `🧨 **${enemyGuild}** espérait survivre à la visite, <@${authorId}> avait visiblement prévu une autre fin.`,
+  ({ authorId, enemyGuild }) => `🪦 <@${authorId}> a laissé **${enemyGuild}** au sol avec juste assez de dignité pour qu’on puisse encore l’identifier.`,
+  ({ authorId, enemyGuild }) => `🔥 **${enemyGuild}** a servi de combustible pendant que <@${authorId}> s’occupait du reste.`,
+  ({ authorId, enemyGuild }) => `🥊 <@${authorId}> a transformé **${enemyGuild}** en démonstration pratique de supériorité mal vécue.`,
+  ({ authorId, enemyGuild }) => `📚 Nouvelle archive de guerre : **${enemyGuild}** a voulu exister, <@${authorId}> a préféré documenter sa chute.`,
+  ({ authorId, enemyGuild }) => `🧂 <@${authorId}> a salé **${enemyGuild}** avec une application presque académique.`,
+  ({ authorId, enemyGuild }) => `🎯 **${enemyGuild}** a été traitée comme une cible d’entraînement par <@${authorId}>. Les screens ont gardé le replay.`,
+  ({ authorId, enemyGuild }) => `🪓 <@${authorId}> a raccourci les ambitions de **${enemyGuild}** plus vite qu’un rêve de victoire à 3h du matin.`,
+  ({ authorId, enemyGuild }) => `😈 **${enemyGuild}** a pris l’attaque, <@${authorId}> a pris les screens. Le partage des tâches était limpide.`,
+];
+
 function buildAttackPercoResultText(authorId, enemyGuild, teammates) {
   const mates = String(teammates || '').trim();
-  const mateLine = mates ? `\n**Teammates déclarés :** ${mates}` : '';
-  return [
-    `☠️ <@${authorId}> a découpé **${enemyGuild}** en morceaux bien visibles.`,
-    mates ? `La bande d'assoiffés derrière le carnage : ${mates}` : 'Aucun teammate annoncé, donc soit c’était un raid fantôme, soit il a tout fait pendant que les autres respiraient fort.',
-    'Les screens parlent, les adversaires bégayent.',
-  ].join('\n') + mateLine;
+  if (mates) {
+    return nextPercoFlavor('attackWith', ATTACK_WITH_MATES_VARIANTS)({ authorId, enemyGuild, teammates: mates });
+  }
+  return nextPercoFlavor('attackSolo', ATTACK_SOLO_VARIANTS)({ authorId, enemyGuild });
 }
 
 // Stuff generator (DofusBook Touch)
