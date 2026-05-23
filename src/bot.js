@@ -749,7 +749,6 @@ function buildAttackPercoResultText(authorId, enemyGuild, teammates) {
 }
 
 // Stuff generator (DofusBook Touch)
-const STUFF_GEN_CHANNEL_ID = '1480657603779362963';
 const stuffSessions = new Map(); // sessionId -> { criteria } and per-user shown in `${sessionId}:${userId}`
 
 // DeepL translation (optional)
@@ -2983,10 +2982,6 @@ async function main() {
         if (await dragodinde.handleConfigSelect(interaction).catch(() => false)) return;
         // Stuff generator selects
         if (interaction.customId.startsWith('gs:')) {
-          if (interaction.channelId !== STUFF_GEN_CHANNEL_ID) {
-            return interaction.reply({ content: `Utilise le générateur uniquement dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
-          }
-
           const [_, kind, sessionId] = interaction.customId.split(':');
           const state = stuffSessions.get(sessionId);
           if (!state) {
@@ -4635,10 +4630,6 @@ async function main() {
             return interaction.reply({ content: 'Choisis un **salon texte**.', ephemeral: true });
           }
 
-          if (target.id !== STUFF_GEN_CHANNEL_ID) {
-            return interaction.reply({ content: `Cette commande doit être utilisée dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
-          }
-
           // Verify catalog readable
           try {
             const { items, catalogPath } = stuffGen.loadCatalog();
@@ -5621,10 +5612,6 @@ ${info}`.slice(0, 1900),
         // Stuff generator button
         if (interaction.customId.startsWith('gs:regen:')) {
           try {
-            if (interaction.channelId !== STUFF_GEN_CHANNEL_ID) {
-              return interaction.reply({ content: `Utilise le générateur uniquement dans <#${STUFF_GEN_CHANNEL_ID}>.`, ephemeral: true });
-            }
-
             // ACK immediately (prevents "Unknown interaction" if any processing takes time)
             await interaction.deferUpdate().catch(() => {});
 
