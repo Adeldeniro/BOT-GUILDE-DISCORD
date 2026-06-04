@@ -639,11 +639,11 @@ function buildMarketSearchEmbedResult(authorId, data) {
   return embed;
 }
 
-function buildMarketContactRow(guildId, authorId, kind, nonce) {
+function buildMarketContactRow(authorId, kind) {
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(`market:contact:${guildId}:${authorId}:${kind}:${nonce}`)
+        .setCustomId(`market:contact:${authorId}:${kind}`)
         .setLabel('Ouvrir la négociation')
         .setStyle(ButtonStyle.Secondary)
     ),
@@ -2726,11 +2726,10 @@ async function main() {
           return;
         }
 
-        const nonce = Date.now().toString(36);
         await announceThread.send({
           content: buildMarketSaleMessageText(message.author.id, marketSaleImageSession),
           embeds: [buildMarketSaleEmbedResult(message.author.id, marketSaleImageSession, files.length)],
-          components: buildMarketContactRow(message.guild.id, message.author.id, 'sale', nonce),
+          components: buildMarketContactRow(message.author.id, 'sale'),
           files,
           allowedMentions: { parse: ['users'] },
         }).catch(() => {});
@@ -3557,11 +3556,10 @@ async function main() {
             return interaction.reply({ content: 'Le thread des annonces est introuvable. Préviens un admin.', ephemeral: true }).catch(() => {});
           }
 
-          const nonce = Date.now().toString(36);
           await announceThread.send({
             content: buildMarketSearchMessageText(interaction.user.id, { item, criteria, comment }),
             embeds: [buildMarketSearchEmbedResult(interaction.user.id, { item, criteria, comment })],
-            components: buildMarketContactRow(guildId, interaction.user.id, 'search', nonce),
+            components: buildMarketContactRow(interaction.user.id, 'search'),
             allowedMentions: { parse: ['users'] },
           }).catch(() => {});
 
@@ -6186,8 +6184,9 @@ ${info}`.slice(0, 1900),
         }
 
         if (interaction.customId.startsWith('market:contact:')) {
-          const [, , guildId, authorId, kind] = interaction.customId.split(':');
-          if (!interaction.guild || interaction.guild.id !== guildId) {
+          const [, , authorId, kind] = interaction.customId.split(':');
+          const guildId = interaction.guild?.id;
+          if (!interaction.guild || !guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
           }
 
