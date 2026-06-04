@@ -86,6 +86,10 @@ function getConfigForGuild(guildId) {
     attackPanelChannelId: pick(gc.attack_panel_channel_id, null),
     attackPanelMessageId: pick(gc.attack_panel_message_id, null),
     attackArchiveThreadId: pick(gc.attack_archive_thread_id, null),
+
+    marketPanelChannelId: pick(gc.market_panel_channel_id, null),
+    marketPanelMessageId: pick(gc.market_panel_message_id, null),
+    marketDiscussionThreadId: pick(gc.market_discussion_thread_id, null),
   };
 }
 

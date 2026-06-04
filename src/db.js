@@ -89,7 +89,10 @@ CREATE TABLE IF NOT EXISTS guild_config (
   ankama_profile_channel_id TEXT,
   ankama_profile_message_id TEXT,
   dofusbook_panel_channel_id TEXT,
-  dofusbook_panel_message_id TEXT
+  dofusbook_panel_message_id TEXT,
+  market_panel_channel_id TEXT,
+  market_panel_message_id TEXT,
+  market_discussion_thread_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS dofusbook_builds (
@@ -311,6 +314,15 @@ if (!cfgCols.includes('attack_panel_message_id')) {
 }
 if (!cfgCols.includes('attack_archive_thread_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN attack_archive_thread_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('market_panel_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN market_panel_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('market_panel_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN market_panel_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('market_discussion_thread_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN market_discussion_thread_id TEXT'); } catch {}
 }
 
 // Migration for event_submissions

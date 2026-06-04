@@ -21,6 +21,9 @@ const ATTACK_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'attack-per
 const PERCO_PANEL_NOTIFS_FILE = path.join(__dirname, '..', 'data', 'perco-panel-notifs.json');
 const defenseSubmissionSessions = new Map();
 const attackSubmissionSessions = new Map();
+const marketSaleDraftSessions = new Map();
+const marketSaleImageSessions = new Map();
+const marketContactCooldowns = new Map();
 const percoNotifResetTimers = new Map();
 const panelWriteGrantTimers = new Map();
 
@@ -425,6 +428,210 @@ async function revokePanelWriteGrant(channel, userId) {
     panelWriteGrantTimers.delete(timerKey);
   }
   await channel.permissionOverwrites.delete(userId).catch(() => {});
+}
+
+const marketFlavorRotation = {
+  sale: 0,
+  search: 0,
+};
+
+const MARKET_SALE_VARIANTS = [
+  ({ authorId }) => `🪙 <@${authorId}> vide son sac sur l’étal et espère croiser quelqu’un d’assez lucide, ou assez riche, pour suivre.`,
+  ({ authorId }) => `📣 <@${authorId}> vient poser sa marchandise. Si tu rates l’affaire, viens pas pleurer après.`,
+  ({ authorId }) => `💰 <@${authorId}> transforme du butin en kamas. Le marché jugera si ça vaut ton portefeuille.`,
+  ({ authorId }) => `🧳 <@${authorId}> ouvre la boutique. Il y a des objets, il y a un prix, il manque juste ton courage.`,
+  ({ authorId }) => `🪓 <@${authorId}> écoule ses trouvailles. À toi de voir si tu veux négocier ou juste admirer de loin.`,
+  ({ authorId }) => `🏷️ Nouvelle vente sur le comptoir, signée <@${authorId}>. Essaie de ne pas marchander comme un rat de cave.`,
+  ({ authorId }) => `📦 <@${authorId}> déballe la cargaison. Si quelque chose t’intéresse, bouge avant qu’un autre rapace le fasse.`,
+  ({ authorId }) => `🔥 <@${authorId}> met du stock sur la table. Les kamas parlent mieux que les promesses, comme d’habitude.`,
+];
+
+const MARKET_SEARCH_VARIANTS = [
+  ({ authorId }) => `🔎 <@${authorId}> rôde dans le marché avec une demande précise. Si tu as l’objet, sors du brouillard.`,
+  ({ authorId }) => `📜 <@${authorId}> affiche une recherche. Si ton coffre n’est pas rempli de poussière, c’est peut-être ton moment.`,
+  ({ authorId }) => `👀 <@${authorId}> cherche un item bien particulier. Si tu l’as, évite de jouer au fantôme trop longtemps.`,
+  ({ authorId }) => `🧾 <@${authorId}> lance un appel au marché. Il serait dommage que le bon objet dorme chez le mauvais propriétaire.`,
+  ({ authorId }) => `🪤 <@${authorId}> tend une ligne dans le marché. Si tu possèdes l’item demandé, viens voir si l’affaire te chauffe.`,
+  ({ authorId }) => `📢 <@${authorId}> cherche quelque chose de précis. Le marché écoute, maintenant voyons s’il comprend vite.`,
+  ({ authorId }) => `🕵️ <@${authorId}> fouille les étals à la recherche d’un item. Si tu peux aider, montre que ton inventaire sert à quelque chose.`,
+  ({ authorId }) => `🪙 <@${authorId}> est en chasse d’un item précis. Si tu le caches encore, c’est peut-être l’heure d’être raisonnable.`,
+];
+
+function nextMarketFlavor(kind, variants) {
+  const index = marketFlavorRotation[kind] || 0;
+  marketFlavorRotation[kind] = (index + 1) % variants.length;
+  return variants[index];
+}
+
+function buildMarketPanelEmbed() {
+  return new EmbedBuilder()
+    .setColor(0xF1C40F)
+    .setTitle('🏪 Marché de la guilde')
+    .setDescription([
+      'Ici, on vend, on cherche, on négocie, mais on évite de salir le comptoir.',
+      '',
+      'Clique sur **Mettre en vente** pour publier une annonce de vente, même pour plusieurs items d’un coup.',
+      'Clique sur **Mettre une recherche d’item** si tu cherches un objet précis.',
+      '',
+      'Le salon reste propre, les annonces partent par le bot, et les discussions finissent dans le thread prévu pour ça.'
+    ].join('\n'))
+    .setFooter({ text: 'Marchande si tu veux, mais essaie d’avoir autre chose que du culot.' });
+}
+
+function buildMarketPanelRows(guildId, discussionThreadId = null) {
+  const buttons = [
+    new ButtonBuilder()
+      .setCustomId(`market:sell:${guildId}`)
+      .setLabel('Mettre en vente')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`market:search:${guildId}`)
+      .setLabel('Mettre une recherche d’item')
+      .setStyle(ButtonStyle.Primary),
+  ];
+
+  if (discussionThreadId) {
+    buttons.push(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setURL(`https://discord.com/channels/${guildId}/${discussionThreadId}`)
+        .setLabel('Voir les négociations')
+    );
+  }
+
+  return [new ActionRowBuilder().addComponents(...buttons)];
+}
+
+async function ensureMarketPanel(guild, panelChannel, discussionThread) {
+  const rc = getConfigForGuild(guild.id);
+  const payload = {
+    embeds: [buildMarketPanelEmbed()],
+    components: buildMarketPanelRows(guild.id, discussionThread?.id || null),
+    allowedMentions: { parse: [] },
+  };
+
+  let existing = null;
+  if (rc.marketPanelChannelId === panelChannel.id && rc.marketPanelMessageId) {
+    existing = await panelChannel.messages.fetch(rc.marketPanelMessageId).catch(() => null);
+  }
+
+  if (existing) {
+    const edited = await existing.edit(payload).catch(() => null);
+    if (edited) return edited;
+  }
+
+  const recent = await panelChannel.messages.fetch({ limit: 15 }).catch(() => null);
+  const priorPanel = recent?.find((m) => m.author?.id === guild.client.user.id && m.components?.some((row) => row.components?.some((c) => c.customId === `market:sell:${guild.id}`)));
+  if (priorPanel) {
+    const edited = await priorPanel.edit(payload).catch(() => null);
+    if (edited) {
+      updateGuildConfig(guild.id, {
+        market_panel_channel_id: panelChannel.id,
+        market_panel_message_id: priorPanel.id,
+        market_discussion_thread_id: discussionThread?.id || null,
+      });
+      return edited;
+    }
+  }
+
+  const msg = await panelChannel.send(payload).catch(() => null);
+  if (msg) {
+    try { await msg.pin(); } catch {}
+    updateGuildConfig(guild.id, {
+      market_panel_channel_id: panelChannel.id,
+      market_panel_message_id: msg.id,
+      market_discussion_thread_id: discussionThread?.id || null,
+    });
+  }
+  return msg;
+}
+
+function buildMarketSaleCountRow(guildId) {
+  const options = Array.from({ length: 18 }, (_, i) => ({
+    label: `${i + 1} item${i + 1 > 1 ? 's' : ''}`,
+    value: String(i + 1),
+    description: i === 0 ? 'Une image max autorisée' : `${i + 1} images max autorisées`,
+  }));
+
+  return [
+    new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`market:sellcount:${guildId}`)
+        .setPlaceholder('Choisis combien d’items tu veux mettre en vente')
+        .addOptions(options)
+    ),
+  ];
+}
+
+function buildMarketSaleEmbed(authorId) {
+  return new EmbedBuilder()
+    .setColor(0x2ECC71)
+    .setTitle('🧺 Préparation de ton annonce de vente')
+    .setDescription([
+      `<@${authorId}>, commence par choisir **combien d’items** tu veux mettre en vente.`,
+      '',
+      'Tu pourras ensuite remplir ton annonce en une seule fois, sans te retaper le manège item par item.'
+    ].join('\n'));
+}
+
+function buildMarketSaleMessageText(authorId, sale) {
+  return nextMarketFlavor('sale', MARKET_SALE_VARIANTS)({ authorId, sale });
+}
+
+function buildMarketSearchMessageText(authorId, search) {
+  return nextMarketFlavor('search', MARKET_SEARCH_VARIANTS)({ authorId, search });
+}
+
+function buildMarketSaleEmbedResult(authorId, data, imageCount = 0) {
+  const embed = new EmbedBuilder()
+    .setColor(0x27AE60)
+    .setTitle('🛒 Vente en cours')
+    .addFields(
+      { name: 'Item(s)', value: data.items, inline: false },
+      { name: 'Jets / détails', value: data.details || 'Non précisés', inline: false },
+      { name: 'Prix demandé', value: data.price, inline: true },
+      { name: 'Vendeur', value: `<@${authorId}>`, inline: true },
+    )
+    .setFooter({ text: imageCount ? `${imageCount} image(s) jointe(s)` : 'Aucune image jointe' })
+    .setTimestamp();
+
+  if (data.exchange) {
+    embed.addFields({ name: 'Échange accepté', value: data.exchange, inline: false });
+  }
+  if (data.comment) {
+    embed.addFields({ name: 'Commentaire', value: data.comment, inline: false });
+  }
+
+  return embed;
+}
+
+function buildMarketSearchEmbedResult(authorId, data) {
+  const embed = new EmbedBuilder()
+    .setColor(0x3498DB)
+    .setTitle('🔎 Recherche d’item')
+    .addFields(
+      { name: 'Item recherché', value: data.item, inline: false },
+      { name: 'Critères / jets', value: data.criteria || 'Non précisés', inline: false },
+      { name: 'Demandeur', value: `<@${authorId}>`, inline: true },
+    )
+    .setTimestamp();
+
+  if (data.comment) {
+    embed.addFields({ name: 'Commentaire', value: data.comment, inline: false });
+  }
+
+  return embed;
+}
+
+function buildMarketContactRow(guildId, authorId, kind, nonce) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`market:contact:${guildId}:${authorId}:${kind}:${nonce}`)
+        .setLabel('Ouvrir la négociation')
+        .setStyle(ButtonStyle.Secondary)
+    ),
+  ];
 }
 
 function buildDefensePercoPanelEmbed({ withImage = true } = {}) {
@@ -2210,6 +2417,10 @@ async function registerCommands(client) {
       .setDescription('Configurer le panneau de dépôt des screens d’attaque'),
 
     new SlashCommandBuilder()
+      .setName('setup_market')
+      .setDescription('Configurer le panneau market et son thread global de négociation'),
+
+    new SlashCommandBuilder()
       .setName('setup_events')
       .setDescription('Configurer le système d\'événements perco (owner only)')
       .addChannelOption(o => o.setName('preuves').setDescription('Salon où les joueurs postent les screens').addChannelTypes(0,5).setRequired(true))
@@ -2448,6 +2659,69 @@ async function main() {
         attackSubmissionSessions.delete(attackSessionKey);
         await revokePanelWriteGrant(message.channel, message.author.id).catch(() => {});
         const confirmMsg = await message.reply({ content: '✅ Attaque archivée. Le thread permanent vient de recevoir ta boucherie réglementaire.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
+        await message.delete().catch(() => {});
+        if (confirmMsg) {
+          setTimeout(() => {
+            confirmMsg.delete().catch(() => {});
+          }, 5000);
+        }
+        return;
+      }
+
+      const marketSaleImageSessionKey = `${message.guild.id}:${message.author.id}`;
+      const marketSaleImageSession = marketSaleImageSessions.get(marketSaleImageSessionKey);
+      if (marketSaleImageSession && marketSaleImageSession.channelId === message.channelId) {
+        const rcMarket = getConfigForGuild(message.guild.id);
+        const images = [...message.attachments.values()].filter((a) => (a.contentType || '').startsWith('image/'));
+        const maxImages = Number(marketSaleImageSession.itemCount || 0);
+
+        if (images.length !== maxImages) {
+          const warnMsg = await message.reply({ content: `⚠️ Tu as déclaré **${maxImages} item(s)**, donc il faut envoyer **exactement ${maxImages} image(s)** dans un seul message.`, allowedMentions: { users: [message.author.id] } }).catch(() => null);
+          if (warnMsg) {
+            setTimeout(() => {
+              warnMsg.delete().catch(() => {});
+            }, 5000);
+          }
+          return;
+        }
+
+        const files = [];
+        for (let i = 0; i < images.length; i++) {
+          const att = images[i];
+          try {
+            const resp = await fetch(att.url);
+            if (!resp.ok) continue;
+            const buf = Buffer.from(await resp.arrayBuffer());
+            const ext = (att.name || '').split('.').pop() || 'png';
+            files.push({ attachment: buf, name: `market-sale-${i + 1}.${ext}` });
+          } catch (error) {
+            console.warn('[market] image download failed', error?.message || error);
+          }
+        }
+
+        const panelChannel = rcMarket.marketPanelChannelId
+          ? await message.client.channels.fetch(rcMarket.marketPanelChannelId).catch(() => null)
+          : null;
+
+        if (!panelChannel || !panelChannel.isTextBased?.()) {
+          marketSaleImageSessions.delete(marketSaleImageSessionKey);
+          await revokePanelWriteGrant(message.channel, message.author.id).catch(() => {});
+          await message.reply({ content: '❌ Salon market introuvable. Préviens un admin.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const nonce = Date.now().toString(36);
+        await panelChannel.send({
+          content: buildMarketSaleMessageText(message.author.id, marketSaleImageSession),
+          embeds: [buildMarketSaleEmbedResult(message.author.id, marketSaleImageSession, files.length)],
+          components: buildMarketContactRow(message.guild.id, message.author.id, 'sale', nonce),
+          files,
+          allowedMentions: { parse: ['users'] },
+        }).catch(() => {});
+
+        marketSaleImageSessions.delete(marketSaleImageSessionKey);
+        await revokePanelWriteGrant(message.channel, message.author.id).catch(() => {});
+        const confirmMsg = await message.reply({ content: '✅ Annonce de vente publiée. Va maintenant compter tes kamas, ou au moins tes espoirs.', allowedMentions: { users: [message.author.id] } }).catch(() => null);
         await message.delete().catch(() => {});
         if (confirmMsg) {
           setTimeout(() => {
@@ -2981,6 +3255,74 @@ async function main() {
       if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
         if (await dragodinde.handleConfigSelect(interaction).catch(() => false)) return;
         // Stuff generator selects
+        if (interaction.customId.startsWith('market:sellcount:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const itemCount = Number(interaction.values?.[0] || 0);
+          if (!Number.isFinite(itemCount) || itemCount < 1 || itemCount > 18) {
+            return interaction.reply({ content: 'Nombre d’items invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          marketSaleDraftSessions.set(`${guildId}:${interaction.user.id}`, {
+            guildId,
+            userId: interaction.user.id,
+            itemCount,
+            createdAt: Date.now(),
+          });
+
+          const modal = new ModalBuilder()
+            .setCustomId(`market:sellsubmit:${guildId}`)
+            .setTitle('Mettre en vente');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('items')
+                .setLabel(`Item(s) à vendre (${itemCount} max, un par ligne conseillé)`)
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(true)
+                .setMaxLength(1800)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('details')
+                .setLabel('Jets / détails')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(1500)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('price')
+                .setLabel('Prix demandé')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true)
+                .setMaxLength(120)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('exchange')
+                .setLabel('Échange accepté ? (optionnel)')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(false)
+                .setMaxLength(200)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('comment')
+                .setLabel('Commentaire (optionnel)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(1000)
+            )
+          );
+
+          return interaction.showModal(modal).catch(() => {});
+        }
+
         if (interaction.customId.startsWith('gs:')) {
           const [_, kind, sessionId] = interaction.customId.split(':');
           const state = stuffSessions.get(sessionId);
@@ -3122,6 +3464,91 @@ async function main() {
             content: '✅ Infos reçues. Tu peux maintenant envoyer **1 à 3 images dans un seul message** dans ce salon. L’autorisation se refermera ensuite automatiquement.',
             ephemeral: true,
           }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('market:sellsubmit:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const draft = marketSaleDraftSessions.get(`${guildId}:${interaction.user.id}`);
+          if (!draft) {
+            return interaction.reply({ content: 'Session expirée. Recommence depuis le panneau market.', ephemeral: true }).catch(() => {});
+          }
+
+          const items = (interaction.fields.getTextInputValue('items') || '').trim();
+          const details = (interaction.fields.getTextInputValue('details') || '').trim();
+          const price = (interaction.fields.getTextInputValue('price') || '').trim();
+          const exchange = (interaction.fields.getTextInputValue('exchange') || '').trim();
+          const comment = (interaction.fields.getTextInputValue('comment') || '').trim();
+
+          if (!items || !price) {
+            return interaction.reply({ content: 'Les items et le prix sont obligatoires.', ephemeral: true }).catch(() => {});
+          }
+
+          if (!rc.marketPanelChannelId || !rc.marketDiscussionThreadId) {
+            return interaction.reply({ content: 'Le market n’est pas encore configuré.', ephemeral: true }).catch(() => {});
+          }
+
+          marketSaleDraftSessions.delete(`${guildId}:${interaction.user.id}`);
+          marketSaleImageSessions.set(`${guildId}:${interaction.user.id}`, {
+            guildId,
+            userId: interaction.user.id,
+            channelId: interaction.channelId,
+            itemCount: draft.itemCount,
+            items,
+            details,
+            price,
+            exchange,
+            comment,
+            createdAt: Date.now(),
+          });
+
+          const panelChannel = await interaction.client.channels.fetch(interaction.channelId).catch(() => null);
+          if (panelChannel?.isTextBased?.()) {
+            await grantPanelWriteOnce(panelChannel, interaction.user.id).catch(() => {});
+          }
+
+          return interaction.reply({
+            content: `✅ Annonce préparée. Tu dois maintenant envoyer **exactement ${draft.itemCount} image(s)** dans un seul message dans ce salon, pas une de plus, pas une de moins.`,
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('market:searchsubmit:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const item = (interaction.fields.getTextInputValue('item') || '').trim();
+          const criteria = (interaction.fields.getTextInputValue('criteria') || '').trim();
+          const comment = (interaction.fields.getTextInputValue('comment') || '').trim();
+
+          if (!item) {
+            return interaction.reply({ content: 'L’item recherché est obligatoire.', ephemeral: true }).catch(() => {});
+          }
+
+          const panelChannel = rc.marketPanelChannelId
+            ? await interaction.client.channels.fetch(rc.marketPanelChannelId).catch(() => null)
+            : null;
+
+          if (!panelChannel || !panelChannel.isTextBased?.()) {
+            return interaction.reply({ content: 'Le salon market est introuvable. Préviens un admin.', ephemeral: true }).catch(() => {});
+          }
+
+          const nonce = Date.now().toString(36);
+          await panelChannel.send({
+            content: buildMarketSearchMessageText(interaction.user.id, { item, criteria, comment }),
+            embeds: [buildMarketSearchEmbedResult(interaction.user.id, { item, criteria, comment })],
+            components: buildMarketContactRow(guildId, interaction.user.id, 'search', nonce),
+            allowedMentions: { parse: ['users'] },
+          }).catch(() => {});
+
+          return interaction.reply({ content: '✅ Annonce de recherche publiée.', ephemeral: true }).catch(() => {});
         }
 
         if (interaction.customId.startsWith('dbp:add_submit:')) {
@@ -4309,6 +4736,62 @@ async function main() {
             } catch (error) {
               console.error('[setup_attack_screens] failed', error);
               return interaction.editReply({ content: '❌ La mise en place du panneau attaque a échoué.' }).catch(() => {});
+            }
+          }
+
+          if (interaction.commandName === 'setup_market') {
+            const salon = interaction.channel;
+
+            if (!salon?.isTextBased?.() || salon.isThread?.()) {
+              return interaction.reply({ content: 'Lance cette commande dans un **salon texte classique**.', ephemeral: true });
+            }
+
+            if (!interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)) {
+              return interaction.reply({ content: 'Commande réservée aux admins du serveur.', ephemeral: true });
+            }
+
+            await interaction.reply({ content: '⏳ Je mets en place le market...', ephemeral: true }).catch(() => {});
+
+            try {
+              let discussionThread = null;
+              const rcExisting = getConfigForGuild(guild.id);
+              if (rcExisting.marketDiscussionThreadId) {
+                discussionThread = await interaction.client.channels.fetch(rcExisting.marketDiscussionThreadId).catch(() => null);
+              }
+
+              if (!discussionThread || !discussionThread.isThread?.()) {
+                discussionThread = await salon.threads.create({
+                  name: '💰 Négociations et combines',
+                  autoArchiveDuration: 10080,
+                  reason: 'Thread global du marché',
+                }).catch((error) => {
+                  console.error('[setup_market] thread create failed', error);
+                  return null;
+                });
+                if (discussionThread) {
+                  await discussionThread.send({ content: '💰 Toutes les discussions du marché finissent ici. On négocie, on ping les concernés, et on évite de transformer le salon principal en brocante mal rangée.' }).catch(() => {});
+                }
+              }
+
+              if (!discussionThread) {
+                return interaction.editReply({ content: '❌ Impossible de créer le thread global de négociation automatiquement.' }).catch(() => {});
+              }
+
+              updateGuildConfig(guild.id, {
+                market_panel_channel_id: salon.id,
+                market_discussion_thread_id: discussionThread.id,
+              });
+
+              const msg = await ensureMarketPanel(guild, salon, discussionThread);
+              if (!msg) {
+                return interaction.editReply({ content: `❌ Le thread global a été créé (<#${discussionThread.id}>), mais le panneau market n’a pas pu être posté dans <#${salon.id}>.` }).catch(() => {});
+              }
+
+              await lockPanelChannelForMembers(salon).catch(() => {});
+              return interaction.editReply({ content: `✅ Panneau market configuré dans <#${salon.id}>. Thread global : <#${discussionThread.id}>. Message ${msg.id}. Salon verrouillé hors flow bouton.` }).catch(() => {});
+            } catch (error) {
+              console.error('[setup_market] failed', error);
+              return interaction.editReply({ content: '❌ La mise en place du market a échoué.' }).catch(() => {});
             }
           }
 
@@ -5607,6 +6090,93 @@ ${info}`.slice(0, 1900),
           metiers.craftPingLast.set(keyCooldown, now);
 
           return interaction.reply({ content: '✅ Demande envoyée.', ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('market:sell:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          return interaction.reply({
+            embeds: [buildMarketSaleEmbed(interaction.user.id)],
+            components: buildMarketSaleCountRow(guildId),
+            ephemeral: true,
+          }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('market:search:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const modal = new ModalBuilder()
+            .setCustomId(`market:searchsubmit:${guildId}`)
+            .setTitle('Mettre une recherche d’item');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('item')
+                .setLabel('Item recherché')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(true)
+                .setMaxLength(1500)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('criteria')
+                .setLabel('Critères / jets')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(1500)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('comment')
+                .setLabel('Commentaire (optionnel)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(1000)
+            )
+          );
+
+          return interaction.showModal(modal).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('market:contact:')) {
+          const [, , guildId, authorId, kind] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          if (interaction.user.id === authorId) {
+            return interaction.reply({ content: 'Tu vas survivre sans te contacter toi-même.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const discussionThread = rc.marketDiscussionThreadId
+            ? await interaction.client.channels.fetch(rc.marketDiscussionThreadId).catch(() => null)
+            : null;
+
+          if (!discussionThread || !discussionThread.isThread?.()) {
+            return interaction.reply({ content: 'Le thread global de négociation est introuvable. Préviens un admin.', ephemeral: true }).catch(() => {});
+          }
+
+          const cooldownKey = `${guildId}:${authorId}:${interaction.user.id}:${kind}`;
+          const lastTs = marketContactCooldowns.get(cooldownKey) || 0;
+          if (Date.now() - lastTs < 30000) {
+            return interaction.reply({ content: 'Doucement. Tu viens déjà d’ouvrir la négociation il y a un instant.', ephemeral: true }).catch(() => {});
+          }
+          marketContactCooldowns.set(cooldownKey, Date.now());
+
+          await discussionThread.send({
+            content: `💬 <@${interaction.user.id}> veut ouvrir la négociation avec <@${authorId}> au sujet d’une annonce de **${kind === 'sale' ? 'vente' : 'recherche'}**. Essayez de rester plus intelligents que vos prix.`,
+            allowedMentions: { users: [interaction.user.id, authorId] },
+          }).catch(() => {});
+
+          return interaction.reply({ content: `✅ Négociation ouverte dans <#${discussionThread.id}>.`, ephemeral: true }).catch(() => {});
         }
 
         // Stuff generator button
