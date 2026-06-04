@@ -2747,6 +2747,24 @@ async function main() {
       }
 
       const rc = getConfigForGuild(message.guild.id);
+
+      if (rc.marketAnnounceThreadId && message.channelId === rc.marketAnnounceThreadId) {
+        const isBotMessage = message.author?.id === client.user?.id;
+        if (!isBotMessage) {
+          const warnMsg = await message.reply({
+            content: '📦 Ce thread sert uniquement de vitrine. Les annonces passent par le panneau, et les discussions finissent dans **💰 Négociations et combines**.',
+            allowedMentions: { users: [message.author.id] },
+          }).catch(() => null);
+          await message.delete().catch(() => {});
+          if (warnMsg) {
+            setTimeout(() => {
+              warnMsg.delete().catch(() => {});
+            }, 5000);
+          }
+          return;
+        }
+      }
+
       if (!rc.eventProofsChannelId) return;
 
       // We accept proofs in threads under the proofs channel
