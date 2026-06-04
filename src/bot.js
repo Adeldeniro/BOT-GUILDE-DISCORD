@@ -4810,10 +4810,6 @@ async function main() {
                 return interaction.editReply({ content: '❌ Impossible de créer correctement les threads du market automatiquement.' }).catch(() => {});
               }
 
-              try {
-                await announceThread.setLocked(true).catch(() => {});
-              } catch {}
-
               updateGuildConfig(guild.id, {
                 market_panel_channel_id: salon.id,
                 market_announce_thread_id: announceThread.id,
