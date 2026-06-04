@@ -4808,6 +4808,11 @@ async function main() {
                 if (announceThread) {
                   await announceThread.send({ content: '📦 Ici tombent uniquement les annonces du marché. Pas de bavardage, juste les offres et les recherches qui méritent d’être vues.' }).catch(() => {});
                 }
+              } else {
+                try {
+                  await announceThread.setLocked(false).catch(() => {});
+                  await announceThread.setArchived(false).catch(() => {});
+                } catch {}
               }
 
               if (!discussionThread || !discussionThread.isThread?.()) {
@@ -4822,6 +4827,10 @@ async function main() {
                 if (discussionThread) {
                   await discussionThread.send({ content: '💰 Toutes les discussions du marché finissent ici. On négocie, on ping les concernés, et on évite de transformer le salon principal en brocante mal rangée.' }).catch(() => {});
                 }
+              } else {
+                try {
+                  await discussionThread.setArchived(false).catch(() => {});
+                } catch {}
               }
 
               if (!announceThread || !discussionThread) {
