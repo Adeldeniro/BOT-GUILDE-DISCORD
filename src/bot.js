@@ -3281,7 +3281,8 @@ async function main() {
             new ActionRowBuilder().addComponents(
               new TextInputBuilder()
                 .setCustomId('items')
-                .setLabel(`Item(s) à vendre (${itemCount} max, un par ligne conseillé)`)
+                .setLabel(`Item(s) à vendre (${itemCount} max)`)
+                .setPlaceholder('Un item par ligne conseillé')
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true)
                 .setMaxLength(1800)
