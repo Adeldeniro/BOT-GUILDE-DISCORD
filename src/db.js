@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS guild_config (
   dofusbook_panel_message_id TEXT,
   market_panel_channel_id TEXT,
   market_panel_message_id TEXT,
+  market_announce_thread_id TEXT,
   market_discussion_thread_id TEXT
 );
 
@@ -320,6 +321,9 @@ if (!cfgCols.includes('market_panel_channel_id')) {
 }
 if (!cfgCols.includes('market_panel_message_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN market_panel_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('market_announce_thread_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN market_announce_thread_id TEXT'); } catch {}
 }
 if (!cfgCols.includes('market_discussion_thread_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN market_discussion_thread_id TEXT'); } catch {}

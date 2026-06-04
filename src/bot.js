@@ -478,35 +478,49 @@ function buildMarketPanelEmbed() {
     .setFooter({ text: 'Marchande si tu veux, mais essaie d’avoir autre chose que du culot.' });
 }
 
-function buildMarketPanelRows(guildId, discussionThreadId = null) {
-  const buttons = [
-    new ButtonBuilder()
-      .setCustomId(`market:sell:${guildId}`)
-      .setLabel('Mettre en vente')
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(`market:search:${guildId}`)
-      .setLabel('Mettre une recherche d’item')
-      .setStyle(ButtonStyle.Primary),
+function buildMarketPanelRows(guildId, announceThreadId = null, discussionThreadId = null) {
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`market:sell:${guildId}`)
+        .setLabel('Mettre en vente')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`market:search:${guildId}`)
+        .setLabel('Mettre une recherche d’item')
+        .setStyle(ButtonStyle.Primary)
+    ),
   ];
 
+  const links = [];
+  if (announceThreadId) {
+    links.push(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setURL(`https://discord.com/channels/${guildId}/${announceThreadId}`)
+        .setLabel('Voir les annonces')
+    );
+  }
   if (discussionThreadId) {
-    buttons.push(
+    links.push(
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
         .setURL(`https://discord.com/channels/${guildId}/${discussionThreadId}`)
         .setLabel('Voir les négociations')
     );
   }
+  if (links.length) {
+    rows.push(new ActionRowBuilder().addComponents(...links));
+  }
 
-  return [new ActionRowBuilder().addComponents(...buttons)];
+  return rows;
 }
 
-async function ensureMarketPanel(guild, panelChannel, discussionThread) {
+async function ensureMarketPanel(guild, panelChannel, announceThread, discussionThread) {
   const rc = getConfigForGuild(guild.id);
   const payload = {
     embeds: [buildMarketPanelEmbed()],
-    components: buildMarketPanelRows(guild.id, discussionThread?.id || null),
+    components: buildMarketPanelRows(guild.id, announceThread?.id || null, discussionThread?.id || null),
     allowedMentions: { parse: [] },
   };
 
@@ -528,6 +542,7 @@ async function ensureMarketPanel(guild, panelChannel, discussionThread) {
       updateGuildConfig(guild.id, {
         market_panel_channel_id: panelChannel.id,
         market_panel_message_id: priorPanel.id,
+        market_announce_thread_id: announceThread?.id || null,
         market_discussion_thread_id: discussionThread?.id || null,
       });
       return edited;
@@ -540,6 +555,7 @@ async function ensureMarketPanel(guild, panelChannel, discussionThread) {
     updateGuildConfig(guild.id, {
       market_panel_channel_id: panelChannel.id,
       market_panel_message_id: msg.id,
+      market_announce_thread_id: announceThread?.id || null,
       market_discussion_thread_id: discussionThread?.id || null,
     });
   }
@@ -2699,19 +2715,19 @@ async function main() {
           }
         }
 
-        const panelChannel = rcMarket.marketPanelChannelId
-          ? await message.client.channels.fetch(rcMarket.marketPanelChannelId).catch(() => null)
+        const announceThread = rcMarket.marketAnnounceThreadId
+          ? await message.client.channels.fetch(rcMarket.marketAnnounceThreadId).catch(() => null)
           : null;
 
-        if (!panelChannel || !panelChannel.isTextBased?.()) {
+        if (!announceThread || !announceThread.isThread?.()) {
           marketSaleImageSessions.delete(marketSaleImageSessionKey);
           await revokePanelWriteGrant(message.channel, message.author.id).catch(() => {});
-          await message.reply({ content: '❌ Salon market introuvable. Préviens un admin.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          await message.reply({ content: '❌ Thread des annonces introuvable. Préviens un admin.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
           return;
         }
 
         const nonce = Date.now().toString(36);
-        await panelChannel.send({
+        await announceThread.send({
           content: buildMarketSaleMessageText(message.author.id, marketSaleImageSession),
           embeds: [buildMarketSaleEmbedResult(message.author.id, marketSaleImageSession, files.length)],
           components: buildMarketContactRow(message.guild.id, message.author.id, 'sale', nonce),
@@ -3489,7 +3505,7 @@ async function main() {
             return interaction.reply({ content: 'Les items et le prix sont obligatoires.', ephemeral: true }).catch(() => {});
           }
 
-          if (!rc.marketPanelChannelId || !rc.marketDiscussionThreadId) {
+          if (!rc.marketPanelChannelId || !rc.marketAnnounceThreadId || !rc.marketDiscussionThreadId) {
             return interaction.reply({ content: 'Le market n’est pas encore configuré.', ephemeral: true }).catch(() => {});
           }
 
@@ -3533,16 +3549,16 @@ async function main() {
             return interaction.reply({ content: 'L’item recherché est obligatoire.', ephemeral: true }).catch(() => {});
           }
 
-          const panelChannel = rc.marketPanelChannelId
-            ? await interaction.client.channels.fetch(rc.marketPanelChannelId).catch(() => null)
+          const announceThread = rc.marketAnnounceThreadId
+            ? await interaction.client.channels.fetch(rc.marketAnnounceThreadId).catch(() => null)
             : null;
 
-          if (!panelChannel || !panelChannel.isTextBased?.()) {
-            return interaction.reply({ content: 'Le salon market est introuvable. Préviens un admin.', ephemeral: true }).catch(() => {});
+          if (!announceThread || !announceThread.isThread?.()) {
+            return interaction.reply({ content: 'Le thread des annonces est introuvable. Préviens un admin.', ephemeral: true }).catch(() => {});
           }
 
           const nonce = Date.now().toString(36);
-          await panelChannel.send({
+          await announceThread.send({
             content: buildMarketSearchMessageText(interaction.user.id, { item, criteria, comment }),
             embeds: [buildMarketSearchEmbedResult(interaction.user.id, { item, criteria, comment })],
             components: buildMarketContactRow(guildId, interaction.user.id, 'search', nonce),
@@ -4754,10 +4770,28 @@ async function main() {
             await interaction.reply({ content: '⏳ Je mets en place le market...', ephemeral: true }).catch(() => {});
 
             try {
+              let announceThread = null;
               let discussionThread = null;
               const rcExisting = getConfigForGuild(guild.id);
+              if (rcExisting.marketAnnounceThreadId) {
+                announceThread = await interaction.client.channels.fetch(rcExisting.marketAnnounceThreadId).catch(() => null);
+              }
               if (rcExisting.marketDiscussionThreadId) {
                 discussionThread = await interaction.client.channels.fetch(rcExisting.marketDiscussionThreadId).catch(() => null);
+              }
+
+              if (!announceThread || !announceThread.isThread?.()) {
+                announceThread = await salon.threads.create({
+                  name: '📦 Annonces du marché',
+                  autoArchiveDuration: 10080,
+                  reason: 'Thread global des annonces du marché',
+                }).catch((error) => {
+                  console.error('[setup_market] announce thread create failed', error);
+                  return null;
+                });
+                if (announceThread) {
+                  await announceThread.send({ content: '📦 Ici tombent uniquement les annonces du marché. Pas de bavardage, juste les offres et les recherches qui méritent d’être vues.' }).catch(() => {});
+                }
               }
 
               if (!discussionThread || !discussionThread.isThread?.()) {
@@ -4766,7 +4800,7 @@ async function main() {
                   autoArchiveDuration: 10080,
                   reason: 'Thread global du marché',
                 }).catch((error) => {
-                  console.error('[setup_market] thread create failed', error);
+                  console.error('[setup_market] discussion thread create failed', error);
                   return null;
                 });
                 if (discussionThread) {
@@ -4774,22 +4808,27 @@ async function main() {
                 }
               }
 
-              if (!discussionThread) {
-                return interaction.editReply({ content: '❌ Impossible de créer le thread global de négociation automatiquement.' }).catch(() => {});
+              if (!announceThread || !discussionThread) {
+                return interaction.editReply({ content: '❌ Impossible de créer correctement les threads du market automatiquement.' }).catch(() => {});
               }
+
+              try {
+                await announceThread.setLocked(true).catch(() => {});
+              } catch {}
 
               updateGuildConfig(guild.id, {
                 market_panel_channel_id: salon.id,
+                market_announce_thread_id: announceThread.id,
                 market_discussion_thread_id: discussionThread.id,
               });
 
-              const msg = await ensureMarketPanel(guild, salon, discussionThread);
+              const msg = await ensureMarketPanel(guild, salon, announceThread, discussionThread);
               if (!msg) {
-                return interaction.editReply({ content: `❌ Le thread global a été créé (<#${discussionThread.id}>), mais le panneau market n’a pas pu être posté dans <#${salon.id}>.` }).catch(() => {});
+                return interaction.editReply({ content: `❌ Les threads ont été créés (<#${announceThread.id}> et <#${discussionThread.id}>), mais le panneau market n’a pas pu être posté dans <#${salon.id}>.` }).catch(() => {});
               }
 
               await lockPanelChannelForMembers(salon).catch(() => {});
-              return interaction.editReply({ content: `✅ Panneau market configuré dans <#${salon.id}>. Thread global : <#${discussionThread.id}>. Message ${msg.id}. Salon verrouillé hors flow bouton.` }).catch(() => {});
+              return interaction.editReply({ content: `✅ Panneau market configuré dans <#${salon.id}>.\n• Annonces : <#${announceThread.id}>\n• Négociations : <#${discussionThread.id}>\n• Message : ${msg.id}\nSalon verrouillé hors flow bouton.` }).catch(() => {});
             } catch (error) {
               console.error('[setup_market] failed', error);
               return interaction.editReply({ content: '❌ La mise en place du market a échoué.' }).catch(() => {});
