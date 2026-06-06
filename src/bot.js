@@ -5130,6 +5130,48 @@ async function main() {
           }
         }
 
+        if (interaction.commandName === 'annoncer') {
+          await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+          const salon = interaction.options.getChannel('salon', true);
+          const messageText = (interaction.options.getString('message', true) || '').trim();
+          const titre = (interaction.options.getString('titre', false) || '').trim();
+          const epingler = interaction.options.getBoolean('epingler') || false;
+
+          const canUse = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)
+            || interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageMessages);
+
+          if (!canUse) {
+            return interaction.editReply({ content: 'Commande réservée aux modérateurs et admins.' }).catch(() => {});
+          }
+
+          if (!salon?.isTextBased?.()) {
+            return interaction.editReply({ content: 'Choisis un salon texte.' }).catch(() => {});
+          }
+
+          let sent = null;
+          try {
+            if (titre) {
+              const embed = new EmbedBuilder()
+                .setColor(0x5865F2)
+                .setTitle(titre)
+                .setDescription(messageText)
+                .setTimestamp();
+              sent = await salon.send({ embeds: [embed], allowedMentions: { parse: ['everyone', 'roles', 'users'] } });
+            } else {
+              sent = await salon.send({ content: messageText, allowedMentions: { parse: ['everyone', 'roles', 'users'] } });
+            }
+          } catch (e) {
+            return interaction.editReply({ content: `Impossible de poster l’annonce: ${e?.message || e}`.slice(0, 1900) }).catch(() => {});
+          }
+
+          if (epingler && sent) {
+            try { await sent.pin(); } catch {}
+          }
+
+          return interaction.editReply({ content: `✅ Annonce postée dans <#${salon.id}>.${sent ? ` (message ${sent.id})` : ''}` }).catch(() => {});
+        }
+
         if (interaction.commandName === 'lock_write') {
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
