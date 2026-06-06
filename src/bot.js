@@ -2395,6 +2395,14 @@ async function registerCommands(client) {
       .addIntegerOption(o => o.setName('nombre').setDescription('Nombre de messages à supprimer (1-100)').setRequired(false)),
 
     new SlashCommandBuilder()
+      .setName('annoncer')
+      .setDescription('Poster une annonce via le bot (mod/admin)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster l’annonce').addChannelTypes(0,5).setRequired(true))
+      .addStringOption(o => o.setName('message').setDescription('Contenu de l’annonce').setRequired(true).setMaxLength(4000))
+      .addStringOption(o => o.setName('titre').setDescription('Titre optionnel pour poster en embed').setRequired(false).setMaxLength(256))
+      .addBooleanOption(o => o.setName('epingler').setDescription('Épingler le message posté').setRequired(false)),
+
+    new SlashCommandBuilder()
       .setName('metiers-install')
       .setDescription('Installer le dashboard métiers (admin only)')
       .setDMPermission(false),
