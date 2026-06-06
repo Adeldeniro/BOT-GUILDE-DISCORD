@@ -18,6 +18,7 @@ const dragodinde = require('./dragodinde');
 const GTO_WARNINGS_FILE = path.join(__dirname, '..', 'data', 'gto-warnings.json');
 const DEFENSE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'defense-perco-panel.png');
 const ATTACK_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'attack-perco-panel.png');
+const MARKET_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'market-panel.png');
 const PERCO_PANEL_NOTIFS_FILE = path.join(__dirname, '..', 'data', 'perco-panel-notifs.json');
 const defenseSubmissionSessions = new Map();
 const attackSubmissionSessions = new Map();
@@ -463,8 +464,8 @@ function nextMarketFlavor(kind, variants) {
   return variants[index];
 }
 
-function buildMarketPanelEmbed() {
-  return new EmbedBuilder()
+function buildMarketPanelEmbed({ withImage = true } = {}) {
+  const embed = new EmbedBuilder()
     .setColor(0xF1C40F)
     .setTitle('🏪 Marché de la guilde')
     .setDescription([
@@ -476,6 +477,12 @@ function buildMarketPanelEmbed() {
       'Le salon reste propre, les annonces partent par le bot, et les discussions finissent dans le thread prévu pour ça.'
     ].join('\n'))
     .setFooter({ text: 'Marchande si tu veux, mais essaie d’avoir autre chose que du culot.' });
+
+  if (withImage) {
+    embed.setImage('attachment://market-panel.png');
+  }
+
+  return embed;
 }
 
 function buildMarketPanelRows(guildId, announceThreadId = null, discussionThreadId = null) {
@@ -518,26 +525,45 @@ function buildMarketPanelRows(guildId, announceThreadId = null, discussionThread
 
 async function ensureMarketPanel(guild, panelChannel, announceThread, discussionThread) {
   const rc = getConfigForGuild(guild.id);
-  const payload = {
-    embeds: [buildMarketPanelEmbed()],
+  const files = fs.existsSync(MARKET_PANEL_IMAGE_PATH)
+    ? [{ attachment: MARKET_PANEL_IMAGE_PATH, name: 'market-panel.png' }]
+    : [];
+
+  const buildPayload = (withImage) => ({
+    embeds: [buildMarketPanelEmbed({ withImage })],
     components: buildMarketPanelRows(guild.id, announceThread?.id || null, discussionThread?.id || null),
+    files: withImage ? files : [],
     allowedMentions: { parse: [] },
-  };
+  });
 
   let existing = null;
   if (rc.marketPanelChannelId === panelChannel.id && rc.marketPanelMessageId) {
     existing = await panelChannel.messages.fetch(rc.marketPanelMessageId).catch(() => null);
   }
 
+  const tryEditOrSend = async (targetMessage = null) => {
+    for (const withImage of [true, false]) {
+      const payload = buildPayload(withImage);
+      if (targetMessage) {
+        const edited = await targetMessage.edit(payload).catch(() => null);
+        if (edited) return edited;
+      } else {
+        const sent = await panelChannel.send(payload).catch(() => null);
+        if (sent) return sent;
+      }
+    }
+    return null;
+  };
+
   if (existing) {
-    const edited = await existing.edit(payload).catch(() => null);
+    const edited = await tryEditOrSend(existing);
     if (edited) return edited;
   }
 
   const recent = await panelChannel.messages.fetch({ limit: 15 }).catch(() => null);
   const priorPanel = recent?.find((m) => m.author?.id === guild.client.user.id && m.components?.some((row) => row.components?.some((c) => c.customId === `market:sell:${guild.id}`)));
   if (priorPanel) {
-    const edited = await priorPanel.edit(payload).catch(() => null);
+    const edited = await tryEditOrSend(priorPanel);
     if (edited) {
       updateGuildConfig(guild.id, {
         market_panel_channel_id: panelChannel.id,
@@ -549,7 +575,7 @@ async function ensureMarketPanel(guild, panelChannel, announceThread, discussion
     }
   }
 
-  const msg = await panelChannel.send(payload).catch(() => null);
+  const msg = await tryEditOrSend(null);
   if (msg) {
     try { await msg.pin(); } catch {}
     updateGuildConfig(guild.id, {
