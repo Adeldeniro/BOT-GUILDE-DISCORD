@@ -2398,8 +2398,9 @@ async function registerCommands(client) {
       .setName('annoncer')
       .setDescription('Poster une annonce via le bot (mod/admin)')
       .addChannelOption(o => o.setName('salon').setDescription('Salon où poster l’annonce').addChannelTypes(0,5).setRequired(true))
-      .addStringOption(o => o.setName('message').setDescription('Contenu de l’annonce').setRequired(true).setMaxLength(4000))
+      .addStringOption(o => o.setName('message').setDescription('Contenu texte de l’annonce').setRequired(false).setMaxLength(4000))
       .addStringOption(o => o.setName('titre').setDescription('Titre optionnel pour poster en embed').setRequired(false).setMaxLength(256))
+      .addStringOption(o => o.setName('image').setDescription('URL d’image à afficher dans l’annonce').setRequired(false).setMaxLength(1000))
       .addBooleanOption(o => o.setName('epingler').setDescription('Épingler le message posté').setRequired(false)),
 
     new SlashCommandBuilder()
@@ -5142,8 +5143,9 @@ async function main() {
           await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
           const salon = interaction.options.getChannel('salon', true);
-          const messageText = (interaction.options.getString('message', true) || '').trim();
+          const messageText = (interaction.options.getString('message', false) || '').trim();
           const titre = (interaction.options.getString('titre', false) || '').trim();
+          const imageUrl = (interaction.options.getString('image', false) || '').trim();
           const epingler = interaction.options.getBoolean('epingler') || false;
 
           const canUse = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)
@@ -5157,14 +5159,32 @@ async function main() {
             return interaction.editReply({ content: 'Choisis un salon texte.' }).catch(() => {});
           }
 
+          if (!messageText && !titre && !imageUrl) {
+            return interaction.editReply({ content: 'Donne au moins un texte, un titre, ou une image.' }).catch(() => {});
+          }
+
+          if (imageUrl) {
+            try {
+              const parsed = new URL(imageUrl);
+              if (!['http:', 'https:'].includes(parsed.protocol)) {
+                return interaction.editReply({ content: 'L’image doit être une URL http(s) valide.' }).catch(() => {});
+              }
+            } catch {
+              return interaction.editReply({ content: 'L’image doit être une URL valide.' }).catch(() => {});
+            }
+          }
+
           let sent = null;
           try {
-            if (titre) {
+            if (titre || imageUrl) {
               const embed = new EmbedBuilder()
                 .setColor(0x5865F2)
-                .setTitle(titre)
-                .setDescription(messageText)
                 .setTimestamp();
+
+              if (titre) embed.setTitle(titre);
+              if (messageText) embed.setDescription(messageText);
+              if (imageUrl) embed.setImage(imageUrl);
+
               sent = await salon.send({ embeds: [embed], allowedMentions: { parse: ['everyone', 'roles', 'users'] } });
             } else {
               sent = await salon.send({ content: messageText, allowedMentions: { parse: ['everyone', 'roles', 'users'] } });
