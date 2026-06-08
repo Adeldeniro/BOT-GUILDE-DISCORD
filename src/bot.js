@@ -789,11 +789,11 @@ async function ensureDefensePercoPanel(guild, panelChannel, archiveThread) {
   return msg;
 }
 
-const percoFlavorRotation = {
-  defenseWith: 0,
-  defenseSolo: 0,
-  attackWith: 0,
-  attackSolo: 0,
+const percoFlavorHistory = {
+  defenseWith: [],
+  defenseSolo: [],
+  attackWith: [],
+  attackSolo: [],
 };
 
 const DEFENSE_WITH_MATES_VARIANTS = [
@@ -812,6 +812,16 @@ const DEFENSE_WITH_MATES_VARIANTS = [
   ({ authorId, enemyGuild, teammates }) => `🚪 <@${authorId}> et **${teammates}** ont tenu la porte tellement fort que **${enemyGuild}** a fini dehors avec les preuves collées au front.`,
   ({ authorId, enemyGuild, teammates }) => `🪦 Défense validée : **${enemyGuild}** a été rangée proprement par <@${authorId}> et **${teammates}**, avec les screens pour éviter tout roman révisionniste.`,
   ({ authorId, enemyGuild, teammates }) => `🥊 <@${authorId}> et **${teammates}** ont transformé **${enemyGuild}** en exemple local de surestimation collective.`,
+  ({ authorId, enemyGuild, teammates }) => `🪦 <@${authorId}> et **${teammates}** ont couché **${enemyGuild}** si proprement qu’on dirait presque un tutoriel pour humilier sans transpirer.`,
+  ({ authorId, enemyGuild, teammates }) => `🥾 **${enemyGuild}** est arrivée pleine d’espoir, <@${authorId}> et **${teammates}** les ont renvoyés avec les dents dans le sac et la honte en bandoulière.`,
+  ({ authorId, enemyGuild, teammates }) => `🧹 <@${authorId}> et **${teammates}** ont balayé **${enemyGuild}** comme une saleté qu’on n’avait plus envie de voir traîner devant la porte.`,
+  ({ authorId, enemyGuild, teammates }) => `📸 **${enemyGuild}** a encore offert un shooting gratuit à <@${authorId}> et **${teammates}**. Merci pour les screens, dommage pour la dignité.`,
+  ({ authorId, enemyGuild, teammates }) => `🫗 <@${authorId}> et **${teammates}** ont renversé **${enemyGuild}** comme une boisson tiède qu’on n’avait déjà pas envie de finir.`,
+  ({ authorId, enemyGuild, teammates }) => `🪓 **${enemyGuild}** voulait une défense, <@${authorId}> et **${teammates}** leur ont surtout livré une exécution commentée.`,
+  ({ authorId, enemyGuild, teammates }) => `🧂 <@${authorId}> et **${teammates}** ont tellement salé **${enemyGuild}** qu’on pourrait conserver leurs restes pour l’hiver.`,
+  ({ authorId, enemyGuild, teammates }) => `🚮 **${enemyGuild}** a fini gérée par <@${authorId}> et **${teammates}** comme un vieux déchet qui prenait trop de place sur le palier.`,
+  ({ authorId, enemyGuild, teammates }) => `🥶 <@${authorId}> et **${teammates}** ont rappelé à **${enemyGuild}** que venir mourir ici sans préparation, c’est presque une tradition maintenant.`,
+  ({ authorId, enemyGuild, teammates }) => `🪤 **${enemyGuild}** est entrée dans la pièce, <@${authorId}> et **${teammates}** ont refermé le piège et gardé les preuves pour la postérité.`,
 ];
 
 const DEFENSE_SOLO_VARIANTS = [
@@ -830,12 +840,33 @@ const DEFENSE_SOLO_VARIANTS = [
   ({ authorId, enemyGuild }) => `🚪 <@${authorId}> a tenu la porte si fort que **${enemyGuild}** a fini projetée dehors avec les screens comme reçu.`,
   ({ authorId, enemyGuild }) => `🪦 Défense validée : **${enemyGuild}** a été rangée proprement par <@${authorId}>, sans besoin de commentaire supplémentaire.`,
   ({ authorId, enemyGuild }) => `🥊 <@${authorId}> a transformé **${enemyGuild}** en démonstration ambulante de plan raté.`,
+  ({ authorId, enemyGuild }) => `🪦 <@${authorId}> a couché **${enemyGuild}** si proprement qu’on dirait presque une formalité administrative avec supplément humiliation.`,
+  ({ authorId, enemyGuild }) => `🥾 **${enemyGuild}** est venue gonflée à bloc, <@${authorId}> les a renvoyés dégonflés comme des baudruches percées.`,
+  ({ authorId, enemyGuild }) => `🧹 <@${authorId}> a balayé **${enemyGuild}** comme une corvée vite faite qu’on veut juste sortir de sa journée.`,
+  ({ authorId, enemyGuild }) => `📸 **${enemyGuild}** a encore servi de décor à <@${authorId}>. Les screens sont propres, leur réputation un peu moins.`,
+  ({ authorId, enemyGuild }) => `🫗 <@${authorId}> a renversé **${enemyGuild}** comme un verre médiocre qu’on regrette dès la première gorgée.`,
+  ({ authorId, enemyGuild }) => `🪓 **${enemyGuild}** voulait forcer la porte, <@${authorId}> leur a surtout montré où poser le corps et fermer les yeux.`,
+  ({ authorId, enemyGuild }) => `🧂 <@${authorId}> a tellement salé **${enemyGuild}** qu’on pourrait assaisonner le serveur avec leurs larmes.`,
+  ({ authorId, enemyGuild }) => `🚮 **${enemyGuild}** a fini gérée par <@${authorId}> comme un vieux rebut qu’on dégage sans cérémonie.`,
+  ({ authorId, enemyGuild }) => `🥶 <@${authorId}> a rappelé à **${enemyGuild}** que venir mourir ici sans préparation, c’est juste du contenu bonus pour les autres.`,
+  ({ authorId, enemyGuild }) => `🪤 **${enemyGuild}** s’est pointée au mauvais endroit, au mauvais moment, face à <@${authorId}>. Le reste n’est qu’une archive de plus.`,
 ];
 
 function nextPercoFlavor(kind, variants) {
-  const index = percoFlavorRotation[kind] || 0;
-  percoFlavorRotation[kind] = (index + 1) % variants.length;
-  return variants[index];
+  const history = percoFlavorHistory[kind] || [];
+  const recentWindow = Math.min(4, Math.max(1, variants.length - 1));
+  const banned = new Set(history.slice(-recentWindow));
+
+  let pool = variants.map((_, index) => index).filter((index) => !banned.has(index));
+  if (!pool.length) {
+    pool = variants.map((_, index) => index);
+  }
+
+  const pickedIndex = pool[Math.floor(Math.random() * pool.length)];
+  history.push(pickedIndex);
+  if (history.length > 12) history.splice(0, history.length - 12);
+  percoFlavorHistory[kind] = history;
+  return variants[pickedIndex];
 }
 
 function buildDefensePercoResultText(authorId, enemyGuild, teammates) {
@@ -969,6 +1000,16 @@ const ATTACK_WITH_MATES_VARIANTS = [
   ({ authorId, enemyGuild, teammates }) => `🎯 **${enemyGuild}** a été traitée comme une cible pédagogique par <@${authorId}> et **${teammates}**. Les screens confirment l’efficacité du cours.`,
   ({ authorId, enemyGuild, teammates }) => `🪓 <@${authorId}> et **${teammates}** ont raccourci les ambitions de **${enemyGuild}** plus vite qu’un patch note mal lu.`,
   ({ authorId, enemyGuild, teammates }) => `😈 **${enemyGuild}** a pris l’attaque, <@${authorId}> et **${teammates}** ont pris les screens. Chacun son rôle.`,
+  ({ authorId, enemyGuild, teammates }) => `🪦 <@${authorId}> et **${teammates}** ont ouvert **${enemyGuild}** comme une boîte de conserve trop fière pour admettre qu’elle était déjà foutue.`,
+  ({ authorId, enemyGuild, teammates }) => `🥾 **${enemyGuild}** a voulu tenir, <@${authorId}> et **${teammates}** les ont piétinés avec ce calme détestable des gens qui savent déjà comment ça finit.`,
+  ({ authorId, enemyGuild, teammates }) => `🩻 <@${authorId}> et **${teammates}** ont laissé **${enemyGuild}** si proprement démontée qu’on pourrait presque faire l’inventaire des dégâts pièce par pièce.`,
+  ({ authorId, enemyGuild, teammates }) => `🚮 **${enemyGuild}** a fini ramassée par <@${authorId}> et **${teammates}** comme un vulgaire reste de combat qu’on dégage avant que ça sente trop fort.`,
+  ({ authorId, enemyGuild, teammates }) => `🧂 <@${authorId}> et **${teammates}** ont tellement salé **${enemyGuild}** qu’on entend presque la mer quand on ouvre les screens.`,
+  ({ authorId, enemyGuild, teammates }) => `📦 **${enemyGuild}** s’est fait expédier par <@${authorId}> et **${teammates}** avec zéro délicatesse et un reçu visuel bien humiliant.`,
+  ({ authorId, enemyGuild, teammates }) => `🪓 <@${authorId}> et **${teammates}** ont retaillé **${enemyGuild}** en morceaux assez petits pour rentrer dans les souvenirs gênants du serveur.`,
+  ({ authorId, enemyGuild, teammates }) => `🥶 **${enemyGuild}** croyait encore jouer, <@${authorId}> et **${teammates}** avaient déjà commencé l’autopsie sociale.`,
+  ({ authorId, enemyGuild, teammates }) => `🫠 <@${authorId}> et **${teammates}** ont fait fondre **${enemyGuild}** sur place, puis ont affiché le résultat comme un trophée malveillant.`,
+  ({ authorId, enemyGuild, teammates }) => `📉 **${enemyGuild}** a chuté si fort face à <@${authorId}> et **${teammates}** qu’on hésite entre archive de guerre et signalement pour cruauté.`,
 ];
 
 const ATTACK_SOLO_VARIANTS = [
@@ -987,6 +1028,16 @@ const ATTACK_SOLO_VARIANTS = [
   ({ authorId, enemyGuild }) => `🎯 **${enemyGuild}** a été traitée comme une cible d’entraînement par <@${authorId}>. Les screens ont gardé le replay.`,
   ({ authorId, enemyGuild }) => `🪓 <@${authorId}> a raccourci les ambitions de **${enemyGuild}** plus vite qu’un rêve de victoire à 3h du matin.`,
   ({ authorId, enemyGuild }) => `😈 **${enemyGuild}** a pris l’attaque, <@${authorId}> a pris les screens. Le partage des tâches était limpide.`,
+  ({ authorId, enemyGuild }) => `🪦 <@${authorId}> a ouvert **${enemyGuild}** comme une boîte de conserve qui se croyait encore impressionnante.`,
+  ({ authorId, enemyGuild }) => `🥾 **${enemyGuild}** a voulu tenir, <@${authorId}> les a piétinés avec ce petit calme insupportable des gens qui savent déjà qu’ils vont gagner.`,
+  ({ authorId, enemyGuild }) => `🩻 <@${authorId}> a laissé **${enemyGuild}** si proprement démontée qu’on pourrait presque numéroter les dégâts à la craie.`,
+  ({ authorId, enemyGuild }) => `🚮 **${enemyGuild}** a fini ramassée par <@${authorId}> comme un vieux rebut qu’on évacue avant que quelqu’un prétende encore que c’était serré.`,
+  ({ authorId, enemyGuild }) => `🧂 <@${authorId}> a tellement salé **${enemyGuild}** qu’on pourrait nourrir un port entier avec leurs larmes.`,
+  ({ authorId, enemyGuild }) => `📦 **${enemyGuild}** s’est fait expédier par <@${authorId}> avec zéro délicatesse et une preuve visuelle bien vexante.`,
+  ({ authorId, enemyGuild }) => `🪓 <@${authorId}> a retaillé **${enemyGuild}** en morceaux assez petits pour rentrer dans les blagues du soir.`,
+  ({ authorId, enemyGuild }) => `🥶 **${enemyGuild}** croyait encore jouer, <@${authorId}> avait déjà commencé l’autopsie de leur orgueil.`,
+  ({ authorId, enemyGuild }) => `🫠 <@${authorId}> a fait fondre **${enemyGuild}** sur place, puis a laissé les screens faire le sale boulot derrière.`,
+  ({ authorId, enemyGuild }) => `📉 **${enemyGuild}** a chuté si fort face à <@${authorId}> qu’on hésite entre archive de guerre et humiliation certifiée.`,
 ];
 
 function buildAttackPercoResultText(authorId, enemyGuild, teammates) {
