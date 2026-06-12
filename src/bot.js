@@ -3829,9 +3829,10 @@ async function main() {
           const searchId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
           const data = { mode, targetCount, classes, comment };
           const content = `${kind === 'pvp' ? '⚔️' : '🐉'} <@&${notifyRoleId}> nouvelle recherche ${kind.toUpperCase()} lancée par <@${interaction.user.id}>.`;
+          const initialJoinedUsers = [interaction.user.id];
           const sent = await targetThread.send({
             content,
-            embeds: [buildTeamSearchEmbed(kind, interaction.user.id, data, [])],
+            embeds: [buildTeamSearchEmbed(kind, interaction.user.id, data, initialJoinedUsers)],
             components: buildTeamSearchRows(guildId, interaction.user.id, kind, searchId, false),
             allowedMentions: { users: [interaction.user.id], roles: notifyRoleId ? [notifyRoleId] : [] },
           }).catch(() => null);
@@ -3845,7 +3846,7 @@ async function main() {
             kind,
             ownerId: interaction.user.id,
             data,
-            joinedUsers: [],
+            joinedUsers: initialJoinedUsers,
             messageId: sent.id,
             channelId: sent.channelId,
             closed: false,
@@ -6667,6 +6668,9 @@ ${info}`.slice(0, 1900),
           const entry = getTeamSearchEntry(searchId);
           if (!entry || entry.closed) {
             return interaction.reply({ content: 'Recherche expirée ou clôturée.', ephemeral: true }).catch(() => {});
+          }
+          if (interaction.user.id === entry.ownerId) {
+            return interaction.reply({ content: 'Tu es déjà compté dans ta propre recherche, champion.', ephemeral: true }).catch(() => {});
           }
           if (!entry.joinedUsers.includes(interaction.user.id)) {
             entry.joinedUsers.push(interaction.user.id);
