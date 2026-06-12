@@ -2716,9 +2716,10 @@ async function main() {
       GatewayIntentBits.GuildMessages,
       GatewayIntentBits.GuildMembers,
       GatewayIntentBits.GuildInvites,
+      GatewayIntentBits.GuildMessageReactions,
       GatewayIntentBits.MessageContent,
     ],
-    partials: [Partials.Message, Partials.Channel, Partials.GuildMember, Partials.User],
+    partials: [Partials.Message, Partials.Channel, Partials.GuildMember, Partials.User, Partials.Reaction],
   });
 
   client.once('ready', async () => {
@@ -2805,6 +2806,7 @@ async function main() {
   // On join: guide the user to the rules channel/message (Discord can't "auto-redirect" a user).
   client.on('messageReactionAdd', async (reaction, user) => {
     try {
+      if (reaction.partial) await reaction.fetch().catch(() => {});
       if (user?.bot) return;
       const message = reaction.message;
       const guild = message.guild;
@@ -2825,6 +2827,7 @@ async function main() {
 
   client.on('messageReactionRemove', async (reaction, user) => {
     try {
+      if (reaction.partial) await reaction.fetch().catch(() => {});
       if (user?.bot) return;
       const message = reaction.message;
       const guild = message.guild;
