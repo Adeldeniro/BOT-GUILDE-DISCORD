@@ -764,7 +764,6 @@ function buildTeamSearchRows(guildId, ownerId, kind, searchId, isClosed = false)
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`teamsearch:join:${guildId}:${kind}:${searchId}`).setLabel('Je viens').setStyle(ButtonStyle.Success).setDisabled(isClosed),
-      new ButtonBuilder().setCustomId(`teamsearch:talk:${guildId}:${kind}:${ownerId}:${searchId}`).setLabel('Ouvrir la discussion').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(`teamsearch:done:${guildId}:${kind}:${ownerId}:${searchId}`).setLabel(isClosed ? 'Recherche clôturée' : 'Complet').setStyle(ButtonStyle.Danger).setDisabled(isClosed),
     ),
   ];
@@ -6675,27 +6674,16 @@ ${info}`.slice(0, 1900),
           if (!entry.joinedUsers.includes(interaction.user.id)) {
             entry.joinedUsers.push(interaction.user.id);
           }
+          const targetCount = Number(entry.data?.targetCount || 0);
+          if (targetCount > 0 && entry.joinedUsers.length >= targetCount) {
+            entry.closed = true;
+          }
           setTeamSearchEntry(searchId, entry);
           const msg = await interaction.channel.messages.fetch(entry.messageId).catch(() => null);
           if (msg) {
             await msg.edit({ embeds: [buildTeamSearchEmbed(kind, entry.ownerId, entry.data, entry.joinedUsers)], components: buildTeamSearchRows(guildId, entry.ownerId, kind, searchId, entry.closed) }).catch(() => {});
           }
-          return interaction.reply({ content: '✅ Tu es ajouté dans les volontaires.', ephemeral: true }).catch(() => {});
-        }
-
-        if (interaction.customId.startsWith('teamsearch:talk:')) {
-          const [, , guildId, kind, ownerId] = interaction.customId.split(':');
-          if (!interaction.guild || interaction.guild.id !== guildId) {
-            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
-          }
-          const rc = getConfigForGuild(guildId);
-          const targetThreadId = kind === 'pvp' ? rc.teamSearchPvpThreadId : rc.teamSearchPvmThreadId;
-          const targetThread = targetThreadId ? await interaction.client.channels.fetch(targetThreadId).catch(() => null) : null;
-          if (!targetThread || !targetThread.isThread?.()) {
-            return interaction.reply({ content: 'Thread de discussion introuvable.', ephemeral: true }).catch(() => {});
-          }
-          await targetThread.send({ content: `💬 <@${interaction.user.id}> veut discuter avec <@${ownerId}> au sujet d’une recherche ${kind.toUpperCase()}.`, allowedMentions: { users: [interaction.user.id, ownerId] } }).catch(() => {});
-          return interaction.reply({ content: `✅ Discussion ouverte dans <#${targetThread.id}>.`, ephemeral: true }).catch(() => {});
+          return interaction.reply({ content: entry.closed ? '✅ Tu prends la dernière place, la recherche est maintenant complète.' : '✅ Tu es ajouté dans les volontaires.', ephemeral: true }).catch(() => {});
         }
 
         if (interaction.customId.startsWith('teamsearch:done:')) {
