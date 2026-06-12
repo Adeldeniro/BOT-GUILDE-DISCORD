@@ -3817,18 +3817,16 @@ async function main() {
 
           const targetThreadId = kind === 'pvp' ? rc.teamSearchPvpThreadId : rc.teamSearchPvmThreadId;
           const notifyRoleId = kind === 'pvp' ? rc.teamSearchPvpRoleId : rc.teamSearchPvmRoleId;
-          const panelChannelId = rc.teamSearchPanelChannelId;
-          const panelChannel = panelChannelId ? await interaction.client.channels.fetch(panelChannelId).catch(() => null) : null;
           const targetThread = targetThreadId ? await interaction.client.channels.fetch(targetThreadId).catch(() => null) : null;
 
-          if (!panelChannel || !panelChannel.isTextBased?.() || !targetThread || !targetThread.isThread?.()) {
+          if (!targetThread || !targetThread.isThread?.()) {
             return interaction.reply({ content: 'Le système de recherche de team n’est pas encore configuré correctement.', ephemeral: true }).catch(() => {});
           }
 
           const searchId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
           const data = { mode, targetCount, classes, comment };
           const content = `${kind === 'pvp' ? '⚔️' : '🐉'} <@&${notifyRoleId}> nouvelle recherche ${kind.toUpperCase()} lancée par <@${interaction.user.id}>.`;
-          const sent = await panelChannel.send({
+          const sent = await targetThread.send({
             content,
             embeds: [buildTeamSearchEmbed(kind, interaction.user.id, data, [])],
             components: buildTeamSearchRows(guildId, interaction.user.id, kind, searchId, false),
