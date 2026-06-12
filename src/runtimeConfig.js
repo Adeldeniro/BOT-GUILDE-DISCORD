@@ -91,6 +91,14 @@ function getConfigForGuild(guildId) {
     marketPanelMessageId: pick(gc.market_panel_message_id, null),
     marketAnnounceThreadId: pick(gc.market_announce_thread_id, null),
     marketDiscussionThreadId: pick(gc.market_discussion_thread_id, null),
+
+    teamSearchPanelChannelId: pick(gc.team_search_panel_channel_id, null),
+    teamSearchPanelMessageId: pick(gc.team_search_panel_message_id, null),
+    teamSearchNotifyMessageId: pick(gc.team_search_notify_message_id, null),
+    teamSearchPvpThreadId: pick(gc.team_search_pvp_thread_id, null),
+    teamSearchPvmThreadId: pick(gc.team_search_pvm_thread_id, null),
+    teamSearchPvpRoleId: pick(gc.team_search_pvp_role_id, null),
+    teamSearchPvmRoleId: pick(gc.team_search_pvm_role_id, null),
   };
 }
 

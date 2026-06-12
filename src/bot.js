@@ -25,6 +25,7 @@ const attackSubmissionSessions = new Map();
 const marketSaleDraftSessions = new Map();
 const marketSaleImageSessions = new Map();
 const marketContactCooldowns = new Map();
+const teamSearchState = new Map();
 const percoNotifResetTimers = new Map();
 const panelWriteGrantTimers = new Map();
 
@@ -674,6 +675,156 @@ function buildMarketContactRow(authorId, kind) {
         .setStyle(ButtonStyle.Secondary)
     ),
   ];
+}
+
+function buildTeamSearchPanelEmbed() {
+  return new EmbedBuilder()
+    .setColor(0x9B59B6)
+    .setTitle('🎯 Recherche de team')
+    .setDescription([
+      'Besoin de monde pour casser des dents en PvP ou trainer des gens en PvM ? Poste ça proprement ici.',
+      '',
+      '• **Créer une recherche PvP** pour perco 4v4, koli 3v3 ou autre compo sale.',
+      '• **Créer une recherche PvM** pour donjon, farm, quête ou autre galère rentable.',
+      '',
+      'Réagis aussi au message de notifications si tu veux être ping quand ça bouge.'
+    ].join('\n'))
+    .setFooter({ text: 'Viens armé, ou au moins utile.' });
+}
+
+function buildTeamSearchPanelRows(guildId, pvpThreadId = null, pvmThreadId = null) {
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`teamsearch:pvp:${guildId}`).setLabel('Créer une recherche PvP').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId(`teamsearch:pvm:${guildId}`).setLabel('Créer une recherche PvM').setStyle(ButtonStyle.Primary),
+    ),
+  ];
+
+  const links = [];
+  if (pvpThreadId) {
+    links.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(`https://discord.com/channels/${guildId}/${pvpThreadId}`).setLabel('Discussions PvP'));
+  }
+  if (pvmThreadId) {
+    links.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(`https://discord.com/channels/${guildId}/${pvmThreadId}`).setLabel('Discussions PvM'));
+  }
+  if (links.length) rows.push(new ActionRowBuilder().addComponents(...links));
+
+  return rows;
+}
+
+function buildTeamSearchNotifyText(pvpRoleId, pvmRoleId) {
+  return [
+    '🔔 **Notifications recherche de team**',
+    '',
+    `Réagis avec 🗡️ pour recevoir le rôle <@&${pvpRoleId}>.`,
+    `Réagis avec 🐉 pour recevoir le rôle <@&${pvmRoleId}>.`,
+    '',
+    'Enlève ta réaction le jour où tu ne veux plus être ping. Simple, propre, sans crise existentielle.'
+  ].join('\n');
+}
+
+function buildTeamSearchTypeLabel(kind, mode) {
+  if (kind === 'pvp') {
+    if (mode === 'perco') return 'Percepteur 4v4';
+    if (mode === 'koli') return 'Kolizéum 3v3';
+    return 'Autre PvP';
+  }
+  if (mode === 'donjon') return 'Donjon';
+  if (mode === 'farm') return 'Farm';
+  if (mode === 'quete') return 'Quête';
+  return 'Autre PvM';
+}
+
+function buildTeamSearchEmbed(kind, authorId, data, joinedUsers = []) {
+  const label = buildTeamSearchTypeLabel(kind, data.mode);
+  const targetCount = Number(data.targetCount || 0);
+  const joined = joinedUsers.length;
+  const title = kind === 'pvp' ? '⚔️ Recherche de team PvP' : '🐉 Recherche de team PvM';
+  const embed = new EmbedBuilder()
+    .setColor(kind === 'pvp' ? 0xE74C3C : 0x2ECC71)
+    .setTitle(title)
+    .addFields(
+      { name: 'Type', value: label, inline: true },
+      { name: 'Auteur', value: `<@${authorId}>`, inline: true },
+      { name: 'Places recherchées', value: `${joined}/${targetCount}`, inline: true },
+      { name: 'Profils / classes recherchés', value: data.classes || 'Pas de préférence annoncée', inline: false },
+      { name: 'Commentaire', value: data.comment || 'Aucun commentaire, donc viens et improvise.', inline: false },
+    )
+    .setFooter({ text: 'Utilise les boutons si tu viens, si tu veux parler, ou si c’est complet.' })
+    .setTimestamp();
+
+  if (joinedUsers.length) {
+    embed.addFields({ name: 'Volontaires', value: joinedUsers.map((id) => `<@${id}>`).join(' ') || '—', inline: false });
+  }
+
+  return embed;
+}
+
+function buildTeamSearchRows(guildId, ownerId, kind, searchId, isClosed = false) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`teamsearch:join:${guildId}:${kind}:${searchId}`).setLabel('Je viens').setStyle(ButtonStyle.Success).setDisabled(isClosed),
+      new ButtonBuilder().setCustomId(`teamsearch:talk:${guildId}:${kind}:${ownerId}:${searchId}`).setLabel('Ouvrir la discussion').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`teamsearch:done:${guildId}:${kind}:${ownerId}:${searchId}`).setLabel(isClosed ? 'Recherche clôturée' : 'Complet').setStyle(ButtonStyle.Danger).setDisabled(isClosed),
+    ),
+  ];
+}
+
+async function ensureTeamSearchPanel(guild, channel, pvpThread, pvmThread) {
+  const rc = getConfigForGuild(guild.id);
+  const payload = {
+    embeds: [buildTeamSearchPanelEmbed()],
+    components: buildTeamSearchPanelRows(guild.id, pvpThread?.id || null, pvmThread?.id || null),
+    allowedMentions: { parse: [] },
+  };
+
+  let existing = null;
+  if (rc.teamSearchPanelChannelId === channel.id && rc.teamSearchPanelMessageId) {
+    existing = await channel.messages.fetch(rc.teamSearchPanelMessageId).catch(() => null);
+  }
+
+  if (existing) {
+    const edited = await existing.edit(payload).catch(() => null);
+    if (edited) return edited;
+  }
+
+  const msg = await channel.send(payload).catch(() => null);
+  if (msg) {
+    try { await msg.pin(); } catch {}
+    updateGuildConfig(guild.id, { team_search_panel_channel_id: channel.id, team_search_panel_message_id: msg.id });
+  }
+  return msg;
+}
+
+async function ensureTeamSearchNotifyMessage(guild, channel, pvpRoleId, pvmRoleId) {
+  const rc = getConfigForGuild(guild.id);
+  let msg = null;
+  if (rc.teamSearchNotifyMessageId) {
+    msg = await channel.messages.fetch(rc.teamSearchNotifyMessageId).catch(() => null);
+  }
+  const content = buildTeamSearchNotifyText(pvpRoleId, pvmRoleId);
+  if (msg) {
+    await msg.edit({ content, allowedMentions: { parse: ['roles'] } }).catch(() => {});
+  } else {
+    msg = await channel.send({ content, allowedMentions: { parse: ['roles'] } }).catch(() => null);
+  }
+  if (msg) {
+    updateGuildConfig(guild.id, { team_search_notify_message_id: msg.id });
+    try {
+      await msg.react('🗡️');
+      await msg.react('🐉');
+    } catch {}
+  }
+  return msg;
+}
+
+function getTeamSearchEntry(searchId) {
+  return teamSearchState.get(searchId) || null;
+}
+
+function setTeamSearchEntry(searchId, entry) {
+  teamSearchState.set(searchId, entry);
+  return entry;
 }
 
 function buildDefensePercoPanelEmbed({ withImage = true } = {}) {
@@ -2523,6 +2674,10 @@ async function registerCommands(client) {
       .setDescription('Configurer le panneau market et son thread global de négociation'),
 
     new SlashCommandBuilder()
+      .setName('setup_recherche_team')
+      .setDescription('Configurer le panneau de recherche de team et ses notifications'),
+
+    new SlashCommandBuilder()
       .setName('setup_events')
       .setDescription('Configurer le système d\'événements perco (owner only)')
       .addChannelOption(o => o.setName('preuves').setDescription('Salon où les joueurs postent les screens').addChannelTypes(0,5).setRequired(true))
@@ -2648,6 +2803,46 @@ async function main() {
   });
 
   // On join: guide the user to the rules channel/message (Discord can't "auto-redirect" a user).
+  client.on('messageReactionAdd', async (reaction, user) => {
+    try {
+      if (user?.bot) return;
+      const message = reaction.message;
+      const guild = message.guild;
+      if (!guild) return;
+      const rc = getConfigForGuild(guild.id);
+      if (!rc.teamSearchNotifyMessageId || message.id !== rc.teamSearchNotifyMessageId) return;
+      const member = await guild.members.fetch(user.id).catch(() => null);
+      if (!member) return;
+      const emoji = reaction.emoji?.name;
+      if (emoji === '🗡️' && rc.teamSearchPvpRoleId) {
+        await member.roles.add(rc.teamSearchPvpRoleId).catch(() => {});
+      }
+      if (emoji === '🐉' && rc.teamSearchPvmRoleId) {
+        await member.roles.add(rc.teamSearchPvmRoleId).catch(() => {});
+      }
+    } catch {}
+  });
+
+  client.on('messageReactionRemove', async (reaction, user) => {
+    try {
+      if (user?.bot) return;
+      const message = reaction.message;
+      const guild = message.guild;
+      if (!guild) return;
+      const rc = getConfigForGuild(guild.id);
+      if (!rc.teamSearchNotifyMessageId || message.id !== rc.teamSearchNotifyMessageId) return;
+      const member = await guild.members.fetch(user.id).catch(() => null);
+      if (!member) return;
+      const emoji = reaction.emoji?.name;
+      if (emoji === '🗡️' && rc.teamSearchPvpRoleId) {
+        await member.roles.remove(rc.teamSearchPvpRoleId).catch(() => {});
+      }
+      if (emoji === '🐉' && rc.teamSearchPvmRoleId) {
+        await member.roles.remove(rc.teamSearchPvmRoleId).catch(() => {});
+      }
+    } catch {}
+  });
+
   client.on('messageCreate', async (message) => {
     try {
       if (!message.guild || message.author.bot) return;
@@ -3374,6 +3569,26 @@ async function main() {
       if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
         if (await dragodinde.handleConfigSelect(interaction).catch(() => false)) return;
         // Stuff generator selects
+        if (interaction.customId.startsWith('teamsearch:mode:')) {
+          const [, , kind, guildId] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const mode = interaction.values?.[0];
+          const modal = new ModalBuilder()
+            .setCustomId(`teamsearch:submit:${kind}:${guildId}:${mode}`)
+            .setTitle(kind === 'pvp' ? 'Créer une recherche PvP' : 'Créer une recherche PvM');
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('count').setLabel('Combien de joueurs cherches-tu ?').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(2)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('classes').setLabel('Classes / profils recherchés').setStyle(TextInputStyle.Paragraph).setRequired(false).setMaxLength(1000)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('comment').setLabel('Commentaire / objectif').setStyle(TextInputStyle.Paragraph).setRequired(false).setMaxLength(1000)),
+          );
+
+          return interaction.showModal(modal).catch(() => {});
+        }
+
         if (interaction.customId.startsWith('market:sellcount:')) {
           const guildId = interaction.customId.split(':')[2];
           if (!interaction.guild || interaction.guild.id !== guildId) {
@@ -3584,6 +3799,71 @@ async function main() {
             content: '✅ Infos reçues. Tu peux maintenant envoyer **1 à 3 images dans un seul message** dans ce salon. L’autorisation se refermera ensuite automatiquement.',
             ephemeral: true,
           }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('teamsearch:submit:')) {
+          const [, , kind, guildId, mode] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(guildId);
+          const targetCount = Number((interaction.fields.getTextInputValue('count') || '').trim());
+          const classes = (interaction.fields.getTextInputValue('classes') || '').trim();
+          const comment = (interaction.fields.getTextInputValue('comment') || '').trim();
+          if (!Number.isFinite(targetCount) || targetCount < 1 || targetCount > 8) {
+            return interaction.reply({ content: 'Nombre de joueurs invalide (1 à 8).', ephemeral: true }).catch(() => {});
+          }
+
+          const targetThreadId = kind === 'pvp' ? rc.teamSearchPvpThreadId : rc.teamSearchPvmThreadId;
+          const notifyRoleId = kind === 'pvp' ? rc.teamSearchPvpRoleId : rc.teamSearchPvmRoleId;
+          const panelChannelId = rc.teamSearchPanelChannelId;
+          const panelChannel = panelChannelId ? await interaction.client.channels.fetch(panelChannelId).catch(() => null) : null;
+          const targetThread = targetThreadId ? await interaction.client.channels.fetch(targetThreadId).catch(() => null) : null;
+
+          if (!panelChannel || !panelChannel.isTextBased?.() || !targetThread || !targetThread.isThread?.()) {
+            return interaction.reply({ content: 'Le système de recherche de team n’est pas encore configuré correctement.', ephemeral: true }).catch(() => {});
+          }
+
+          const searchId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+          const data = { mode, targetCount, classes, comment };
+          const content = `${kind === 'pvp' ? '⚔️' : '🐉'} <@&${notifyRoleId}> nouvelle recherche ${kind.toUpperCase()} lancée par <@${interaction.user.id}>.`;
+          const sent = await panelChannel.send({
+            content,
+            embeds: [buildTeamSearchEmbed(kind, interaction.user.id, data, [])],
+            components: buildTeamSearchRows(guildId, interaction.user.id, kind, searchId, false),
+            allowedMentions: { users: [interaction.user.id], roles: notifyRoleId ? [notifyRoleId] : [] },
+          }).catch(() => null);
+
+          if (!sent) {
+            return interaction.reply({ content: 'Impossible de poster la recherche pour le moment.', ephemeral: true }).catch(() => {});
+          }
+
+          setTeamSearchEntry(searchId, {
+            guildId,
+            kind,
+            ownerId: interaction.user.id,
+            data,
+            joinedUsers: [],
+            messageId: sent.id,
+            channelId: sent.channelId,
+            closed: false,
+            createdAt: Date.now(),
+          });
+
+          setTimeout(async () => {
+            const entry = getTeamSearchEntry(searchId);
+            if (!entry || entry.closed) return;
+            entry.closed = true;
+            setTeamSearchEntry(searchId, entry);
+            const channel = await interaction.client.channels.fetch(entry.channelId).catch(() => null);
+            const msg = channel?.isTextBased?.() ? await channel.messages.fetch(entry.messageId).catch(() => null) : null;
+            if (msg) {
+              await msg.edit({ embeds: [buildTeamSearchEmbed(kind, entry.ownerId, entry.data, entry.joinedUsers)], components: buildTeamSearchRows(guildId, entry.ownerId, kind, searchId, true) }).catch(() => {});
+            }
+          }, 2 * 60 * 60 * 1000);
+
+          return interaction.reply({ content: '✅ Recherche publiée.', ephemeral: true }).catch(() => {});
         }
 
         if (interaction.customId.startsWith('market:sellsubmit:')) {
@@ -4939,6 +5219,51 @@ async function main() {
             } catch (error) {
               console.error('[setup_market] failed', error);
               return interaction.editReply({ content: '❌ La mise en place du market a échoué.' }).catch(() => {});
+            }
+          }
+
+          if (interaction.commandName === 'setup_recherche_team') {
+            const salon = interaction.channel;
+
+            if (!salon?.isTextBased?.() || salon.isThread?.()) {
+              return interaction.reply({ content: 'Lance cette commande dans un **salon texte classique**.', ephemeral: true });
+            }
+
+            if (!interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)) {
+              return interaction.reply({ content: 'Commande réservée aux admins du serveur.', ephemeral: true });
+            }
+
+            await interaction.reply({ content: '⏳ Je mets en place la recherche de team...', ephemeral: true }).catch(() => {});
+
+            try {
+              const pvpRoleId = '1480657602382790904';
+              const pvmRoleId = '1514838067779862598';
+              let pvpThread = await salon.threads.create({ name: '⚔️ Discussions PvP', autoArchiveDuration: 10080, reason: 'Discussions recherche team PvP' }).catch(() => null);
+              let pvmThread = await salon.threads.create({ name: '🐉 Discussions PvM', autoArchiveDuration: 10080, reason: 'Discussions recherche team PvM' }).catch(() => null);
+
+              if (!pvpThread || !pvmThread) {
+                return interaction.editReply({ content: '❌ Impossible de créer les threads PvP/PvM.' }).catch(() => {});
+              }
+
+              updateGuildConfig(guild.id, {
+                team_search_panel_channel_id: salon.id,
+                team_search_pvp_thread_id: pvpThread.id,
+                team_search_pvm_thread_id: pvmThread.id,
+                team_search_pvp_role_id: pvpRoleId,
+                team_search_pvm_role_id: pvmRoleId,
+              });
+
+              const panelMsg = await ensureTeamSearchPanel(guild, salon, pvpThread, pvmThread);
+              const notifyMsg = await ensureTeamSearchNotifyMessage(guild, salon, pvpRoleId, pvmRoleId);
+              if (!panelMsg || !notifyMsg) {
+                return interaction.editReply({ content: '❌ Impossible de poster le panneau ou le message de notifications.' }).catch(() => {});
+              }
+
+              await lockPanelChannelForMembers(salon).catch(() => {});
+              return interaction.editReply({ content: `✅ Recherche de team configurée dans <#${salon.id}>.\n• Panneau : ${panelMsg.id}\n• Notifications : ${notifyMsg.id}\n• PvP : <#${pvpThread.id}>\n• PvM : <#${pvmThread.id}>` }).catch(() => {});
+            } catch (error) {
+              console.error('[setup_recherche_team] failed', error);
+              return interaction.editReply({ content: '❌ La mise en place de la recherche de team a échoué.' }).catch(() => {});
             }
           }
 
@@ -6298,6 +6623,96 @@ ${info}`.slice(0, 1900),
           metiers.craftPingLast.set(keyCooldown, now);
 
           return interaction.reply({ content: '✅ Demande envoyée.', ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('teamsearch:pvp:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+          const select = new StringSelectMenuBuilder()
+            .setCustomId(`teamsearch:mode:pvp:${guildId}`)
+            .setPlaceholder('Choisis ton type de recherche PvP')
+            .addOptions([
+              { label: 'Percepteur 4v4', value: 'perco' },
+              { label: 'Kolizéum 3v3', value: 'koli' },
+              { label: 'Autre PvP', value: 'other' },
+            ]);
+          return interaction.reply({ content: 'Choisis le format PvP.', components: [new ActionRowBuilder().addComponents(select)], ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('teamsearch:pvm:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+          const select = new StringSelectMenuBuilder()
+            .setCustomId(`teamsearch:mode:pvm:${guildId}`)
+            .setPlaceholder('Choisis ton type de recherche PvM')
+            .addOptions([
+              { label: 'Donjon', value: 'donjon' },
+              { label: 'Farm', value: 'farm' },
+              { label: 'Quête', value: 'quete' },
+              { label: 'Autre PvM', value: 'other' },
+            ]);
+          return interaction.reply({ content: 'Choisis le format PvM.', components: [new ActionRowBuilder().addComponents(select)], ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('teamsearch:join:')) {
+          const [, , guildId, kind, searchId] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+          const entry = getTeamSearchEntry(searchId);
+          if (!entry || entry.closed) {
+            return interaction.reply({ content: 'Recherche expirée ou clôturée.', ephemeral: true }).catch(() => {});
+          }
+          if (!entry.joinedUsers.includes(interaction.user.id)) {
+            entry.joinedUsers.push(interaction.user.id);
+          }
+          setTeamSearchEntry(searchId, entry);
+          const msg = await interaction.channel.messages.fetch(entry.messageId).catch(() => null);
+          if (msg) {
+            await msg.edit({ embeds: [buildTeamSearchEmbed(kind, entry.ownerId, entry.data, entry.joinedUsers)], components: buildTeamSearchRows(guildId, entry.ownerId, kind, searchId, entry.closed) }).catch(() => {});
+          }
+          return interaction.reply({ content: '✅ Tu es ajouté dans les volontaires.', ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('teamsearch:talk:')) {
+          const [, , guildId, kind, ownerId] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+          const rc = getConfigForGuild(guildId);
+          const targetThreadId = kind === 'pvp' ? rc.teamSearchPvpThreadId : rc.teamSearchPvmThreadId;
+          const targetThread = targetThreadId ? await interaction.client.channels.fetch(targetThreadId).catch(() => null) : null;
+          if (!targetThread || !targetThread.isThread?.()) {
+            return interaction.reply({ content: 'Thread de discussion introuvable.', ephemeral: true }).catch(() => {});
+          }
+          await targetThread.send({ content: `💬 <@${interaction.user.id}> veut discuter avec <@${ownerId}> au sujet d’une recherche ${kind.toUpperCase()}.`, allowedMentions: { users: [interaction.user.id, ownerId] } }).catch(() => {});
+          return interaction.reply({ content: `✅ Discussion ouverte dans <#${targetThread.id}>.`, ephemeral: true }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('teamsearch:done:')) {
+          const [, , guildId, kind, ownerId, searchId] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+          const isStaff = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator) || interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageMessages);
+          if (interaction.user.id !== ownerId && !isStaff) {
+            return interaction.reply({ content: 'Seul l’auteur ou le staff peut clôturer cette recherche.', ephemeral: true }).catch(() => {});
+          }
+          const entry = getTeamSearchEntry(searchId);
+          if (!entry) {
+            return interaction.reply({ content: 'Recherche introuvable.', ephemeral: true }).catch(() => {});
+          }
+          entry.closed = true;
+          setTeamSearchEntry(searchId, entry);
+          const msg = await interaction.channel.messages.fetch(entry.messageId).catch(() => null);
+          if (msg) {
+            await msg.edit({ embeds: [buildTeamSearchEmbed(kind, entry.ownerId, entry.data, entry.joinedUsers)], components: buildTeamSearchRows(guildId, entry.ownerId, kind, searchId, true) }).catch(() => {});
+          }
+          return interaction.reply({ content: '✅ Recherche clôturée.', ephemeral: true }).catch(() => {});
         }
 
         if (interaction.customId.startsWith('market:sell:')) {

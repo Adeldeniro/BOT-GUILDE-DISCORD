@@ -93,7 +93,14 @@ CREATE TABLE IF NOT EXISTS guild_config (
   market_panel_channel_id TEXT,
   market_panel_message_id TEXT,
   market_announce_thread_id TEXT,
-  market_discussion_thread_id TEXT
+  market_discussion_thread_id TEXT,
+  team_search_panel_channel_id TEXT,
+  team_search_panel_message_id TEXT,
+  team_search_notify_message_id TEXT,
+  team_search_pvp_thread_id TEXT,
+  team_search_pvm_thread_id TEXT,
+  team_search_pvp_role_id TEXT,
+  team_search_pvm_role_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS dofusbook_builds (
@@ -327,6 +334,27 @@ if (!cfgCols.includes('market_announce_thread_id')) {
 }
 if (!cfgCols.includes('market_discussion_thread_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN market_discussion_thread_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('team_search_panel_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_panel_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('team_search_panel_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_panel_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('team_search_notify_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_notify_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('team_search_pvp_thread_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_pvp_thread_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('team_search_pvm_thread_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_pvm_thread_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('team_search_pvp_role_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_pvp_role_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('team_search_pvm_role_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_pvm_role_id TEXT'); } catch {}
 }
 
 // Migration for event_submissions
