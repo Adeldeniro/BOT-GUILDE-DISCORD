@@ -19,6 +19,7 @@ const GTO_WARNINGS_FILE = path.join(__dirname, '..', 'data', 'gto-warnings.json'
 const DEFENSE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'defense-perco-panel.png');
 const ATTACK_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'attack-perco-panel.png');
 const MARKET_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'market-panel.png');
+const TEAM_SEARCH_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'team-search-panel.png');
 const PERCO_PANEL_NOTIFS_FILE = path.join(__dirname, '..', 'data', 'perco-panel-notifs.json');
 const defenseSubmissionSessions = new Map();
 const attackSubmissionSessions = new Map();
@@ -677,8 +678,8 @@ function buildMarketContactRow(authorId, kind) {
   ];
 }
 
-function buildTeamSearchPanelEmbed() {
-  return new EmbedBuilder()
+function buildTeamSearchPanelEmbed({ withImage = true } = {}) {
+  const embed = new EmbedBuilder()
     .setColor(0x9B59B6)
     .setTitle('🎯 Recherche de team')
     .setDescription([
@@ -690,6 +691,12 @@ function buildTeamSearchPanelEmbed() {
       'Réagis aussi au message de notifications si tu veux être ping quand ça bouge.'
     ].join('\n'))
     .setFooter({ text: 'Viens armé, ou au moins utile.' });
+
+  if (withImage) {
+    embed.setImage('attachment://team-search-panel.png');
+  }
+
+  return embed;
 }
 
 function buildTeamSearchPanelRows(guildId, pvpThreadId = null, pvmThreadId = null) {
@@ -771,23 +778,42 @@ function buildTeamSearchRows(guildId, ownerId, kind, searchId, isClosed = false)
 
 async function ensureTeamSearchPanel(guild, channel, pvpThread, pvmThread) {
   const rc = getConfigForGuild(guild.id);
-  const payload = {
-    embeds: [buildTeamSearchPanelEmbed()],
+  const files = fs.existsSync(TEAM_SEARCH_PANEL_IMAGE_PATH)
+    ? [{ attachment: TEAM_SEARCH_PANEL_IMAGE_PATH, name: 'team-search-panel.png' }]
+    : [];
+
+  const buildPayload = (withImage) => ({
+    embeds: [buildTeamSearchPanelEmbed({ withImage })],
     components: buildTeamSearchPanelRows(guild.id, pvpThread?.id || null, pvmThread?.id || null),
+    files: withImage ? files : [],
     allowedMentions: { parse: [] },
-  };
+  });
 
   let existing = null;
   if (rc.teamSearchPanelChannelId === channel.id && rc.teamSearchPanelMessageId) {
     existing = await channel.messages.fetch(rc.teamSearchPanelMessageId).catch(() => null);
   }
 
+  const tryEditOrSend = async (targetMessage = null) => {
+    for (const withImage of [true, false]) {
+      const payload = buildPayload(withImage);
+      if (targetMessage) {
+        const edited = await targetMessage.edit(payload).catch(() => null);
+        if (edited) return edited;
+      } else {
+        const sent = await channel.send(payload).catch(() => null);
+        if (sent) return sent;
+      }
+    }
+    return null;
+  };
+
   if (existing) {
-    const edited = await existing.edit(payload).catch(() => null);
+    const edited = await tryEditOrSend(existing);
     if (edited) return edited;
   }
 
-  const msg = await channel.send(payload).catch(() => null);
+  const msg = await tryEditOrSend(null);
   if (msg) {
     try { await msg.pin(); } catch {}
     updateGuildConfig(guild.id, { team_search_panel_channel_id: channel.id, team_search_panel_message_id: msg.id });
