@@ -5,8 +5,9 @@ Buttons panel per channel. Clicking a button pings the guild role **plus** a def
 ## Setup
 1. Copy `.env.example` -> `.env`
 2. Fill `DISCORD_TOKEN`
-3. `npm i`
-4. `npm start`
+3. Use Node `20` (`.nvmrc` included)
+4. `npm i`
+5. `npm start`
 
 ## Commands
 - `/panneau_creer canal:#ping-def canal_alerte:#alerte-def titre:"Ping DEF" epingle:true`
@@ -32,3 +33,7 @@ Optional env vars:
 - `LOG_TO_FILE=true`
 - `LOG_DIR=logs`
 - `HEARTBEAT_INTERVAL_SECONDS=300`
+
+## Hosting notes
+- Recommended Node version: `20`
+- `better-sqlite3` and `sharp` are native dependencies, so the host must allow normal npm install scripts / native package installation during deploys.

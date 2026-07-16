@@ -2760,9 +2760,9 @@ async function main() {
   attachClientMonitoring(client);
   startHeartbeat(client);
 
-  client.once('ready', async () => {
+  client.once('clientReady', async () => {
     try {
-      logger.info('[discord] ready event received', {
+      logger.info('[discord] clientReady event received', {
         userTag: client.user?.tag || null,
         userId: client.user?.id || null,
       });
@@ -8149,4 +8149,3 @@ main().catch((e) => {
   logger.fatal('[boot] main crashed', e);
   process.exit(1);
 });
-

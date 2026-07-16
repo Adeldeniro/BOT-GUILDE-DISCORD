@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node src/bot.js"
   },
+  "engines": {
+    "node": ">=20 <23"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
