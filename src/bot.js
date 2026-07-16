@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
 const config = require('./config');
+const logger = require('./logger');
+const { installProcessMonitoring, attachClientMonitoring, startHeartbeat } = require('./monitoring');
 const db = require('./db');
 const { getConfigForGuild } = require('./runtimeConfig');
 const { updateGuildConfig } = require('./guildConfig');
@@ -29,6 +31,15 @@ const marketContactCooldowns = new Map();
 const teamSearchState = new Map();
 const percoNotifResetTimers = new Map();
 const panelWriteGrantTimers = new Map();
+
+installProcessMonitoring();
+logger.info('[boot] process starting', logger.runtimeSnapshot({
+  logLevel: config.logLevel,
+  logToFile: config.logToFile,
+  logDir: config.logDir,
+  heartbeatIntervalSeconds: config.heartbeatIntervalSeconds,
+  guildIdConfigured: !!config.guildId,
+}));
 
 function ensureJsonFile(filePath, fallback) {
   try {
@@ -1348,7 +1359,7 @@ try {
       // Stale-safe lock: if old PID is not alive, remove lock and continue.
       try {
         process.kill(oldPid, 0);
-        console.error('[bot] Another instance is running, exiting.');
+        logger.error('[boot] another instance is already running', { oldPid, currentPid: process.pid });
         process.exit(1);
       } catch {
         try { fs.unlinkSync(lockPath); } catch {}
@@ -2746,13 +2757,25 @@ async function main() {
     ],
     partials: [Partials.Message, Partials.Channel, Partials.GuildMember, Partials.User, Partials.Reaction],
   });
+  attachClientMonitoring(client);
+  startHeartbeat(client);
 
   client.once('ready', async () => {
     try {
+      logger.info('[discord] ready event received', {
+        userTag: client.user?.tag || null,
+        userId: client.user?.id || null,
+      });
       await registerCommands(client);
       await dragodinde.onReady(client).catch((error) => console.error('[dragodinde] ready failed', error));
 
       const guild = config.guildId ? await client.guilds.fetch(config.guildId) : null;
+      logger.info('[discord] guild fetch after ready', {
+        configuredGuildId: config.guildId,
+        guildFound: !!guild,
+        guildName: guild?.name || null,
+        guildId: guild?.id || null,
+      });
 
       if (guild && config.defaultChannelId) {
         const channel = await client.channels.fetch(config.defaultChannelId);
@@ -2804,7 +2827,11 @@ async function main() {
         }
       }
 
-      console.log('[bot] ready');
+      logger.info('[bot] ready', logger.runtimeSnapshot({
+        botUserId: client.user?.id || null,
+        botTag: client.user?.tag || null,
+        guildCount: client.guilds.cache.size,
+      }));
 
       // Validate def role mentionability (if configured)
       const me = client.user;
@@ -8104,12 +8131,22 @@ ${info}`.slice(0, 1900),
     }
   });
 
+  logger.info('[discord] login start', {
+    hasToken: !!config.token,
+    intents: [
+      'Guilds',
+      'GuildMessages',
+      'GuildMembers',
+      'GuildInvites',
+      'GuildMessageReactions',
+      'MessageContent',
+    ],
+  });
   await client.login(config.token);
 }
 
 main().catch((e) => {
-  console.error(e);
+  logger.fatal('[boot] main crashed', e);
   process.exit(1);
 });
-
 

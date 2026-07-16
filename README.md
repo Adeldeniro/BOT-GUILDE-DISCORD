@@ -21,3 +21,14 @@ Le bot supprime automatiquement les commandes globales au démarrage et ré-enre
 ## Notes
 - Discord limit: 25 buttons per message.
 - Make sure roles are mentionable or bot has MentionEveryone.
+
+## Logs / diagnostic
+- The bot now writes logs both to the host console and to `logs/bot-YYYY-MM-DD.log`.
+- A heartbeat is emitted every `HEARTBEAT_INTERVAL_SECONDS` seconds with uptime, memory and Discord ping.
+- Crash-level process hooks log `uncaughtException`, `unhandledRejection`, signals and Discord shard issues.
+
+Optional env vars:
+- `LOG_LEVEL=info`
+- `LOG_TO_FILE=true`
+- `LOG_DIR=logs`
+- `HEARTBEAT_INTERVAL_SECONDS=300`

@@ -27,4 +27,10 @@ module.exports = {
 
   // DeepL (optional)
   deeplApiKey: process.env.DEEPL_API_KEY || null,
+
+  // Logging / monitoring
+  logLevel: process.env.LOG_LEVEL || 'info',
+  logToFile: String(process.env.LOG_TO_FILE || 'true').toLowerCase() !== 'false',
+  logDir: process.env.LOG_DIR || 'logs',
+  heartbeatIntervalSeconds: Number(process.env.HEARTBEAT_INTERVAL_SECONDS || 300),
 };

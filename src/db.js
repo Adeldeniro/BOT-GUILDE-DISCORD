@@ -1,10 +1,12 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const logger = require('./logger');
 
 const dbPath = path.join(__dirname, '..', 'data.sqlite');
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
+logger.info('[db] sqlite opened', { dbPath, journalMode: 'WAL' });
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS panels (
