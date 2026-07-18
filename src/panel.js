@@ -9,7 +9,7 @@ function chunk(arr, size) {
 
 function getButtons(guildId, channelId) {
   return db.prepare(
-    `SELECT name, role_id, label, emoji, unicode_prefix
+    `SELECT name, role_id, label, emoji, unicode_prefix, color
      FROM guild_buttons
      WHERE guild_id = ? AND channel_id = ?
      ORDER BY sort_order ASC, name ASC`
@@ -18,22 +18,29 @@ function getButtons(guildId, channelId) {
 
 function buildComponents(guildId, channelId) {
   const buttons = getButtons(guildId, channelId);
+  const styleMap = {
+    red: ButtonStyle.Danger,
+    green: ButtonStyle.Success,
+    blue: ButtonStyle.Primary,
+    gray: ButtonStyle.Secondary,
+  };
 
-  // Discord: max 5 buttons per row, 5 rows per message (25 buttons)
-  const rows = chunk(buttons, 5).slice(0, 5).map(group => {
+  // One button per row makes each button appear visually wider.
+  const rows = chunk(buttons, 1).slice(0, 5).map(group => {
     const row = new ActionRowBuilder();
     for (const b of group) {
       const customId = `ping:${channelId}:${b.name}`;
-      // “Modern/Apple-ish” look: keep most buttons neutral (Secondary),
-      // but make alert-style buttons stand out.
       const label = String(b.label || b.name).slice(0, 80);
-      const isAlert = /ALERTE|ALERT|RUSH|DEF/i.test(b.name) || /ALERTE|ALERT|RUSH|DEF/i.test(label) || (b.unicode_prefix && /🚨|⚠️/.test(String(b.unicode_prefix)));
-      const style = isAlert ? ButtonStyle.Danger : ButtonStyle.Secondary;
+      const isAlert = /ALERTE|ALERT|RUSH|DEF/i.test(b.name)
+        || /ALERTE|ALERT|RUSH|DEF/i.test(label)
+        || (b.unicode_prefix && /🚨|⚠️/.test(String(b.unicode_prefix)));
+      const style = styleMap[String(b.color || '').toLowerCase()] || (isAlert ? ButtonStyle.Danger : ButtonStyle.Secondary);
 
       const btn = new ButtonBuilder()
         .setCustomId(customId)
         .setLabel(label)
         .setStyle(style);
+
       if (b.emoji) {
         // b.emoji can be unicode, a raw custom emoji string (<:name:id> / <a:name:id>), or an emoji id.
         const s = String(b.emoji);
@@ -43,10 +50,10 @@ function buildComponents(guildId, channelId) {
         } else if (s.match(/^\d+$/)) {
           btn.setEmoji({ id: s });
         } else {
-          // unicode emoji
           btn.setEmoji(s);
         }
       }
+
       row.addComponents(btn);
     }
     return row;
@@ -76,13 +83,13 @@ function getPanel(guildId, channelId) {
   ).get(guildId, channelId);
 }
 
-function upsertGuildButton(guildId, channelId, { name, roleId, label, emoji, unicodePrefix, sortOrder = 0 }) {
+function upsertGuildButton(guildId, channelId, { name, roleId, label, emoji, unicodePrefix, color = null, sortOrder = 0 }) {
   db.prepare(
-    `INSERT INTO guild_buttons (guild_id, channel_id, name, role_id, label, emoji, unicode_prefix, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO guild_buttons (guild_id, channel_id, name, role_id, label, emoji, unicode_prefix, color, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(guild_id, channel_id, name)
-     DO UPDATE SET role_id=excluded.role_id, label=excluded.label, emoji=excluded.emoji, unicode_prefix=excluded.unicode_prefix, sort_order=excluded.sort_order`
-  ).run(guildId, channelId, name, roleId, label, emoji || null, unicodePrefix || null, sortOrder);
+     DO UPDATE SET role_id=excluded.role_id, label=excluded.label, emoji=excluded.emoji, unicode_prefix=excluded.unicode_prefix, color=excluded.color, sort_order=excluded.sort_order`
+  ).run(guildId, channelId, name, roleId, label, emoji || null, unicodePrefix || null, color || null, sortOrder);
 }
 
 function removeGuildButton(guildId, channelId, name) {
@@ -93,7 +100,7 @@ function removeGuildButton(guildId, channelId, name) {
 
 function resolveButton(guildId, channelId, name) {
   return db.prepare(
-    `SELECT name, role_id, label, emoji, unicode_prefix FROM guild_buttons WHERE guild_id=? AND channel_id=? AND name=?`
+    `SELECT name, role_id, label, emoji, unicode_prefix, color FROM guild_buttons WHERE guild_id=? AND channel_id=? AND name=?`
   ).get(guildId, channelId, name);
 }
 

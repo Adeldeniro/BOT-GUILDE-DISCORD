@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS guild_buttons (
   label TEXT NOT NULL,
   emoji TEXT,
   unicode_prefix TEXT,
+  color TEXT,
   sort_order INTEGER DEFAULT 0,
   PRIMARY KEY (guild_id, channel_id, name)
 );
@@ -201,6 +202,9 @@ if (!panelCols.includes('alert_channel_id')) {
 const btnCols = db.prepare(`PRAGMA table_info(guild_buttons)`).all().map(r => r.name);
 if (!btnCols.includes('unicode_prefix')) {
   db.exec('ALTER TABLE guild_buttons ADD COLUMN unicode_prefix TEXT');
+}
+if (!btnCols.includes('color')) {
+  db.exec('ALTER TABLE guild_buttons ADD COLUMN color TEXT');
 }
 
 // Migration for guild_config (setup/dashboard)

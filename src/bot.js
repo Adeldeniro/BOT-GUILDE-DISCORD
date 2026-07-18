@@ -2469,6 +2469,13 @@ async function registerCommands(client) {
       .addStringOption(o => o.setName('nom').setDescription('Nom interne (ex: GTO)').setRequired(true))
       .addRoleOption(o => o.setName('role').setDescription('Rôle à ping pour cette guilde').setRequired(true))
       .addStringOption(o => o.setName('label').setDescription('Texte du bouton').setRequired(false))
+      .addStringOption(o => o.setName('couleur').setDescription('Couleur du bouton').setRequired(false)
+        .addChoices(
+          { name: 'Rouge', value: 'red' },
+          { name: 'Vert', value: 'green' },
+          { name: 'Bleu', value: 'blue' },
+          { name: 'Gris', value: 'gray' },
+        ))
       .addStringOption(o => o.setName('emoji').setDescription('Emoji (optionnel)').setRequired(false))
       .addAttachmentOption(o => o.setName('image').setDescription('Blason (image upload) â†’ sera converti en emoji').setRequired(false))
       .addIntegerOption(o => o.setName('ordre').setDescription('Ordre (optionnel)').setRequired(false))
@@ -5930,6 +5937,7 @@ ${info}`.slice(0, 1900),
           const name = interaction.options.getString('nom', true).toUpperCase();
           const role = interaction.options.getRole('role', true);
           const label = (interaction.options.getString('label') || name).slice(0, 80);
+          const color = interaction.options.getString('couleur');
           let emoji = interaction.options.getString('emoji');
           const image = interaction.options.getAttachment('image');
 
@@ -5985,12 +5993,19 @@ ${info}`.slice(0, 1900),
             label,
             emoji,
             unicodePrefix,
+            color,
             sortOrder: order,
           });
 
           const panelChannel = await interaction.client.channels.fetch(channelId);
           await ensurePanelMessage(panelChannel, rc);
-          return interaction.reply({ content: `Guilde ${name} ajoutée/modifiée → <@&${role.id}>.`, ephemeral: true });
+          const colorLabel = ({
+            red: 'rouge',
+            green: 'verte',
+            blue: 'bleue',
+            gray: 'grise',
+          })[color] || 'automatique';
+          return interaction.reply({ content: `Guilde ${name} ajoutée/modifiée → <@&${role.id}> (couleur ${colorLabel}).`, ephemeral: true });
         }
 
         if (interaction.commandName === 'guilde_supprimer') {
