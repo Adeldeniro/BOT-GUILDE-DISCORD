@@ -103,7 +103,14 @@ CREATE TABLE IF NOT EXISTS guild_config (
   team_search_pvp_thread_id TEXT,
   team_search_pvm_thread_id TEXT,
   team_search_pvp_role_id TEXT,
-  team_search_pvm_role_id TEXT
+  team_search_pvm_role_id TEXT,
+  elite_role_id TEXT,
+  elite_panel_channel_id TEXT,
+  elite_panel_message_id TEXT,
+  elite_staff_channel_id TEXT,
+  elite_staff_role_ids TEXT,
+  elite_suffix TEXT,
+  elite_enabled INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS dofusbook_builds (
@@ -191,6 +198,22 @@ CREATE TABLE IF NOT EXISTS welcome_state (
   joined_at INTEGER,
   first_gif_sent_at INTEGER,
   PRIMARY KEY (guild_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS elite_applications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at INTEGER NOT NULL,
+  reviewed_at INTEGER,
+  reviewed_by TEXT,
+  staff_comment TEXT,
+  retry_mode TEXT NOT NULL DEFAULT 'none',
+  retry_after INTEGER,
+  locked_forever INTEGER NOT NULL DEFAULT 0,
+  nickname_before TEXT,
+  staff_message_id TEXT
 );
 `);
 
@@ -362,6 +385,27 @@ if (!cfgCols.includes('team_search_pvp_role_id')) {
 if (!cfgCols.includes('team_search_pvm_role_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN team_search_pvm_role_id TEXT'); } catch {}
 }
+if (!cfgCols.includes('elite_role_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_role_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('elite_panel_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_panel_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('elite_panel_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_panel_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('elite_staff_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_staff_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('elite_staff_role_ids')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_staff_role_ids TEXT'); } catch {}
+}
+if (!cfgCols.includes('elite_suffix')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_suffix TEXT'); } catch {}
+}
+if (!cfgCols.includes('elite_enabled')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_enabled INTEGER'); } catch {}
+}
 
 // Migration for event_submissions
 const evCols = db.prepare(`PRAGMA table_info(event_submissions)`).all().map(r => r.name);
@@ -423,6 +467,28 @@ try {
       joined_at INTEGER,
       first_gif_sent_at INTEGER,
       PRIMARY KEY (guild_id, user_id)
+    );`);
+  } catch {}
+}
+
+try {
+  db.prepare('SELECT 1 FROM elite_applications LIMIT 1').get();
+} catch {
+  try {
+    db.exec(`CREATE TABLE IF NOT EXISTS elite_applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at INTEGER NOT NULL,
+      reviewed_at INTEGER,
+      reviewed_by TEXT,
+      staff_comment TEXT,
+      retry_mode TEXT NOT NULL DEFAULT 'none',
+      retry_after INTEGER,
+      locked_forever INTEGER NOT NULL DEFAULT 0,
+      nickname_before TEXT,
+      staff_message_id TEXT
     );`);
   } catch {}
 }

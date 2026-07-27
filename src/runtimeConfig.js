@@ -99,6 +99,17 @@ function getConfigForGuild(guildId) {
     teamSearchPvmThreadId: pick(gc.team_search_pvm_thread_id, null),
     teamSearchPvpRoleId: pick(gc.team_search_pvp_role_id, null),
     teamSearchPvmRoleId: pick(gc.team_search_pvm_role_id, null),
+
+    eliteRoleId: pick(gc.elite_role_id, null),
+    elitePanelChannelId: pick(gc.elite_panel_channel_id, null),
+    elitePanelMessageId: pick(gc.elite_panel_message_id, null),
+    eliteStaffChannelId: pick(gc.elite_staff_channel_id, null),
+    eliteStaffRoleIds: String(pick(gc.elite_staff_role_ids, '') || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean),
+    eliteSuffix: pick(gc.elite_suffix, '🌟'),
+    eliteEnabled: Boolean(Number(pick(gc.elite_enabled, 0) || 0)),
   };
 }
 

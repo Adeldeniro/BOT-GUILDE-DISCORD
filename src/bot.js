@@ -16,6 +16,7 @@ const drafts = require('./eventDrafts');
 const stuffGen = require('./stuffGenerator');
 const metiers = require('./metiers');
 const dragodinde = require('./dragodinde');
+const elite = require('./elite');
 
 const GTO_WARNINGS_FILE = path.join(__dirname, '..', 'data', 'gto-warnings.json');
 const DEFENSE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'defense-perco-panel.png');
@@ -1752,12 +1753,68 @@ function buildHelpEmbedFromCommands(commands) {
     name: 'ℹ️ Notes',
     value:
       '• Le bouton **✍️ Modifier** sur une box profil est réservé au staff (Meneur/BD).\n' +
-      '• Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.',
+      '• Les boutons onboarding (règlement / guildeux / invité / validation staff) sont gérés via interactions.\n' +
+      '• Le workflow **ELITE** (candidature / statut / validation) est géré via interactions privées.',
     inline: false,
   });
 
   embed.setFooter({ text: 'Astuce: utilisez /setup_dashboard pour installer rapidement.' });
   return embed;
+}
+
+function isEliteStaff(member, rc) {
+  return !!(member && (rc.eliteStaffRoleIds || []).some(rid => member.roles.cache.has(rid)));
+}
+
+async function ensureElitePanel(guild, channel, rc) {
+  const embed = elite.buildPanelEmbed(rc);
+  const components = elite.buildPanelComponents(guild.id);
+
+  if (rc.elitePanelChannelId === channel.id && rc.elitePanelMessageId) {
+    try {
+      const msg = await channel.messages.fetch(rc.elitePanelMessageId);
+      await msg.edit({ embeds: [embed], components });
+      return msg;
+    } catch {}
+  }
+
+  const msg = await channel.send({ embeds: [embed], components });
+  try { await msg.pin(); } catch {}
+  updateGuildConfig(guild.id, {
+    elite_panel_channel_id: channel.id,
+    elite_panel_message_id: msg.id,
+  });
+  return msg;
+}
+
+async function updateEliteStaffMessage(guild, rc, application) {
+  if (!application?.staff_message_id || !rc?.eliteStaffChannelId) return;
+  const ch = await guild.client.channels.fetch(rc.eliteStaffChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return;
+  const msg = await ch.messages.fetch(application.staff_message_id).catch(() => null);
+  if (!msg) return;
+  const member = await guild.members.fetch(application.user_id).catch(() => null);
+  const embed = elite.buildStaffEmbed(member, application, rc);
+  await msg.edit({ embeds: [embed], components: [] }).catch(() => {});
+}
+
+async function postEliteApplicationToStaff(guild, rc, application) {
+  if (!rc.eliteStaffChannelId) return null;
+  const ch = await guild.client.channels.fetch(rc.eliteStaffChannelId).catch(() => null);
+  if (!ch || !ch.isTextBased()) return null;
+
+  const member = await guild.members.fetch(application.user_id).catch(() => null);
+  const embed = elite.buildStaffEmbed(member, application, rc);
+  const components = elite.buildStaffComponents(application.id);
+  const content = (rc.eliteStaffRoleIds || []).map(id => `<@&${id}>`).join(' ') || undefined;
+  const msg = await ch.send({
+    content,
+    embeds: [embed],
+    components,
+    allowedMentions: { roles: rc.eliteStaffRoleIds || [] },
+  });
+  elite.setStaffMessageId(application.id, msg.id);
+  return msg;
 }
 
 async function ensureEventScoreboard(guild, rc) {
@@ -2603,6 +2660,16 @@ async function registerCommands(client) {
       .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false)),
 
     new SlashCommandBuilder()
+      .setName('setup_elite')
+      .setDescription('Configurer le système ELITE (owner only)')
+      .addChannelOption(o => o.setName('panneau').setDescription('Salon public du panneau ELITE').addChannelTypes(0,5).setRequired(true))
+      .addChannelOption(o => o.setName('validation').setDescription('Salon staff des candidatures ELITE').addChannelTypes(0,5).setRequired(true))
+      .addRoleOption(o => o.setName('role_elite').setDescription('Rôle [ELITE] à attribuer').setRequired(true))
+      .addRoleOption(o => o.setName('staff1').setDescription('Rôle staff autorisé #1').setRequired(true))
+      .addRoleOption(o => o.setName('staff2').setDescription('Rôle staff autorisé #2').setRequired(false))
+      .addStringOption(o => o.setName('suffixe').setDescription('Suffixe à ajouter au pseudo (défaut: 🌟)').setRequired(false)),
+
+    new SlashCommandBuilder()
       .setName('setup_profiles')
       .setDescription('Configurer le salon des profils (owner only)')
       .addChannelOption(o => o.setName('salon').setDescription('Salon où poster les profils (IGN)').addChannelTypes(0,5).setRequired(true)),
@@ -2851,6 +2918,13 @@ async function main() {
       // Help/commands box (staff guide)
       if (guild && rc0?.helpChannelId) {
         await ensureHelpMessage(guild, rc0);
+      }
+
+      if (guild && rc0?.eliteEnabled && rc0?.elitePanelChannelId) {
+        const eliteChannel = await client.channels.fetch(rc0.elitePanelChannelId).catch(() => null);
+        if (eliteChannel && eliteChannel.isTextBased()) {
+          await ensureElitePanel(guild, eliteChannel, rc0).catch(() => {});
+        }
       }
 
       // Preload invite cache for surveillance
@@ -3544,20 +3618,23 @@ async function main() {
         }
       }
 
-      // If someone gains the guildeux role, ensure they're listed (0 score) and refresh board
       const rc = getConfigForGuild(newMember.guild.id);
-      if (!rc.guildeuxRoleId || !rc.scoreboardChannelId) return;
+      if (rc.eliteRoleId) {
+        await elite.syncNicknameForRoleChange(oldMember, newMember, rc).catch(() => {});
+      }
 
-      const gained = !oldMember.roles.cache.has(rc.guildeuxRoleId) && newMember.roles.cache.has(rc.guildeuxRoleId);
-      if (!gained) return;
-
-      scoreboard.upsertScoreUser(newMember.guild.id, newMember.user.id);
-      const sbChannel = await newMember.client.channels.fetch(rc.scoreboardChannelId).catch(() => null);
-      if (sbChannel && sbChannel.isTextBased()) {
-        await scoreboard.ensureScoreboardMessage(newMember.guild, sbChannel, { topN: rc.scoreboardTopN });
+      if (rc.guildeuxRoleId && rc.scoreboardChannelId) {
+        const gained = !oldMember.roles.cache.has(rc.guildeuxRoleId) && newMember.roles.cache.has(rc.guildeuxRoleId);
+        if (gained) {
+          scoreboard.upsertScoreUser(newMember.guild.id, newMember.user.id);
+          const sbChannel = await newMember.client.channels.fetch(rc.scoreboardChannelId).catch(() => null);
+          if (sbChannel && sbChannel.isTextBased()) {
+            await scoreboard.ensureScoreboardMessage(newMember.guild, sbChannel, { topN: rc.scoreboardTopN });
+          }
+        }
       }
     } catch (e) {
-      console.warn('[bot] guildMemberUpdate scoreboard error:', e?.message || e);
+      console.warn('[bot] guildMemberUpdate error:', e?.message || e);
     }
   });
 
@@ -3630,6 +3707,24 @@ async function main() {
       // Event validation select
       if (interaction.isStringSelectMenu && interaction.isStringSelectMenu()) {
         if (await dragodinde.handleConfigSelect(interaction).catch(() => false)) return;
+        if (interaction.customId.startsWith('elitecool:')) {
+          const appId = Number(interaction.customId.split(':')[1]);
+          if (!Number.isFinite(appId)) {
+            return interaction.reply({ content: 'Candidature invalide.', ephemeral: true });
+          }
+          const rc = getConfigForGuild(interaction.guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!isEliteStaff(clicker, rc)) {
+            return interaction.reply({ content: 'Réservé staff ELITE.', ephemeral: true });
+          }
+          const mode = interaction.values?.[0] || 'none';
+          const application = elite.getApplication(appId);
+          if (!application || application.status !== 'pending') {
+            return interaction.reply({ content: 'Demande déjà traitée ou introuvable.', ephemeral: true });
+          }
+          return interaction.showModal(elite.buildRefusalModal(appId, mode));
+        }
+
         // Stuff generator selects
         if (interaction.customId.startsWith('teamsearch:mode:')) {
           const [, , kind, guildId] = interaction.customId.split(':');
@@ -3786,6 +3881,38 @@ async function main() {
       if (interaction.isModalSubmit && interaction.isModalSubmit()) {
 
         if (await dragodinde.handleModalSubmit?.(interaction).catch(() => false)) return;
+
+        if (interaction.customId.startsWith('elitecomment:')) {
+          const parts = interaction.customId.split(':');
+          const appId = Number(parts[1]);
+          const retryMode = parts[2] || 'none';
+          if (!Number.isFinite(appId)) {
+            return interaction.reply({ content: 'Candidature invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guildId);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!isEliteStaff(clicker, rc)) {
+            return interaction.reply({ content: 'Réservé staff ELITE.', ephemeral: true });
+          }
+
+          const application = elite.getApplication(appId);
+          if (!application || application.status !== 'pending') {
+            return interaction.reply({ content: 'Demande déjà traitée ou introuvable.', ephemeral: true });
+          }
+
+          const comment = (interaction.fields.getTextInputValue('comment') || '').trim();
+          const updated = elite.markRefused(appId, {
+            reviewedBy: interaction.user.id,
+            comment,
+            retryMode,
+          });
+          await updateEliteStaffMessage(interaction.guild, rc, updated).catch(() => {});
+
+          let reply = `❌ Demande ELITE refusée. Redemande : **${elite.cooldownLabel(retryMode)}**.`;
+          if (comment) reply += `\nCommentaire : ${comment}`;
+          return interaction.reply({ content: reply.slice(0, 1900), ephemeral: true });
+        }
 
         if (interaction.customId.startsWith('defscreen:submit:')) {
           const guildId = interaction.customId.split(':')[2];
@@ -4904,6 +5031,7 @@ async function main() {
               `admin_role_id: ${rc2.adminRoleId ? `<@&${rc2.adminRoleId}>` : '—'}`,
               `dashboard: ${rc2.dashboardChannelId ? `<#${rc2.dashboardChannelId}>` : '—'} / ${rc2.dashboardMessageId || '—'}`,
               `welcome: ${rc2.welcomeChannelId ? `<#${rc2.welcomeChannelId}>` : '—'} (guilde: ${rc2.welcomeGuildName || 'GTO'}) (everyone: ${rc2.welcomePingEveryone ? 'ON' : 'OFF'}) (roles: ${rc2.welcomeRoleGuildeuxId ? `<@&${rc2.welcomeRoleGuildeuxId}>` : '—'} / ${rc2.welcomeRoleInviteId ? `<@&${rc2.welcomeRoleInviteId}>` : '—'})`, 
+              `elite: ${rc2.eliteEnabled ? 'ON' : 'OFF'} panneau=${rc2.elitePanelChannelId ? `<#${rc2.elitePanelChannelId}>` : '—'} staff=${rc2.eliteStaffChannelId ? `<#${rc2.eliteStaffChannelId}>` : '—'} role=${rc2.eliteRoleId ? `<@&${rc2.eliteRoleId}>` : '—'} suffixe=${rc2.eliteSuffix || '🌟'}`,
             ];
             return interaction.reply({ content: '```\n' + lines.join('\n') + '\n```', ephemeral: true });
           }
@@ -5002,6 +5130,44 @@ async function main() {
             }
 
             return interaction.reply({ content: `OK. Validation staff configurée dans <#${salon.id}>.`, ephemeral: true });
+          }
+
+          if (interaction.commandName === 'setup_elite') {
+            const panneau = interaction.options.getChannel('panneau', true);
+            const validation = interaction.options.getChannel('validation', true);
+            const roleElite = interaction.options.getRole('role_elite', true);
+            const staff1 = interaction.options.getRole('staff1', true);
+            const staff2 = interaction.options.getRole('staff2', false);
+            const suffixe = elite.normalizeSuffix(interaction.options.getString('suffixe') || '🌟');
+
+            if (!panneau.isTextBased?.() || !validation.isTextBased?.()) {
+              return interaction.reply({ content: 'Choisis des **salons texte** pour le panneau et la validation ELITE.', ephemeral: true });
+            }
+
+            const staffIds = [staff1.id, staff2?.id].filter(Boolean).join(',');
+            updateGuildConfig(guild.id, {
+              elite_role_id: roleElite.id,
+              elite_panel_channel_id: panneau.id,
+              elite_staff_channel_id: validation.id,
+              elite_staff_role_ids: staffIds,
+              elite_suffix: suffixe,
+              elite_enabled: 1,
+            });
+
+            const rc2 = getConfigForGuild(guild.id);
+            const msg = await ensureElitePanel(guild, panneau, rc2);
+
+            if (rc2.dashboardChannelId && rc2.dashboardMessageId) {
+              const dashChannel = await interaction.client.channels.fetch(rc2.dashboardChannelId).catch(() => null);
+              if (dashChannel && dashChannel.isTextBased()) {
+                await ensureDashboardMessage(guild, dashChannel, rc2, { allowCreate: false });
+              }
+            }
+
+            return interaction.reply({
+              content: `OK. Système ELITE configuré dans <#${panneau.id}> (message ${msg.id}) avec validation staff dans <#${validation.id}>.`,
+              ephemeral: true,
+            });
           }
 
           if (interaction.commandName === 'setup_profiles') {
@@ -6276,6 +6442,135 @@ ${info}`.slice(0, 1900),
 
       if (interaction.isButton()) {
         if (await dragodinde.handleButtonInteraction(interaction).catch(() => false)) return;
+
+        if (interaction.customId.startsWith('elite:')) {
+          const [, action, guildId] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(guildId);
+          if (!rc.eliteEnabled || !rc.eliteRoleId) {
+            return interaction.reply({ content: 'Le système ELITE n’est pas encore configuré.', ephemeral: true });
+          }
+
+          if (rc.elitePanelChannelId && interaction.channelId !== rc.elitePanelChannelId) {
+            return interaction.reply({ content: `Utilise ce panneau uniquement dans <#${rc.elitePanelChannelId}>.`, ephemeral: true });
+          }
+
+          const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!member) {
+            return interaction.reply({ content: 'Membre introuvable.', ephemeral: true });
+          }
+
+          if (action === 'status') {
+            const latest = elite.getLatestApplication(guildId, interaction.user.id);
+            return interaction.reply({ content: elite.buildStatusMessage(latest), ephemeral: true });
+          }
+
+          if (action === 'apply') {
+            const hasEliteRole = member.roles.cache.has(rc.eliteRoleId);
+            const eligibility = elite.evaluateEligibility({
+              guildId,
+              userId: interaction.user.id,
+              hasEliteRole,
+            });
+
+            if (!eligibility.ok) {
+              if (eligibility.code === 'already_elite') {
+                return interaction.reply({ content: 'Tu fais déjà partie des **[ELITE]**. Aucune nouvelle demande n’est nécessaire.', ephemeral: true });
+              }
+              if (eligibility.code === 'pending') {
+                return interaction.reply({ content: 'Tu as déjà une demande ELITE en attente de validation par le staff.', ephemeral: true });
+              }
+              if (eligibility.code === 'blocked_forever') {
+                return interaction.reply({ content: 'Tu ne peux plus soumettre de nouvelle demande pour le rôle **[ELITE]**.', ephemeral: true });
+              }
+              if (eligibility.code === 'cooldown') {
+                return interaction.reply({
+                  content: `Tu ne peux pas encore refaire de demande. Prochaine tentative possible : **${elite.formatDateFr(eligibility.retryAfter)}**.`,
+                  ephemeral: true,
+                });
+              }
+            }
+
+            const application = elite.createApplication({
+              guildId,
+              userId: interaction.user.id,
+            });
+            const staffMsg = await postEliteApplicationToStaff(interaction.guild, rc, application).catch(() => null);
+            if (!staffMsg) {
+              elite.deleteApplication(application.id);
+              return interaction.reply({
+                content: 'Impossible d’envoyer la candidature au salon staff ELITE. Vérifie la configuration et les permissions du bot.',
+                ephemeral: true,
+              });
+            }
+            return interaction.reply({
+              content: 'Ta candidature ELITE a bien été envoyée au staff. Tu peux utiliser **Voir le statut de ma demande** pour suivre la décision en privé.',
+              ephemeral: true,
+            });
+          }
+
+          return interaction.reply({ content: 'Action ELITE inconnue.', ephemeral: true });
+        }
+
+        if (interaction.customId.startsWith('eliteadm:')) {
+          const [, rawId, action] = interaction.customId.split(':');
+          const appId = Number(rawId);
+          if (!Number.isFinite(appId)) {
+            return interaction.reply({ content: 'Candidature invalide.', ephemeral: true });
+          }
+
+          const rc = getConfigForGuild(interaction.guild.id);
+          const clicker = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+          if (!isEliteStaff(clicker, rc)) {
+            return interaction.reply({ content: 'Réservé staff ELITE.', ephemeral: true });
+          }
+
+          const application = elite.getApplication(appId);
+          if (!application || application.guild_id !== interaction.guild.id) {
+            return interaction.reply({ content: 'Demande ELITE introuvable.', ephemeral: true });
+          }
+          if (application.status !== 'pending') {
+            return interaction.reply({ content: 'Cette demande ELITE a déjà été traitée.', ephemeral: true });
+          }
+
+          const target = await interaction.guild.members.fetch(application.user_id).catch(() => null);
+          if (!target) {
+            return interaction.reply({ content: 'Le membre concerné est introuvable.', ephemeral: true });
+          }
+
+          if (action === 'approve') {
+            if (!interaction.guild.members.me.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
+              return interaction.reply({ content: "Je n'ai pas la permission **Gérer les rôles**.", ephemeral: true });
+            }
+            const roleElite = interaction.guild.roles.cache.get(rc.eliteRoleId);
+            if (!roleElite) {
+              return interaction.reply({ content: 'Le rôle ELITE configuré est introuvable.', ephemeral: true });
+            }
+
+            await target.roles.add(roleElite).catch(() => {});
+            const nickResult = await elite.ensureEliteSuffix(target, rc).catch(() => ({ previous: target.displayName }));
+            const updated = elite.markAccepted(appId, {
+              reviewedBy: interaction.user.id,
+              nicknameBefore: nickResult?.previous || target.displayName,
+            });
+            await updateEliteStaffMessage(interaction.guild, rc, updated).catch(() => {});
+            return interaction.reply({ content: `✅ ${target} a été accepté parmi les **[ELITE]**.`, ephemeral: true });
+          }
+
+          if (action === 'deny') {
+            const components = elite.buildCooldownComponents(appId);
+            return interaction.reply({
+              content: 'Choisis le délai avant qu’une nouvelle demande ELITE soit autorisée.',
+              components,
+              ephemeral: true,
+            });
+          }
+
+          return interaction.reply({ content: 'Action ELITE staff inconnue.', ephemeral: true });
+        }
 
         if (interaction.customId.startsWith('defscreen:open:')) {
           const guildId = interaction.customId.split(':')[2];
