@@ -210,18 +210,21 @@ async function syncNicknameForRoleChange(oldMember, newMember, rc) {
 }
 
 function buildPanelEmbed(rc) {
-  const suffix = normalizeSuffix(rc?.eliteSuffix);
   return new EmbedBuilder()
     .setColor(0xf1c40f)
-    .setTitle('🌟 Candidature ELITE')
+    .setTitle('⚔️ Appel à l’élite de GTO')
     .setDescription(
-      'Les **[ELITE]** représentent la première ligne de défense de la guilde.\n' +
-      'Si tu veux te proposer, envoie ta candidature avec le bouton ci-dessous.\n\n' +
-      `Après validation, ton pseudo sera affiché au format **Pseudo ${suffix}**.`
-    )
-    .addFields(
-      { name: 'Processus', value: '• Candidature\n• Validation staff\n• Attribution du rôle\n• Suffixe ajouté au pseudo', inline: false },
-      { name: 'Important', value: '• Une seule demande en attente à la fois\n• Les refus peuvent inclure un délai avant nouvelle demande', inline: false },
+      'GTO a besoin de combattants capables de se lever lorsque la guerre frappe à la porte.\n\n' +
+      'En rejoignant **l’élite de GTO**, tu t’engages à faire partie des membres appelés en priorité pour :\n' +
+      '• les **défenses**\n' +
+      '• les besoins de **team PvP**\n' +
+      '• les situations où la guilde doit pouvoir compter sur ses meilleurs éléments\n\n' +
+      'Cette place n’est pas donnée à tout le monde.\n\n' +
+      'Seuls les profils **optimisés**, **disciplinés**, **sérieux en PvP** et réellement prêts à défendre la guilde avec constance pourront être retenus.\n\n' +
+      'Être dans l’élite, ce n’est pas porter un rang pour le style.\n' +
+      'C’est accepter une responsabilité et répondre présent **le plus souvent possible** lorsque GTO a besoin de sa première ligne.\n\n' +
+      'En contrepartie de cet engagement, faire partie de l’élite pourra également ouvrir l’accès à certains **avantages**, notamment pour récompenser l’honneur et l’investissement de nos guerriers dans la **pose de percepteurs**, selon leur activité et leur implication dans les défenses.\n\n' +
+      'Si tu es prêt à assumer cet engagement, tu peux proposer ta candidature.'
     )
     .setFooter({ text: 'Utilise "Voir le statut" pour suivre ta demande en privé.' });
 }
