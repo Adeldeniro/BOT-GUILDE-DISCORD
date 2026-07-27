@@ -1768,21 +1768,21 @@ function isEliteStaff(member, rc) {
 }
 
 async function ensureElitePanel(guild, channel, rc) {
-  const embed = elite.buildPanelEmbed(rc);
   const components = elite.buildPanelComponents(guild.id);
   const files = fs.existsSync(ELITE_PANEL_IMAGE_PATH)
     ? [{ attachment: ELITE_PANEL_IMAGE_PATH, name: 'elite-panel.png' }]
     : [];
+  const content = files.length ? null : '⚔️ Appel à l’élite de GTO';
 
   if (rc.elitePanelChannelId === channel.id && rc.elitePanelMessageId) {
     try {
       const msg = await channel.messages.fetch(rc.elitePanelMessageId);
-      await msg.edit({ embeds: [embed], components, files });
+      await msg.edit({ content, embeds: [], components, files });
       return msg;
     } catch {}
   }
 
-  const msg = await channel.send({ embeds: [embed], components, files });
+  const msg = await channel.send({ content, components, files });
   try { await msg.pin(); } catch {}
   updateGuildConfig(guild.id, {
     elite_panel_channel_id: channel.id,

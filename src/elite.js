@@ -209,14 +209,6 @@ async function syncNicknameForRoleChange(oldMember, newMember, rc) {
   }
 }
 
-function buildPanelEmbed(rc) {
-  return new EmbedBuilder()
-    .setColor(0xf1c40f)
-    .setTitle('⚔️ Appel à l’élite de GTO')
-    .setImage('attachment://elite-panel.png')
-    .setFooter({ text: 'Utilise "Voir le statut" pour suivre ta demande en privé.' });
-}
-
 function buildPanelComponents(guildId) {
   return [
     new ActionRowBuilder().addComponents(
@@ -347,7 +339,6 @@ module.exports = {
   applyEliteSuffix,
   buildCooldownComponents,
   buildPanelComponents,
-  buildPanelEmbed,
   buildRefusalModal,
   buildStaffComponents,
   buildStaffEmbed,
