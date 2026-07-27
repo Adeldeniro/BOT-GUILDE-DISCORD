@@ -23,6 +23,7 @@ const DEFENSE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'defense-p
 const ATTACK_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'attack-perco-panel.png');
 const MARKET_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'market-panel.png');
 const TEAM_SEARCH_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'team-search-panel.png');
+const ELITE_PANEL_IMAGE_PATH = path.join(__dirname, '..', 'assets', 'elite-panel.png');
 const PERCO_PANEL_NOTIFS_FILE = path.join(__dirname, '..', 'data', 'perco-panel-notifs.json');
 const defenseSubmissionSessions = new Map();
 const attackSubmissionSessions = new Map();
@@ -1769,16 +1770,19 @@ function isEliteStaff(member, rc) {
 async function ensureElitePanel(guild, channel, rc) {
   const embed = elite.buildPanelEmbed(rc);
   const components = elite.buildPanelComponents(guild.id);
+  const files = fs.existsSync(ELITE_PANEL_IMAGE_PATH)
+    ? [{ attachment: ELITE_PANEL_IMAGE_PATH, name: 'elite-panel.png' }]
+    : [];
 
   if (rc.elitePanelChannelId === channel.id && rc.elitePanelMessageId) {
     try {
       const msg = await channel.messages.fetch(rc.elitePanelMessageId);
-      await msg.edit({ embeds: [embed], components });
+      await msg.edit({ embeds: [embed], components, files });
       return msg;
     } catch {}
   }
 
-  const msg = await channel.send({ embeds: [embed], components });
+  const msg = await channel.send({ embeds: [embed], components, files });
   try { await msg.pin(); } catch {}
   updateGuildConfig(guild.id, {
     elite_panel_channel_id: channel.id,

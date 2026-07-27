@@ -214,18 +214,9 @@ function buildPanelEmbed(rc) {
     .setColor(0xf1c40f)
     .setTitle('⚔️ Appel à l’élite de GTO')
     .setDescription(
-      'GTO a besoin de combattants capables de se lever lorsque la guerre frappe à la porte.\n\n' +
-      'En rejoignant **l’élite de GTO**, tu t’engages à faire partie des membres appelés en priorité pour :\n' +
-      '• les **défenses**\n' +
-      '• les besoins de **team PvP**\n' +
-      '• les situations où la guilde doit pouvoir compter sur ses meilleurs éléments\n\n' +
-      'Cette place n’est pas donnée à tout le monde.\n\n' +
-      'Seuls les profils **optimisés**, **disciplinés**, **sérieux en PvP** et réellement prêts à défendre la guilde avec constance pourront être retenus.\n\n' +
-      'Être dans l’élite, ce n’est pas porter un rang pour le style.\n' +
-      'C’est accepter une responsabilité et répondre présent **le plus souvent possible** lorsque GTO a besoin de sa première ligne.\n\n' +
-      'En contrepartie de cet engagement, faire partie de l’élite pourra également ouvrir l’accès à certains **avantages**, notamment pour récompenser l’honneur et l’investissement de nos guerriers dans la **pose de percepteurs**, selon leur activité et leur implication dans les défenses.\n\n' +
-      'Si tu es prêt à assumer cet engagement, tu peux proposer ta candidature.'
+      'Lis l’affiche ci-dessous, puis utilise les boutons pour envoyer ta candidature ou consulter ton statut.'
     )
+    .setImage('attachment://elite-panel.png')
     .setFooter({ text: 'Utilise "Voir le statut" pour suivre ta demande en privé.' });
 }
 
