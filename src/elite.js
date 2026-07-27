@@ -213,9 +213,6 @@ function buildPanelEmbed(rc) {
   return new EmbedBuilder()
     .setColor(0xf1c40f)
     .setTitle('⚔️ Appel à l’élite de GTO')
-    .setDescription(
-      'Lis l’affiche ci-dessous, puis utilise les boutons pour envoyer ta candidature ou consulter ton statut.'
-    )
     .setImage('attachment://elite-panel.png')
     .setFooter({ text: 'Utilise "Voir le statut" pour suivre ta demande en privé.' });
 }
