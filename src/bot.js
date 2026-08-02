@@ -1628,34 +1628,40 @@ async function ensurePanelMessage(channel, rc) {
   });
   const p = panel.getPanel(rc.guildId, channel.id);
   const components = panel.buildComponents(rc.guildId, channel.id);
+  const buttons = panel.getButtons(rc.guildId, channel.id);
 
   const title = p?.title || rc.panelTitle;
+  const signalLines = buttons.length
+    ? buttons.map((btn) => {
+        const bits = [btn.unicode_prefix, btn.emoji, `**${btn.label || btn.name}**`].filter(Boolean);
+        return `• ${bits.join(' ')}`;
+      })
+    : ['• Aucun signal configuré pour le moment'];
 
-  // Embed = best "official announcement" look on Discord
   const embed = new EmbedBuilder()
-    .setColor(0xe74c3c) // alert red
+    .setColor(0xe74c3c)
     .setAuthor({ name: 'GTO — Centre de commandement', iconURL: channel.guild?.iconURL?.({ size: 128 }) || undefined })
-    .setTitle(`⚔️ ALERTE DEF — ${title}`)
-    .setDescription('**EN CAS D’ATTAQUE : sélectionne la guilde et déclenche l’alerte.**')
+    .setTitle(`⚔️ ${title}`)
+    .setDescription('**Choisis le signal adapté et déclenche l’alerte en un clic.**')
     .addFields(
       {
-        name: '📣 Procédure',
-        value: '1) Identifie la guilde concernée\n2) Clique sur le bouton correspondant\n3) Renforts en route',
+        name: '🎛️ Signaux disponibles',
+        value: signalLines.join('\n').slice(0, 1024),
         inline: false,
       },
       {
-        name: '🎯 Effet',
-        value: 'Ping **DEF** + ping rôle de guilde dans le salon d’alerte.',
+        name: '📣 Déclenchement',
+        value: '1) Repère la situation\n2) Clique sur le bouton concerné\n3) Le ping part immédiatement dans le salon d’alerte',
         inline: false,
       },
       {
-        name: '🛡️ Discipline',
-        value: '• Pas de spam\n• Une erreur = on assume, on corrige, et on se regroupe',
+        name: '🛡️ Consigne',
+        value: 'Un clic utile, pas de spam. Si le mauvais signal part, on corrige vite et on se regroupe.',
         inline: false,
       },
     )
     .setImage('attachment://pingdef-banner.png')
-    .setFooter({ text: '⬇️ Clique sur un bouton ⬇️' });
+    .setFooter({ text: 'Les boutons reprennent directement tes intitulés personnalisés.' });
 
   const content = '';
 
@@ -2485,6 +2491,86 @@ function getUserVisual(user, { member = null, includeId = false, size = 256 } = 
     label: formatUserLabel(user, { member, includeId }),
     avatarUrl: getUserAvatarUrl(user, { member, size }),
   };
+}
+
+function normalizeAlertLabel(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function resolveAlertColor(color) {
+  switch (String(color || '').toLowerCase()) {
+    case 'green':
+      return 0x2ecc71;
+    case 'blue':
+      return 0x3498db;
+    case 'gray':
+      return 0x95a5a6;
+    case 'red':
+    default:
+      return 0xe74c3c;
+  }
+}
+
+function buildAlertPresentation(btn) {
+  const rawLabel = String(btn?.label || btn?.name || 'Alerte');
+  const normalized = normalizeAlertLabel(rawLabel);
+
+  const base = {
+    headline: `${rawLabel} déclenchée`,
+    summary: 'Mobilisation immédiate demandée sur le front concerné.',
+    objective: 'Rejoignez la défense, prenez vos infos et bougez vite.',
+  };
+
+  if (/\bprisme\b/.test(normalized)) {
+    return {
+      ...base,
+      headline: `${rawLabel} sous pression`,
+      summary: 'Le prisme demande un renfort rapide.',
+      objective: 'Verrouillez la zone, annoncez-vous et préparez la défense.',
+    };
+  }
+
+  if (/\bperco|percepteur\b/.test(normalized)) {
+    return {
+      ...base,
+      headline: `${rawLabel} en danger`,
+      summary: 'Le percepteur a besoin d’un soutien immédiat.',
+      objective: 'Rassemblement rapide, vérifiez le secteur et sécurisez la défense.',
+    };
+  }
+
+  if (/\bgeneral\b/.test(normalized)) {
+    return {
+      ...base,
+      headline: `${rawLabel} déclenchée`,
+      summary: 'Mobilisation générale demandée sans délai.',
+      objective: 'Tout le monde se tient prêt, prend les infos et rejoint le point de ralliement.',
+    };
+  }
+
+  if (/\brush|attaque|assaut\b/.test(normalized)) {
+    return {
+      ...base,
+      headline: `${rawLabel} lancé`,
+      summary: 'Le signal offensif vient de partir.',
+      objective: 'Prenez position rapidement et coordonnez l’action sans délai.',
+    };
+  }
+
+  if (/\bdef|defense\b/.test(normalized)) {
+    return {
+      ...base,
+      headline: `${rawLabel} déclenchée`,
+      summary: 'La défense doit se mettre en place immédiatement.',
+      objective: 'Regroupez-vous, fixez les rôles et verrouillez la zone.',
+    };
+  }
+
+  return base;
 }
 
 async function getAuditActor(guild, { type, targetId, windowMs = 15_000, retries = 1, retryDelayMs = 1200 }) {
@@ -8429,19 +8515,13 @@ ${info}`.slice(0, 1900),
         // Always include DEF role in all pings
         const pingRoles = [rc.defRoleId, btn.role_id].filter(Boolean);
 
-        // Mention control: allow only these roles
-        const emojiPrefix = btn.emoji ? `<${String(btn.emoji).match(/^\d+$/) ? ':' : ''}>` : '';
-        // If btn.emoji is an ID, format it as <:name:id> is not possible without name; use <a:_:id> or <:_:id>
-        // We'll render custom emoji via <a:_:{id}> (Discord will resolve if animated) or <:_:id>.
         let emojiText = '';
         if (btn.emoji) {
           const s = String(btn.emoji);
           if (s.match(/^\d+$/)) {
-            // Emoji id only: resolve in guild cache if possible (keeps animated/static).
             const found = interaction.guild.emojis.cache.get(s);
             emojiText = found ? found.toString() : `<:_:${s}>`;
           } else {
-            // Unicode or raw custom emoji (<:name:id> or <a:name:id>)
             emojiText = s;
           }
         }
@@ -8449,25 +8529,25 @@ ${info}`.slice(0, 1900),
         const rolesText = pingRoles.map(id => `<@&${id}>`).join(' ');
         const prefix = btn.unicode_prefix ? `${btn.unicode_prefix} ` : '';
         const emojiPart = emojiText ? `${emojiText} ` : '';
-
-        // Style 4 (RP / dramatique) — 3 lines
-        const hiddenMentions = `||${rolesText}||`;
         const alertedBy = formatUserLabel(interaction.user, { member: interaction.member });
+        const presentation = buildAlertPresentation(btn);
+        const signalVisual = `${prefix}${emojiPart}${btn.label}`.trim();
         const alertEmbed = new EmbedBuilder()
-          .setColor(0xe74c3c)
-          .setTitle(`${btn.label} est attaquée`)
-          .setDescription('Rassemblement immédiat — défendez le blason !')
-          .addFields({ name: 'Alerte envoyée par', value: alertedBy, inline: false })
+          .setColor(resolveAlertColor(btn.color))
+          .setAuthor({ name: 'GTO — Centre de commandement', iconURL: interaction.guild?.iconURL?.({ size: 128 }) || undefined })
+          .setTitle(`${prefix}${emojiPart}${presentation.headline}`.trim())
+          .setDescription(presentation.summary)
+          .addFields(
+            { name: 'Signal', value: signalVisual || btn.label, inline: false },
+            { name: 'Consigne', value: presentation.objective, inline: false },
+            { name: 'Déclenchée par', value: alertedBy, inline: false },
+          )
           .setThumbnail(getUserAvatarUrl(interaction.user, { member: interaction.member, size: 512 }))
+          .setFooter({ text: 'Notification DEF envoyée automatiquement.' })
           .setTimestamp();
-        const content = [
-          `${prefix}${emojiPart}⚔️ **${btn.label} EST ATTAQUÉE !**`,
-          `Rassemblement immédiat — défendez le blason !`,
-          `Alerte envoyée par ${alertedBy} → ${hiddenMentions}`,
-        ].join('\n');
 
         await alertChannel.send({
-          content,
+          content: rolesText,
           embeds: [alertEmbed],
           allowedMentions: { roles: pingRoles },
         });

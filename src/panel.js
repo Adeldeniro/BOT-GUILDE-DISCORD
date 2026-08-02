@@ -106,6 +106,7 @@ function resolveButton(guildId, channelId, name) {
 
 module.exports = {
   buildComponents,
+  getButtons,
   upsertPanel,
   getPanel,
   setPanelMessageId,
