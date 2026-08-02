@@ -2460,17 +2460,48 @@ async function sendActivityLog(guild, rc, embed) {
   await ch.send({ embeds: [embed], allowedMentions: { parse: [] } });
 }
 
-async function getAuditActor(guild, { type, targetId, windowMs = 15_000 }) {
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function formatUserLabel(user, { member = null, includeId = false } = {}) {
+  if (!user) return includeId ? 'Utilisateur inconnu' : 'utilisateur inconnu';
+  const label = member?.displayName || user.globalName || user.tag || user.username || `utilisateur-${user.id}`;
+  return includeId ? `${label} (\`${user.id}\`)` : label;
+}
+
+function getUserAvatarUrl(user, { member = null, size = 256 } = {}) {
+  return (
+    member?.displayAvatarURL?.({ size }) ||
+    member?.user?.displayAvatarURL?.({ size }) ||
+    user?.displayAvatarURL?.({ size }) ||
+    user?.avatarURL?.({ size }) ||
+    null
+  );
+}
+
+function getUserVisual(user, { member = null, includeId = false, size = 256 } = {}) {
+  return {
+    label: formatUserLabel(user, { member, includeId }),
+    avatarUrl: getUserAvatarUrl(user, { member, size }),
+  };
+}
+
+async function getAuditActor(guild, { type, targetId, windowMs = 15_000, retries = 1, retryDelayMs = 1200 }) {
   // Best-effort: audit logs can be delayed/ambiguous.
   try {
     if (!guild?.members?.me?.permissions?.has(PermissionsBitField.Flags.ViewAuditLog)) return null;
-    const logs = await guild.fetchAuditLogs({ limit: 6, type });
-    const now = Date.now();
-    const entry = logs.entries.find(e => {
-      if (targetId && e.target?.id !== targetId) return false;
-      return now - e.createdTimestamp < windowMs;
-    });
-    return entry ? { executor: entry.executor, reason: entry.reason || null, entry } : null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      const logs = await guild.fetchAuditLogs({ limit: 6, type });
+      const now = Date.now();
+      const entry = logs.entries.find(e => {
+        if (targetId && e.target?.id !== targetId) return false;
+        return now - e.createdTimestamp < windowMs;
+      });
+      if (entry) return { executor: entry.executor, reason: entry.reason || null, entry };
+      if (attempt < retries) await sleep(retryDelayMs);
+    }
+    return null;
   } catch {
     return null;
   }
@@ -3387,18 +3418,20 @@ async function main() {
       if (!message.guild) return;
       const rc = getConfigForGuild(message.guild.id);
 
-      const author = message.author ? `${message.author.tag || message.author.username} (\`${message.author.id}\`)` : 'Inconnu (partial)';
+      const author = getUserVisual(message.author, { includeId: true, size: 512 });
       const actor = await getAuditActor(message.guild, { type: 72, targetId: message.author?.id || null }); // MESSAGE_DELETE
+      const actorVisual = actor?.executor ? getUserVisual(actor.executor, { includeId: true, size: 256 }) : null;
 
       const embed = new EmbedBuilder()
         .setColor(0xe67e22)
         .setTitle('🗑️ Message supprimé')
         .addFields(
-          { name: 'Auteur', value: author, inline: false },
-          { name: 'Supprimé par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu / auteur', inline: false },
+          { name: 'Auteur', value: author.label, inline: false },
+          { name: 'Supprimé par', value: actorVisual ? `${actorVisual.label} (audit log)` : 'Auteur / audit log indisponible', inline: false },
           { name: 'Salon', value: message.channelId ? `<#${message.channelId}>` : '—', inline: true },
           { name: 'Message ID', value: `\`${message.id}\``, inline: true },
         )
+        .setThumbnail(author.avatarUrl)
         .setTimestamp();
 
       await sendActivityLog(message.guild, rc, embed);
@@ -3413,6 +3446,7 @@ async function main() {
 
       // Best-effort actor detection (often a mod or bot)
       const actor = await getAuditActor(first.guild, { type: 73, windowMs: 20_000 }); // MESSAGE_BULK_DELETE
+      const actorVisual = actor?.executor ? getUserVisual(actor.executor, { includeId: true, size: 256 }) : null;
 
       const embed = new EmbedBuilder()
         .setColor(0xd35400)
@@ -3420,8 +3454,9 @@ async function main() {
         .addFields(
           { name: 'Nombre', value: String(messages.size), inline: true },
           { name: 'Salon', value: first.channelId ? `<#${first.channelId}>` : '—', inline: true },
-          { name: 'Par', value: actor?.executor ? `${actor.executor} (audit log)` : 'Inconnu', inline: false },
+          { name: 'Par', value: actorVisual ? `${actorVisual.label} (audit log)` : 'Inconnu', inline: false },
         )
+        .setThumbnail(actorVisual?.avatarUrl || null)
         .setTimestamp();
 
       await sendActivityLog(first.guild, rc, embed);
@@ -3433,7 +3468,7 @@ async function main() {
       if (!newMessage.guild) return;
       const rc = getConfigForGuild(newMessage.guild.id);
 
-      const author = newMessage.author ? `${newMessage.author.tag || newMessage.author.username} (\`${newMessage.author.id}\`)` : 'Inconnu (partial)';
+      const author = getUserVisual(newMessage.author, { includeId: true, size: 512 });
       const before = (oldMessage?.content || '').slice(0, 400);
       const after = (newMessage?.content || '').slice(0, 400);
 
@@ -3444,12 +3479,13 @@ async function main() {
         .setColor(0x3498db)
         .setTitle('✏️ Message modifié')
         .addFields(
-          { name: 'Auteur', value: author, inline: false },
+          { name: 'Auteur', value: author.label, inline: false },
           { name: 'Salon', value: newMessage.channelId ? `<#${newMessage.channelId}>` : '—', inline: true },
           { name: 'Message ID', value: `\`${newMessage.id}\``, inline: true },
           { name: 'Avant', value: before ? `\`${before}\`` : '(contenu non dispo)', inline: false },
           { name: 'Après', value: after ? `\`${after}\`` : '(contenu non dispo)', inline: false },
         )
+        .setThumbnail(author.avatarUrl)
         .setTimestamp();
 
       await sendActivityLog(newMessage.guild, rc, embed);
@@ -3533,13 +3569,16 @@ async function main() {
       const guild = ban.guild;
       const rc = getConfigForGuild(guild.id);
       const actor = await getAuditActor(guild, { type: 22, targetId: ban.user.id, windowMs: 30_000 }); // MEMBER_BAN_ADD
+      const memberVisual = getUserVisual(ban.user, { includeId: true, size: 512 });
+      const actorVisual = actor?.executor ? getUserVisual(actor.executor, { includeId: true, size: 256 }) : null;
       const embed = new EmbedBuilder()
         .setColor(0xc0392b)
         .setTitle('⚔️ Ban')
         .addFields(
-          { name: 'Membre', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: false },
-          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+          { name: 'Membre', value: memberVisual.label, inline: false },
+          { name: 'Par', value: actorVisual?.label || 'Inconnu', inline: false },
         )
+        .setThumbnail(memberVisual.avatarUrl)
         .setTimestamp();
       await sendActivityLog(guild, rc, embed);
     } catch {}
@@ -3550,13 +3589,16 @@ async function main() {
       const guild = ban.guild;
       const rc = getConfigForGuild(guild.id);
       const actor = await getAuditActor(guild, { type: 23, targetId: ban.user.id, windowMs: 30_000 }); // MEMBER_BAN_REMOVE
+      const memberVisual = getUserVisual(ban.user, { includeId: true, size: 512 });
+      const actorVisual = actor?.executor ? getUserVisual(actor.executor, { includeId: true, size: 256 }) : null;
       const embed = new EmbedBuilder()
         .setColor(0x27ae60)
         .setTitle('✅ Unban')
         .addFields(
-          { name: 'Membre', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: false },
-          { name: 'Par', value: actor?.executor ? `${actor.executor}` : 'Inconnu', inline: false },
+          { name: 'Membre', value: memberVisual.label, inline: false },
+          { name: 'Par', value: actorVisual?.label || 'Inconnu', inline: false },
         )
+        .setThumbnail(memberVisual.avatarUrl)
         .setTimestamp();
       await sendActivityLog(guild, rc, embed);
     } catch {}
@@ -3580,13 +3622,16 @@ async function main() {
         }
       } catch {}
 
+      const memberVisual = getUserVisual(member.user, { member, includeId: true, size: 512 });
+      const kickerVisual = kickedBy ? getUserVisual(kickedBy, { includeId: true, size: 256 }) : null;
       const embed = new EmbedBuilder()
         .setColor(kickedBy ? 0xe74c3c : 0x95a5a6)
         .setTitle(kickedBy ? '⚔️ Membre expulsé' : '🚪 Membre parti')
         .addFields(
-          { name: 'Membre', value: `<@${userId}> (\`${userId}\`)`, inline: false },
-          { name: 'Action', value: kickedBy ? `Kick par ${kickedBy}` : 'Départ volontaire', inline: false },
+          { name: 'Membre', value: memberVisual.label, inline: false },
+          { name: 'Action', value: kickerVisual ? `Kick par ${kickerVisual.label}` : 'Départ volontaire', inline: false },
         )
+        .setThumbnail(memberVisual.avatarUrl)
         .setTimestamp();
       await sendSurveillance(member.guild, rc, embed);
 
@@ -8407,14 +8452,23 @@ ${info}`.slice(0, 1900),
 
         // Style 4 (RP / dramatique) — 3 lines
         const hiddenMentions = `||${rolesText}||`;
+        const alertedBy = formatUserLabel(interaction.user, { member: interaction.member });
+        const alertEmbed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setTitle(`${btn.label} est attaquée`)
+          .setDescription('Rassemblement immédiat — défendez le blason !')
+          .addFields({ name: 'Alerte envoyée par', value: alertedBy, inline: false })
+          .setThumbnail(getUserAvatarUrl(interaction.user, { member: interaction.member, size: 512 }))
+          .setTimestamp();
         const content = [
           `${prefix}${emojiPart}⚔️ **${btn.label} EST ATTAQUÉE !**`,
           `Rassemblement immédiat — défendez le blason !`,
-          `Alerte envoyée par ${interaction.user} → ${hiddenMentions}`,
+          `Alerte envoyée par ${alertedBy} → ${hiddenMentions}`,
         ].join('\n');
 
         await alertChannel.send({
           content,
+          embeds: [alertEmbed],
           allowedMentions: { roles: pingRoles },
         });
 
