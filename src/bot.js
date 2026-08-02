@@ -2516,57 +2516,61 @@ function resolveAlertColor(color) {
 }
 
 function buildAlertPresentation(btn) {
-  const rawLabel = String(btn?.label || btn?.name || 'Alerte');
-  const normalized = normalizeAlertLabel(rawLabel);
+  const rawLabel = String(btn?.label || btn?.name || 'Alerte').trim() || 'Alerte';
+  const normalized = normalizeAlertLabel(`${btn?.name || ''} ${rawLabel}`);
 
   const base = {
-    headline: `${rawLabel} déclenchée`,
-    summary: 'Mobilisation immédiate demandée sur le front concerné.',
-    objective: 'Rejoignez la défense, prenez vos infos et bougez vite.',
+    title: rawLabel,
+    mobileLine: `⚔️ ${rawLabel}. Rejoignez la défense, votre aide compte maintenant.`,
+    summary: 'Une alerte a été lancée. Des renforts sont attendus immédiatement.',
+    footer: 'Venez aider dès que vous êtes disponibles.',
   };
 
   if (/\bprisme\b/.test(normalized)) {
     return {
       ...base,
-      headline: `${rawLabel} sous pression`,
-      summary: 'Le prisme demande un renfort rapide.',
-      objective: 'Verrouillez la zone, annoncez-vous et préparez la défense.',
+      title: 'Prisme attaqué',
+      mobileLine: '🚨 Prisme attaqué. On a besoin de renforts maintenant.',
+      summary: 'La défense est en cours. Chaque renfort peut faire la différence.',
+      footer: 'Rejoignez vite la défense si vous êtes disponibles.',
     };
   }
 
   if (/\bperco|percepteur\b/.test(normalized)) {
     return {
       ...base,
-      headline: `${rawLabel} en danger`,
-      summary: 'Le percepteur a besoin d’un soutien immédiat.',
-      objective: 'Rassemblement rapide, vérifiez le secteur et sécurisez la défense.',
+      title: 'Percepteur en danger',
+      mobileLine: '⚠️ Percepteur en danger. Venez tenir la défense maintenant.',
+      summary: 'Le percepteur a besoin de renforts immédiats pour tenir la ligne.',
+      footer: 'Chaque défenseur présent peut changer l’issue du combat.',
     };
   }
 
-  if (/\bgeneral\b/.test(normalized)) {
+  if (/\balerte\b/.test(normalized) && /\bgeneral\b/.test(normalized)) {
     return {
       ...base,
-      headline: `${rawLabel} déclenchée`,
-      summary: 'Mobilisation générale demandée sans délai.',
-      objective: 'Tout le monde se tient prêt, prend les infos et rejoint le point de ralliement.',
-    };
-  }
-
-  if (/\brush|attaque|assaut\b/.test(normalized)) {
-    return {
-      ...base,
-      headline: `${rawLabel} lancé`,
-      summary: 'Le signal offensif vient de partir.',
-      objective: 'Prenez position rapidement et coordonnez l’action sans délai.',
+      title: 'Alerte générale',
+      mobileLine: '📣 Alerte générale. Rejoignez le combat, chaque renfort compte.',
+      summary: 'La mobilisation est lancée. On a besoin de monde rapidement.',
+      footer: 'Venez aider si vous êtes disponibles.',
     };
   }
 
   if (/\bdef|defense\b/.test(normalized)) {
     return {
       ...base,
-      headline: `${rawLabel} déclenchée`,
-      summary: 'La défense doit se mettre en place immédiatement.',
-      objective: 'Regroupez-vous, fixez les rôles et verrouillez la zone.',
+      mobileLine: `🛡️ ${rawLabel}. La défense a besoin de vous tout de suite.`,
+      summary: 'Un renfort rapide peut faire basculer le combat en notre faveur.',
+      footer: 'Rejoignez la défense dès que possible.',
+    };
+  }
+
+  if (/\brush|attaque|assaut\b/.test(normalized)) {
+    return {
+      ...base,
+      mobileLine: `⚔️ ${rawLabel}. Rejoignez le combat, on a besoin de vous maintenant.`,
+      summary: 'Le signal offensif vient de partir. Des renforts sont attendus sans délai.',
+      footer: 'Prenez position rapidement si vous êtes disponibles.',
     };
   }
 
@@ -8512,8 +8516,8 @@ ${info}`.slice(0, 1900),
           return interaction.reply({ content: `Alert channel not accessible (<#${alertChannelId}>).`, ephemeral: true });
         }
 
-        // Always include DEF role in all pings
-        const pingRoles = [rc.defRoleId, btn.role_id].filter(Boolean);
+        // Always include DEF role in all pings, but never duplicate the same role.
+        const pingRoles = [...new Set([rc.defRoleId, btn.role_id].filter(Boolean).map(String))];
 
         let emojiText = '';
         if (btn.emoji) {
@@ -8527,27 +8531,20 @@ ${info}`.slice(0, 1900),
         }
 
         const rolesText = pingRoles.map(id => `<@&${id}>`).join(' ');
-        const prefix = btn.unicode_prefix ? `${btn.unicode_prefix} ` : '';
-        const emojiPart = emojiText ? `${emojiText} ` : '';
         const alertedBy = formatUserLabel(interaction.user, { member: interaction.member });
         const presentation = buildAlertPresentation(btn);
-        const signalVisual = `${prefix}${emojiPart}${btn.label}`.trim();
         const alertEmbed = new EmbedBuilder()
           .setColor(resolveAlertColor(btn.color))
           .setAuthor({ name: 'GTO — Centre de commandement', iconURL: interaction.guild?.iconURL?.({ size: 128 }) || undefined })
-          .setTitle(`${prefix}${emojiPart}${presentation.headline}`.trim())
+          .setTitle(presentation.title)
           .setDescription(presentation.summary)
-          .addFields(
-            { name: 'Signal', value: signalVisual || btn.label, inline: false },
-            { name: 'Consigne', value: presentation.objective, inline: false },
-            { name: 'Déclenchée par', value: alertedBy, inline: false },
-          )
+          .addFields({ name: 'Alerte lancée par', value: alertedBy, inline: false })
           .setThumbnail(getUserAvatarUrl(interaction.user, { member: interaction.member, size: 512 }))
-          .setFooter({ text: 'Notification DEF envoyée automatiquement.' })
+          .setFooter({ text: presentation.footer })
           .setTimestamp();
 
         await alertChannel.send({
-          content: rolesText,
+          content: [presentation.mobileLine, rolesText].filter(Boolean).join(' '),
           embeds: [alertEmbed],
           allowedMentions: { roles: pingRoles },
         });
