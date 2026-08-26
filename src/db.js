@@ -89,6 +89,10 @@ CREATE TABLE IF NOT EXISTS guild_config (
   event_admin_message_id TEXT,
   event_submit_panel_channel_id TEXT,
   event_submit_panel_message_id TEXT,
+  koli_screen_channel_id TEXT,
+  koli_panel_channel_id TEXT,
+  koli_panel_message_id TEXT,
+  koli_archive_thread_id TEXT,
   ankama_profile_channel_id TEXT,
   ankama_profile_message_id TEXT,
   dofusbook_panel_channel_id TEXT,
@@ -330,6 +334,9 @@ if (!cfgCols.includes('koli_panel_channel_id')) {
 }
 if (!cfgCols.includes('koli_panel_message_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN koli_panel_message_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('koli_archive_thread_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN koli_archive_thread_id TEXT'); } catch {}
 }
 if (!cfgCols.includes('ankama_profile_channel_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN ankama_profile_channel_id TEXT'); } catch {}

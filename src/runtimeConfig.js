@@ -72,6 +72,10 @@ function getConfigForGuild(guildId) {
     eventAdminMessageId: pick(gc.event_admin_message_id, null),
     eventSubmitPanelChannelId: pick(gc.event_submit_panel_channel_id, null),
     eventSubmitPanelMessageId: pick(gc.event_submit_panel_message_id, null),
+    koliScreenChannelId: pick(gc.koli_screen_channel_id, null),
+    koliPanelChannelId: pick(gc.koli_panel_channel_id, null),
+    koliPanelMessageId: pick(gc.koli_panel_message_id, null),
+    koliArchiveThreadId: pick(gc.koli_archive_thread_id, null),
 
     ankamaProfileChannelId: pick(gc.ankama_profile_channel_id, null),
     ankamaProfileMessageId: pick(gc.ankama_profile_message_id, null),
