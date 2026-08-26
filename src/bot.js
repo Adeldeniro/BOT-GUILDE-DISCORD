@@ -2012,18 +2012,19 @@ async function ensureKoliScreenPanel(guild, rc) {
 
   const embed = new EmbedBuilder()
     .setColor(0xe67e22)
-    .setTitle('📸 Screen Koli — Soumission')
+    .setTitle('📸 Screen Koli')
     .setDescription(
       [
-        'Ici, on archive les screens koli propres, les victoires serrées et les humiliations bien cadrées.',
+        'Poste ici les screens koli propres, les victoires serrées et les humiliations bien cadrées.',
         '',
         'Clique sur **📤 Poster un screen** puis :',
+        '• choisis le format **1v1** ou **3v3**',
         '• indique les combattants du match dans le thread créé',
         '• envoie ensuite **1 à 3 screens** dans un seul message',
         '• ajoute un petit contexte si tu veux (**score, compo, adversaire, etc.**)',
         '• garde si possible la **date / heure visibles**',
         '',
-        'Le tout restera rangé dans le thread dédié, proprement, sans casser le salon.',
+        'Le thread public sera créé directement dans ce salon pour garder le suivi propre.',
       ].join('\n')
     )
     .addFields(
@@ -2037,16 +2038,11 @@ async function ensureKoliScreenPanel(guild, rc) {
         ].join('\n'),
         inline: false,
       },
-    )
-    .setImage('attachment://event-perco-banner.png');
+    );
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`koliopen:${guild.id}`).setLabel('📤 Poster un screen').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`koliopen:${guild.id}:${panelCh.id}`).setLabel('📤 Poster un screen').setStyle(ButtonStyle.Primary),
   );
-
-  const files = [];
-  const bannerPath = path.join(__dirname, '..', 'assets', 'event-perco-banner.png');
-  try { files.push({ attachment: bannerPath, name: 'event-perco-banner.png' }); } catch {}
 
   let existing = null;
   if (rc.koliPanelMessageId) {
@@ -2054,12 +2050,15 @@ async function ensureKoliScreenPanel(guild, rc) {
   }
   if (!existing) {
     const recent = await panelCh.messages.fetch({ limit: 20 }).catch(() => null);
-    existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📸 Screen Koli — Soumission') || null;
+    existing = recent?.find(m =>
+      m.author?.id === guild.client.user.id &&
+      ['📸 Screen Koli — Soumission', '📸 Screen Koli'].includes(m.embeds?.[0]?.title)
+    ) || null;
   }
 
   const msg = existing
-    ? await existing.edit({ embeds: [embed], components: [row], files }).then(() => existing)
-    : await panelCh.send({ embeds: [embed], components: [row], files });
+    ? await existing.edit({ embeds: [embed], components: [row], attachments: [], files: [] }).then(() => existing)
+    : await panelCh.send({ embeds: [embed], components: [row] });
 
   try { await msg.pin(); } catch {}
   updateGuildConfig(guild.id, { koli_panel_channel_id: panelCh.id, koli_panel_message_id: msg.id });
@@ -5967,7 +5966,6 @@ async function main() {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
             const salon = interaction.options.getChannel('salon', true);
-
             const screenCh = await interaction.guild.channels.fetch(salon.id).catch(() => null);
             const panelCh = screenCh;
 
@@ -7869,17 +7867,18 @@ ${info}`.slice(0, 1900),
           try {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
-            const guildId = interaction.customId.split(':')[1];
+            const [, guildId, targetChannelId] = interaction.customId.split(':');
             if (!interaction.guild || interaction.guild.id !== guildId) {
               return interaction.editReply({ content: 'Action invalide.' }).catch(() => {});
             }
 
             const rc = getConfigForGuild(guildId);
-            if (!rc.koliScreenChannelId) {
+            const resolvedChannelId = targetChannelId || rc.koliScreenChannelId || interaction.channelId;
+            if (!resolvedChannelId) {
               return interaction.editReply({ content: 'Screen koli non configuré.' }).catch(() => {});
             }
 
-            const screenCh = await interaction.client.channels.fetch(rc.koliScreenChannelId).catch(() => null);
+            const screenCh = await interaction.client.channels.fetch(resolvedChannelId).catch(() => null);
             if (!screenCh || !screenCh.isTextBased()) {
               return interaction.editReply({ content: 'Salon screen koli inaccessible.' }).catch(() => {});
             }
