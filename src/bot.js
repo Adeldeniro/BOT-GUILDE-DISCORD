@@ -5978,14 +5978,18 @@ async function main() {
               return interaction.editReply({ content: '❌ Choisis uniquement des **salons texte** (pas catégorie/voice/forum).' }).catch(() => {});
             }
 
-            updateGuildConfig(guild.id, {
+            updateGuildConfig(interaction.guild.id, {
               koli_screen_channel_id: screenCh.id,
               koli_panel_channel_id: panelCh.id,
             });
 
-            const rc2 = getConfigForGuild(guild.id);
+            const rc2 = getConfigForGuild(interaction.guild.id);
             try {
-              const panelMsg = await ensureKoliScreenPanel(guild, rc2);
+              const panelMsg = await ensureKoliScreenPanel(interaction.guild, {
+                ...rc2,
+                koliScreenChannelId: screenCh.id,
+                koliPanelChannelId: panelCh.id,
+              });
               if (!panelMsg) {
                 return interaction.editReply({
                   content: '❌ Config enregistrée, mais impossible de poster la box screen koli dans ce salon. Vérifie mes permissions: Voir le salon / Envoyer des messages / Intégrer des liens / Joindre des fichiers.',
