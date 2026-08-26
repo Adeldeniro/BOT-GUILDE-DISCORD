@@ -1527,6 +1527,9 @@ function pickMatchingGuildMember(members, rawToken) {
   const prefix = members.filter((member) => getDiscordLookupKeys(member).some((key) => key.startsWith(token)));
   if (prefix.length === 1) return prefix[0];
 
+  const contains = members.filter((member) => getDiscordLookupKeys(member).some((key) => key.includes(token)));
+  if (contains.length === 1) return contains[0];
+
   return null;
 }
 
@@ -1536,6 +1539,7 @@ async function resolveDiscordIds(guild, raw) {
     .split(/[\n,;|]+/)
     .map((token) => token.trim())
     .filter(Boolean);
+  const unresolved = [];
 
   for (const token of tokens) {
     const directId = token.match(/^<@!?(\d{17,20})>$/)?.[1] || token.match(/^(\d{17,20})$/)?.[1];
@@ -1549,16 +1553,20 @@ async function resolveDiscordIds(guild, raw) {
       const found = await guild.members.search({ query: token.replace(/^@+/, '').slice(0, 32), limit: 10 }).catch(() => null);
       if (found?.size) member = pickMatchingGuildMember([...found.values()], token);
     }
-    if (member?.id) resolved.add(member.id);
+    if (member?.id) {
+      resolved.add(member.id);
+      continue;
+    }
+    unresolved.push(token);
   }
 
-  return [...resolved];
+  return { ids: [...resolved], unresolved };
 }
 
 function buildKoliArchiveText({ authorId, participantIds, matchType, opponentTeam, note, seed, imageCount = 1 }) {
   const ids = uniqueMentionIds(participantIds, authorId);
   const ctx = getKoliNarrativeContext(ids, matchType, imageCount);
-  const normalizedType = ctx.isSolo ? '1v1' : '3v3';
+  const normalizedType = matchType === '3v3' ? '3v3' : matchType === '1v1' ? '1v1' : (ctx.isSolo ? '1v1' : '3v3');
   const countLabel = ctx.screenCount > 1 ? `${ctx.screenCount} screens` : '1 screen';
   const lines = [
     buildKoliTrashLine(ids, seed, normalizedType, ctx.screenCount),
@@ -4792,7 +4800,9 @@ async function main() {
         }
 
         if (interaction.customId.startsWith('koli:submit:')) {
-          const guildId = interaction.customId.split(':')[2];
+          const parts = interaction.customId.split(':');
+          const guildId = parts[2];
+          const presetMatchType = parts[3];
           if (!interaction.guild || interaction.guild.id !== guildId) {
             return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
           }
@@ -4802,7 +4812,14 @@ async function main() {
             return interaction.reply({ content: 'Le système koli n’est pas encore configuré.', ephemeral: true }).catch(() => {});
           }
 
-          const rawMode = (interaction.fields.getTextInputValue('mode') || '').trim().toLowerCase().replace(/\s+/g, '');
+          let rawMode = presetMatchType;
+          if (!rawMode) {
+            try {
+              rawMode = (interaction.fields.getTextInputValue('mode') || '').trim().toLowerCase().replace(/\s+/g, '');
+            } catch {
+              rawMode = '';
+            }
+          }
           const matchType = rawMode === '1v1' || rawMode === '1vs1'
             ? '1v1'
             : rawMode === '3v3' || rawMode === '3vs3'
@@ -4815,14 +4832,30 @@ async function main() {
           const opponentTeam = (interaction.fields.getTextInputValue('opponent_team') || '').trim();
           const teammatesRaw = (interaction.fields.getTextInputValue('teammates') || '').trim();
           const note = (interaction.fields.getTextInputValue('note') || '').trim();
-          const teammateIds = (await resolveDiscordIds(interaction.guild, teammatesRaw)).filter((id) => id !== interaction.user.id);
+          const teammateResolution = await resolveDiscordIds(interaction.guild, teammatesRaw);
+          const teammateIds = teammateResolution.ids.filter((id) => id !== interaction.user.id);
           const participantIds = uniqueMentionIds(teammateIds, interaction.user.id);
 
           if (matchType === '1v1' && teammateIds.length) {
             return interaction.reply({ content: 'En `1v1`, ne renseigne pas d’alliés.', ephemeral: true }).catch(() => {});
           }
+          if (matchType === '3v3' && participantIds.length < 2) {
+            const unresolvedHint = teammateResolution.unresolved.length
+              ? `\nIntrouvable(s) : ${teammateResolution.unresolved.map((item) => `\`${item}\``).join(', ')}`
+              : '';
+            return interaction.reply({
+              content: `En \`3v3\`, il faut au moins toi + 1 allié résolu en vraie mention Discord.${unresolvedHint}\nUtilise de préférence une mention, un ID, ou un pseudo Discord exact.`,
+              ephemeral: true,
+            }).catch(() => {});
+          }
           if (matchType === '3v3' && participantIds.length > 3) {
             return interaction.reply({ content: 'En `3v3`, mets au maximum toi + 2 alliés.', ephemeral: true }).catch(() => {});
+          }
+          if (teammateResolution.unresolved.length) {
+            return interaction.reply({
+              content: `Je n’ai pas pu retrouver ${teammateResolution.unresolved.map((item) => `\`${item}\``).join(', ')}.\nUtilise une mention, un ID, ou un pseudo Discord exact pour que le post ping bien la bonne personne.`,
+              ephemeral: true,
+            }).catch(() => {});
           }
 
           koliSubmissionSessions.set(`${guildId}:${interaction.user.id}`, {
@@ -4845,6 +4878,50 @@ async function main() {
             content: '✅ Infos reçues. Tu peux maintenant envoyer **1 à 3 images dans un seul message** dans ce salon. L’autorisation se refermera ensuite automatiquement.',
             ephemeral: true,
           }).catch(() => {});
+        }
+        if (interaction.customId.startsWith('koliopenmode:')) {
+          const [, guildId, selectedMode] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          if (!['1v1', '3v3'].includes(selectedMode)) {
+            return interaction.reply({ content: 'Format invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const modal = new ModalBuilder()
+            .setCustomId(`koli:submit:${guildId}:${selectedMode}`)
+            .setTitle(`Poster un screen koli - ${selectedMode}`);
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('teammates')
+                .setLabel(selectedMode === '1v1' ? 'Alliés (laisser vide en 1v1)' : 'Alliés (mentions, IDs ou pseudos Discord)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(400)
+                .setPlaceholder(selectedMode === '1v1' ? 'Aucun allié attendu ici' : '@pote, 123456789..., pseudo Discord')
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('opponent_team')
+                .setLabel('Nom de la team en face (optionnel)')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(false)
+                .setMaxLength(100)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('note')
+                .setLabel('Détails utiles (optionnel)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(400)
+            )
+          );
+
+          return interaction.showModal(modal).catch(() => {});
         }
         if (interaction.customId.startsWith('evparts:')) { 
           const id = Number(interaction.customId.split(':')[1]);
@@ -8175,47 +8252,22 @@ ${info}`.slice(0, 1900),
             return interaction.reply({ content: 'Le système koli n’est pas encore configuré.', ephemeral: true }).catch(() => {});
           }
 
-          const modal = new ModalBuilder()
-            .setCustomId(`koli:submit:${guildId}`)
-            .setTitle('Poster un screen koli');
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('mode')
-                .setLabel('Format koli')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true)
-                .setMaxLength(3)
-                .setPlaceholder('1v1 ou 3v3')
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('teammates')
-                .setLabel('Alliés (mentions ou IDs, optionnel)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setRequired(false)
-                .setMaxLength(400)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('opponent_team')
-                .setLabel('Nom de la team en face (optionnel)')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(false)
-                .setMaxLength(100)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('note')
-                .setLabel('Détails utiles (optionnel)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setRequired(false)
-                .setMaxLength(400)
-            )
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`koliopenmode:${guildId}:1v1`)
+              .setLabel('1v1')
+              .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+              .setCustomId(`koliopenmode:${guildId}:3v3`)
+              .setLabel('3v3')
+              .setStyle(ButtonStyle.Primary)
           );
 
-          return interaction.showModal(modal).catch(() => {});
+          return interaction.reply({
+            content: 'Choisis le format du koli avant de remplir les détails.',
+            components: [row],
+            ephemeral: true,
+          }).catch(() => {});
         }
 
         // Rules acceptance button
