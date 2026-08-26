@@ -1351,6 +1351,106 @@ async function ensureDashboardMessage(guild, channel, rc, { allowCreate = true }
 const cooldown = new Map(); // key: buttonKey -> lastTs
 const pendingEventFix = new Map(); // key: `${userId}:${sid}` -> { participantIds, defenders }
 
+const KOLI_TRASH_LINES_1V1 = [
+  '{mentions} a transformé ce koli en contrôle technique sans contre-visite.',
+  '{mentions} a laissé en face un souvenir tactique impossible à assumer.',
+  '{mentions} a plié ce koli avec la délicatesse d\'une porte de grange.',
+  '{mentions} a fait de ce screen un petit certificat d\'humiliation réglementaire.',
+  '{mentions} a expédié ce match avec la douceur d\'un tacle dans les côtes.',
+  '{mentions} a rappelé à son vis-a-vis que cliquer vite ne remplace pas réfléchir.',
+  '{mentions} a rangé ce koli comme on ferme un dossier embarrassant.',
+  '{mentions} a distribué une leçon si nette qu\'elle mérite encadrement.',
+];
+
+const KOLI_TRASH_LINES_3V3 = [
+  '{mentions} ont transformé ce koli en chantier proprement terminé.',
+  '{mentions} ont laissé l\'équipe d\'en face réviser ses choix de vie en direct.',
+  '{mentions} ont livré une humiliation groupée, propre et sans bavure.',
+  '{mentions} ont plié ce match comme une formalité administrative un lundi matin.',
+  '{mentions} ont passé l\'adversaire au rouleau avec une coordination bien venimeuse.',
+  '{mentions} ont rendu ce koli suffisamment sale pour mériter l\'archivage premium.',
+  '{mentions} ont signé une démonstration collective qui sent bon la mauvaise soirée adverse.',
+  '{mentions} ont distribué une correction d\'équipe avec finition soignée.',
+];
+
+function hashSeed(input) {
+  const str = String(input || '');
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash * 31) + str.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
+
+function pickSeeded(items, seed) {
+  if (!Array.isArray(items) || !items.length) return '';
+  return items[hashSeed(seed) % items.length];
+}
+
+function uniqueMentionIds(ids, fallbackId = null) {
+  const out = [...new Set((ids || []).map(String).map(s => s.trim()).filter(Boolean))];
+  if (fallbackId && !out.includes(String(fallbackId))) out.unshift(String(fallbackId));
+  return out;
+}
+
+function formatMentionList(ids) {
+  return uniqueMentionIds(ids).map(id => `<@${id}>`).join(' ');
+}
+
+function getKoliMatchType(draftOrStage) {
+  const stage = String(draftOrStage?.stage || draftOrStage || '');
+  if (stage.includes('1v1')) return '1v1';
+  if (stage.includes('3v3')) return '3v3';
+  return 'unknown';
+}
+
+function buildKoliTrashLine(participantIds, seed, matchType = 'unknown') {
+  const ids = uniqueMentionIds(participantIds);
+  const mentions = formatMentionList(ids) || (matchType === '1v1' ? 'Ce joueur' : 'Cette team');
+  const pool = matchType === '1v1'
+    ? KOLI_TRASH_LINES_1V1
+    : matchType === '3v3'
+      ? KOLI_TRASH_LINES_3V3
+      : (ids.length <= 1 ? KOLI_TRASH_LINES_1V1 : KOLI_TRASH_LINES_3V3);
+  return pickSeeded(pool, seed).replace('{mentions}', mentions);
+}
+
+function buildKoliReceiptEmbed({ participantIds, imageCount, seed, matchType = 'unknown' }) {
+  const ids = uniqueMentionIds(participantIds);
+  const isDuel = matchType === '1v1' || (matchType === 'unknown' && ids.length <= 1);
+  const title = isDuel ? '✅ Screen koli 1v1 archivé' : '✅ Screens koli 3v3 archivés';
+  const countLabel = imageCount > 1 ? `${imageCount} screens` : `${imageCount} screen`;
+
+  return new EmbedBuilder()
+    .setColor(0x2ecc71)
+    .setTitle(title)
+    .setDescription(
+      [
+        buildKoliTrashLine(ids, seed, matchType),
+        '',
+        'Le screen est bien enregistré dans ce thread.',
+      ].join('\n')
+    )
+    .addFields(
+      {
+        name: isDuel ? '🥊 Dueliste' : '🥊 Combattants',
+        value: formatMentionList(ids) || '—',
+        inline: false,
+      },
+      {
+        name: '🎯 Format',
+        value: matchType === '1v1' ? '1v1' : matchType === '3v3' ? '3v3' : 'Koli',
+        inline: true,
+      },
+      {
+        name: '🖼️ Preuves',
+        value: countLabel,
+        inline: true,
+      },
+    )
+    .setTimestamp();
+}
+
 // Prevent double-running (two bot instances => double pings)
 const lockPath = path.join(__dirname, '..', 'bot.lock');
 try {
@@ -1900,6 +2000,68 @@ async function ensureEventAdminPanel(guild, rc) {
   const msg = await ch.send({ embeds: [embed], components: [row] });
   try { await msg.pin(); } catch {}
   updateGuildConfig(guild.id, { event_admin_channel_id: ch.id, event_admin_message_id: msg.id });
+  return msg;
+}
+
+async function ensureKoliScreenPanel(guild, rc) {
+  if (!rc.koliScreenChannelId || !rc.koliPanelChannelId) return null;
+
+  const panelCh = await guild.client.channels.fetch(rc.koliPanelChannelId).catch(() => null);
+  if (!panelCh || !panelCh.isTextBased?.()) return null;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xe67e22)
+    .setTitle('📸 Screen Koli — Soumission')
+    .setDescription(
+      [
+        'Ici, on archive les screens koli propres, les victoires serrées et les humiliations bien cadrées.',
+        '',
+        'Clique sur **📤 Poster un screen** puis :',
+        '• indique les combattants du match dans le thread créé',
+        '• envoie ensuite **1 à 3 screens** dans un seul message',
+        '• ajoute un petit contexte si tu veux (**score, compo, adversaire, etc.**)',
+        '• garde si possible la **date / heure visibles**',
+        '',
+        'Le tout restera rangé dans le thread dédié, proprement, sans casser le salon.',
+      ].join('\n')
+    )
+    .addFields(
+      {
+        name: '✅ Rappel',
+        value: [
+          '• Screen lisible et complet si possible',
+          '• Un seul thread par envoi pour garder le suivi propre',
+          '• Mentionne les joueurs du combat pour que le post auto soit propre',
+          '• Tu peux préciser un détail du match directement dans le thread',
+        ].join('\n'),
+        inline: false,
+      },
+    )
+    .setImage('attachment://event-perco-banner.png');
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`koliopen:${guild.id}`).setLabel('📤 Poster un screen').setStyle(ButtonStyle.Primary),
+  );
+
+  const files = [];
+  const bannerPath = path.join(__dirname, '..', 'assets', 'event-perco-banner.png');
+  try { files.push({ attachment: bannerPath, name: 'event-perco-banner.png' }); } catch {}
+
+  let existing = null;
+  if (rc.koliPanelMessageId) {
+    existing = await panelCh.messages.fetch(rc.koliPanelMessageId).catch(() => null);
+  }
+  if (!existing) {
+    const recent = await panelCh.messages.fetch({ limit: 20 }).catch(() => null);
+    existing = recent?.find(m => m.author?.id === guild.client.user.id && m.embeds?.[0]?.title === '📸 Screen Koli — Soumission') || null;
+  }
+
+  const msg = existing
+    ? await existing.edit({ embeds: [embed], components: [row], files }).then(() => existing)
+    : await panelCh.send({ embeds: [embed], components: [row], files });
+
+  try { await msg.pin(); } catch {}
+  updateGuildConfig(guild.id, { koli_panel_channel_id: panelCh.id, koli_panel_message_id: msg.id });
   return msg;
 }
 
@@ -2920,6 +3082,12 @@ async function registerCommands(client) {
       .addChannelOption(o => o.setName('classement').setDescription('Salon du classement all-time').addChannelTypes(0,5).setRequired(true))
       .addChannelOption(o => o.setName('screens').setDescription('Salon où poster les screens OFFICIELS (optionnel)').addChannelTypes(0,5).setRequired(false))
       .addChannelOption(o => o.setName('panneau').setDescription('Salon où placer la box de soumission (optionnel)').addChannelTypes(0,5).setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('setup_screen_koli')
+      .setDescription('Configurer le panneau de soumission des screens koli (owner only)')
+      .addChannelOption(o => o.setName('salon').setDescription('Salon où créer les threads screen koli').addChannelTypes(0,5).setRequired(true))
+      .addChannelOption(o => o.setName('panneau').setDescription('Salon où poster la box screen koli (optionnel)').addChannelTypes(0,5).setRequired(false)),
     ...dragodinde.buildCommands(),
   ].map(c => c.toJSON());
 
@@ -3043,6 +3211,10 @@ async function main() {
       // Help/commands box (staff guide)
       if (guild && rc0?.helpChannelId) {
         await ensureHelpMessage(guild, rc0);
+      }
+
+      if (guild && rc0?.koliScreenChannelId && rc0?.koliPanelChannelId) {
+        await ensureKoliScreenPanel(guild, rc0).catch(() => {});
       }
 
       if (guild && rc0?.eliteEnabled && rc0?.elitePanelChannelId) {
@@ -3289,7 +3461,6 @@ async function main() {
       }
 
       const rc = getConfigForGuild(message.guild.id);
-
       if (rc.marketAnnounceThreadId && message.channelId === rc.marketAnnounceThreadId) {
         const isBotMessage = message.author?.id === client.user?.id;
         if (!isBotMessage) {
@@ -3306,16 +3477,59 @@ async function main() {
           return;
         }
       }
+      if (!rc.eventProofsChannelId && !rc.koliScreenChannelId) return;
 
-      if (!rc.eventProofsChannelId) return;
-
-      // We accept proofs in threads under the proofs channel
       const isThread = message.channel?.isThread?.();
       const parentId = isThread ? message.channel.parentId : null;
-      if (!isThread || parentId !== rc.eventProofsChannelId) return;
+      if (!isThread) return;
 
       const draft = drafts.getDraft(message.guild.id, message.author.id);
       if (!draft || draft.thread_id !== message.channelId) return;
+
+      const isEventThread = !!(rc.eventProofsChannelId && parentId === rc.eventProofsChannelId);
+      const isKoliThread = !!(rc.koliScreenChannelId && parentId === rc.koliScreenChannelId);
+      if (!isEventThread && !isKoliThread) return;
+
+      if (isKoliThread && (draft.stage === 'koli_1v1_need_participants' || draft.stage === 'koli_3v3_need_participants')) {
+        const ids = uniqueMentionIds([...message.mentions.users.keys()], message.author.id);
+        const matchType = getKoliMatchType(draft);
+        drafts.setParticipants(message.guild.id, message.author.id, ids.join(','));
+        drafts.setStage(message.guild.id, message.author.id, matchType === '1v1' ? 'koli_1v1_need_images' : 'koli_3v3_need_images');
+        await message.reply({
+          content:
+            `✅ Combattants enregistrés : ${formatMentionList(ids)}\n` +
+            `Format sélectionné : **${matchType === '1v1' ? '1v1' : '3v3'}**\n` +
+            `**Étape 2/2 :** envoie maintenant **1 à 3 screens** dans un seul message.`,
+          allowedMentions: { users: ids, parse: [] },
+        }).catch(() => {});
+        return;
+      }
+
+      if (isKoliThread && (draft.stage === 'koli_1v1_need_images' || draft.stage === 'koli_3v3_need_images')) {
+        const atts = [...message.attachments.values()].filter(a => (a.contentType || '').startsWith('image/'));
+        if (atts.length < 1) return;
+        if (atts.length > 3) {
+          await message.reply({ content: '⚠️ Maximum **3 screens** par post koli.', allowedMentions: { users: [message.author.id] } }).catch(() => {});
+          return;
+        }
+
+        const matchType = getKoliMatchType(draft);
+        const participantIds = uniqueMentionIds(String(draft.participants || '').split(',').map(s => s.trim()).filter(Boolean), message.author.id);
+        const receiptEmbed = buildKoliReceiptEmbed({
+          participantIds,
+          imageCount: atts.length,
+          matchType,
+          seed: `${matchType}:${message.channelId}:${message.id}:${participantIds.join(',')}`,
+        });
+
+        await message.reply({
+          embeds: [receiptEmbed],
+          allowedMentions: { users: participantIds, parse: [] },
+        }).catch(() => null);
+
+        drafts.clearDraft(message.guild.id, message.author.id);
+        return;
+      }
 
       // Stage 1: participants message (no images)
       if (draft.stage === 'need_participants') {
@@ -5749,6 +5963,47 @@ async function main() {
             }).catch(() => {});
           }
 
+          if (interaction.commandName === 'setup_screen_koli') {
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+            const salon = interaction.options.getChannel('salon', true);
+            const panneau = interaction.options.getChannel('panneau', false);
+
+            const screenCh = await interaction.guild.channels.fetch(salon.id).catch(() => null);
+            const panelCh = panneau ? await interaction.guild.channels.fetch(panneau.id).catch(() => null) : screenCh;
+
+            if (!screenCh) {
+              return interaction.editReply({ content: '❌ Le salon screen koli est introuvable.' }).catch(() => {});
+            }
+            if (!panelCh) {
+              return interaction.editReply({ content: '❌ Le salon panneau est introuvable.' }).catch(() => {});
+            }
+            if (!screenCh.isTextBased?.() || !panelCh.isTextBased?.()) {
+              return interaction.editReply({ content: '❌ Choisis uniquement des **salons texte** (pas catégorie/voice/forum).' }).catch(() => {});
+            }
+
+            updateGuildConfig(guild.id, {
+              koli_screen_channel_id: screenCh.id,
+              koli_panel_channel_id: panelCh.id,
+            });
+
+            const rc2 = getConfigForGuild(guild.id);
+            try {
+              await ensureKoliScreenPanel(guild, rc2);
+            } catch (e) {
+              return interaction.editReply({
+                content: `❌ Config enregistrée, mais impossible de poster la box screen koli.\nDétail: ${(e?.message || e)}`.slice(0, 1800),
+              }).catch(() => {});
+            }
+
+            return interaction.editReply({
+              content:
+                `✅ Screen koli configuré.\n` +
+                `Salon screens / threads: <#${screenCh.id}>\n` +
+                `Salon panneau: <#${panelCh.id}>`,
+            }).catch(() => {});
+          }
+
           if (interaction.commandName === 'clean') {
             const n = Math.min(100, Math.max(1, interaction.options.getInteger('nombre') || 50));
 
@@ -7603,6 +7858,101 @@ ${info}`.slice(0, 1900),
             return interaction.editReply({ content: `✅ Thread créé : <#${thread.id}>` }).catch(() => {});
           } catch (e) {
             return interaction.editReply({ content: `❌ Impossible de créer le thread. Vérifie mes permissions dans le salon preuves (Créer des threads / Envoyer messages / Voir salon).\nDétail: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
+          }
+        }
+
+        if (interaction.customId.startsWith('koliopen:')) {
+          try {
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+            const guildId = interaction.customId.split(':')[1];
+            if (!interaction.guild || interaction.guild.id !== guildId) {
+              return interaction.editReply({ content: 'Action invalide.' }).catch(() => {});
+            }
+
+            const rc = getConfigForGuild(guildId);
+            if (!rc.koliScreenChannelId) {
+              return interaction.editReply({ content: 'Screen koli non configuré.' }).catch(() => {});
+            }
+
+            const screenCh = await interaction.client.channels.fetch(rc.koliScreenChannelId).catch(() => null);
+            if (!screenCh || !screenCh.isTextBased()) {
+              return interaction.editReply({ content: 'Salon screen koli inaccessible.' }).catch(() => {});
+            }
+
+            const hhmm = new Date().toISOString().slice(11, 16).replace(':', 'h');
+            const baseName = interaction.user.username
+              .toLowerCase()
+              .replace(/[^a-z0-9_-]/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '') || 'joueur';
+            const threadName = `screen-koli-${baseName}-${hhmm}`;
+            const thread = await screenCh.threads.create({
+              name: threadName.slice(0, 90),
+              autoArchiveDuration: 1440,
+              type: ChannelType.PublicThread,
+              reason: 'Soumission screen koli',
+            });
+
+            drafts.setDraft({ guildId, authorId: interaction.user.id, threadId: thread.id, participants: '', stage: 'koli_need_mode' });
+
+            const modeRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(`kolimode:${guildId}:${interaction.user.id}:1v1`).setLabel('🥊 Koli 1v1').setStyle(ButtonStyle.Primary),
+              new ButtonBuilder().setCustomId(`kolimode:${guildId}:${interaction.user.id}:3v3`).setLabel('⚔️ Koli 3v3').setStyle(ButtonStyle.Secondary),
+            );
+
+            await thread.send({
+              content:
+                `${interaction.user} — **Étape 1/3 :** choisis d’abord le format du match ci-dessous.\n` +
+                `Ensuite je te demanderai les combattants, puis les **1 à 3 screens** dans un seul message.`,
+              components: [modeRow],
+              allowedMentions: { users: [interaction.user.id], parse: [] },
+            });
+
+            return interaction.editReply({ content: `✅ Thread créé : <#${thread.id}>` }).catch(() => {});
+          } catch (e) {
+            return interaction.editReply({
+              content: `❌ Impossible de créer le thread screen koli. Vérifie mes permissions dans le salon cible (Créer des threads / Envoyer messages / Voir salon).\nDétail: ${(e?.message || e)}`.slice(0, 1900),
+            }).catch(() => {});
+          }
+        }
+
+        if (interaction.customId.startsWith('kolimode:')) {
+          try {
+            await interaction.deferReply({ ephemeral: true }).catch(() => {});
+
+            const [, guildId, authorId, mode] = interaction.customId.split(':');
+            if (!interaction.guild || interaction.guild.id !== guildId) {
+              return interaction.editReply({ content: 'Action invalide.' }).catch(() => {});
+            }
+            if (interaction.user.id !== authorId) {
+              return interaction.editReply({ content: 'Ce choix est réservé à l’auteur du post.' }).catch(() => {});
+            }
+            if (!['1v1', '3v3'].includes(mode)) {
+              return interaction.editReply({ content: 'Format koli invalide.' }).catch(() => {});
+            }
+
+            const draft = drafts.getDraft(guildId, authorId);
+            if (!draft || draft.thread_id !== interaction.channelId) {
+              return interaction.editReply({ content: 'Brouillon koli introuvable ou expiré.' }).catch(() => {});
+            }
+
+            drafts.setStage(guildId, authorId, mode === '1v1' ? 'koli_1v1_need_participants' : 'koli_3v3_need_participants');
+
+            await interaction.message.edit({ components: [] }).catch(() => {});
+            await interaction.channel.send({
+              content:
+                `${interaction.user} — **Étape 2/3 :** mentionne maintenant les combattants du match (**@personnes**) dans ce thread.\n` +
+                `Format choisi : **${mode}**\n` +
+                `${mode === '1v1'
+                  ? 'Je t’ajoute automatiquement dans la liste si besoin.'
+                  : 'Je t’ajoute automatiquement dans la liste, mais pense à mentionner tes mates si vous étiez plusieurs.'}`,
+              allowedMentions: { users: [interaction.user.id], parse: [] },
+            }).catch(() => {});
+
+            return interaction.editReply({ content: `✅ Format **${mode}** sélectionné.` }).catch(() => {});
+          } catch (e) {
+            return interaction.editReply({ content: `❌ Impossible d’enregistrer le format koli.\nDétail: ${(e?.message || e)}`.slice(0, 1900) }).catch(() => {});
           }
         }
 
