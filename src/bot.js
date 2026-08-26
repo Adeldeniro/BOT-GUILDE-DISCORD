@@ -3086,8 +3086,7 @@ async function registerCommands(client) {
     new SlashCommandBuilder()
       .setName('setup_screen_koli')
       .setDescription('Configurer le panneau de soumission des screens koli (owner only)')
-      .addChannelOption(o => o.setName('salon').setDescription('Salon où créer les threads screen koli').addChannelTypes(0,5).setRequired(true))
-      .addChannelOption(o => o.setName('panneau').setDescription('Salon où poster la box screen koli (optionnel)').addChannelTypes(0,5).setRequired(false)),
+      .addChannelOption(o => o.setName('salon').setDescription('Salon où poster la box et créer les threads screen koli').addChannelTypes(0,5).setRequired(true)),
     ...dragodinde.buildCommands(),
   ].map(c => c.toJSON());
 
@@ -5967,16 +5966,12 @@ async function main() {
             await interaction.deferReply({ ephemeral: true }).catch(() => {});
 
             const salon = interaction.options.getChannel('salon', true);
-            const panneau = interaction.options.getChannel('panneau', false);
 
             const screenCh = await interaction.guild.channels.fetch(salon.id).catch(() => null);
-            const panelCh = panneau ? await interaction.guild.channels.fetch(panneau.id).catch(() => null) : screenCh;
+            const panelCh = screenCh;
 
             if (!screenCh) {
               return interaction.editReply({ content: '❌ Le salon screen koli est introuvable.' }).catch(() => {});
-            }
-            if (!panelCh) {
-              return interaction.editReply({ content: '❌ Le salon panneau est introuvable.' }).catch(() => {});
             }
             if (!screenCh.isTextBased?.() || !panelCh.isTextBased?.()) {
               return interaction.editReply({ content: '❌ Choisis uniquement des **salons texte** (pas catégorie/voice/forum).' }).catch(() => {});
@@ -5999,8 +5994,7 @@ async function main() {
             return interaction.editReply({
               content:
                 `✅ Screen koli configuré.\n` +
-                `Salon screens / threads: <#${screenCh.id}>\n` +
-                `Salon panneau: <#${panelCh.id}>`,
+                `Salon box + threads: <#${screenCh.id}>`,
             }).catch(() => {});
           }
 

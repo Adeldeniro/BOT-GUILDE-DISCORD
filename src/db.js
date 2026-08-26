@@ -322,6 +322,15 @@ if (!cfgCols.includes('event_submit_panel_channel_id')) {
 if (!cfgCols.includes('event_submit_panel_message_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN event_submit_panel_message_id TEXT'); } catch {}
 }
+if (!cfgCols.includes('koli_screen_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN koli_screen_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('koli_panel_channel_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN koli_panel_channel_id TEXT'); } catch {}
+}
+if (!cfgCols.includes('koli_panel_message_id')) {
+  try { db.exec('ALTER TABLE guild_config ADD COLUMN koli_panel_message_id TEXT'); } catch {}
+}
 if (!cfgCols.includes('ankama_profile_channel_id')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN ankama_profile_channel_id TEXT'); } catch {}
 }
