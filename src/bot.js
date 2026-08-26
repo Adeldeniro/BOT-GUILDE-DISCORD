@@ -2004,9 +2004,10 @@ async function ensureEventAdminPanel(guild, rc) {
 }
 
 async function ensureKoliScreenPanel(guild, rc) {
-  if (!rc.koliScreenChannelId || !rc.koliPanelChannelId) return null;
+  if (!rc.koliScreenChannelId) return null;
 
-  const panelCh = await guild.client.channels.fetch(rc.koliPanelChannelId).catch(() => null);
+  const panelChannelId = rc.koliPanelChannelId || rc.koliScreenChannelId;
+  const panelCh = await guild.client.channels.fetch(panelChannelId).catch(() => null);
   if (!panelCh || !panelCh.isTextBased?.()) return null;
 
   const embed = new EmbedBuilder()
@@ -5984,7 +5985,12 @@ async function main() {
 
             const rc2 = getConfigForGuild(guild.id);
             try {
-              await ensureKoliScreenPanel(guild, rc2);
+              const panelMsg = await ensureKoliScreenPanel(guild, rc2);
+              if (!panelMsg) {
+                return interaction.editReply({
+                  content: '❌ Config enregistrée, mais impossible de poster la box screen koli dans ce salon. Vérifie mes permissions: Voir le salon / Envoyer des messages / Intégrer des liens / Joindre des fichiers.',
+                }).catch(() => {});
+              }
             } catch (e) {
               return interaction.editReply({
                 content: `❌ Config enregistrée, mais impossible de poster la box screen koli.\nDétail: ${(e?.message || e)}`.slice(0, 1800),
