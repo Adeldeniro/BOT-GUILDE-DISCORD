@@ -1352,27 +1352,48 @@ const cooldown = new Map(); // key: buttonKey -> lastTs
 const pendingEventFix = new Map(); // key: `${userId}:${sid}` -> { participantIds, defenders }
 const koliSubmissionSessions = new Map(); // key: guild:user -> payload
 
-const KOLI_TRASH_LINES_1V1 = [
-  '{mentions} a transformé ce koli en contrôle technique sans contre-visite.',
-  '{mentions} a laissé en face un souvenir tactique impossible à assumer.',
-  '{mentions} a plié ce koli avec la délicatesse d\'une porte de grange.',
-  '{mentions} a fait de ce screen un petit certificat d\'humiliation réglementaire.',
-  '{mentions} a expédié ce match avec la douceur d\'un tacle dans les côtes.',
-  '{mentions} a rappelé à son vis-a-vis que cliquer vite ne remplace pas réfléchir.',
-  '{mentions} a rangé ce koli comme on ferme un dossier embarrassant.',
-  '{mentions} a distribué une leçon si nette qu\'elle mérite encadrement.',
-];
-
-const KOLI_TRASH_LINES_3V3 = [
-  '{mentions} ont transformé ce koli en chantier proprement terminé.',
-  '{mentions} ont laissé l\'équipe d\'en face réviser ses choix de vie en direct.',
-  '{mentions} ont livré une humiliation groupée, propre et sans bavure.',
-  '{mentions} ont plié ce match comme une formalité administrative un lundi matin.',
-  '{mentions} ont passé l\'adversaire au rouleau avec une coordination bien venimeuse.',
-  '{mentions} ont rendu ce koli suffisamment sale pour mériter l\'archivage premium.',
-  '{mentions} ont signé une démonstration collective qui sent bon la mauvaise soirée adverse.',
-  '{mentions} ont distribué une correction d\'équipe avec finition soignée.',
-];
+const KOLI_TRASH_LIBRARY = {
+  solo: {
+    clean: [
+      '{mentions} a transformé ce koli en contrôle technique sans contre-visite.',
+      '{mentions} a laissé en face un souvenir tactique impossible à assumer.',
+      '{mentions} a rangé ce koli comme on ferme un dossier embarrassant.',
+      '{mentions} a distribué une leçon si nette qu\'elle mérite encadrement.',
+    ],
+    loud: [
+      '{mentions} a plié ce koli avec la délicatesse d\'une porte de grange.',
+      '{mentions} a expédié ce match avec la douceur d\'un tacle dans les côtes.',
+      '{mentions} a rappelé à son vis-a-vis que cliquer vite ne remplace pas réfléchir.',
+      '{mentions} a fait de ce screen un petit certificat d\'humiliation réglementaire.',
+    ],
+  },
+  team: {
+    duo: [
+      '{mentions} ont monté un dossier si propre que l\'adversaire peut demander un droit a l\'oubli.',
+      '{mentions} ont laissé l\'équipe d\'en face réviser ses choix de vie en direct.',
+      '{mentions} ont fait passer ce koli pour une simple formalité de voisinage malveillant.',
+      '{mentions} ont signé une coordination assez propre pour vexer gratuitement.',
+    ],
+    trio: [
+      '{mentions} ont transformé ce koli en chantier proprement terminé.',
+      '{mentions} ont livré une humiliation groupée, propre et sans bavure.',
+      '{mentions} ont passé l\'adversaire au rouleau avec une coordination bien venimeuse.',
+      '{mentions} ont distribué une correction d\'équipe avec finition soignée.',
+    ],
+    stack: [
+      '{mentions} ont rendu ce koli suffisamment sale pour mériter l\'archivage premium.',
+      '{mentions} ont plié ce match comme une formalité administrative un lundi matin.',
+      '{mentions} ont signé une démonstration collective qui sent bon la mauvaise soirée adverse.',
+      '{mentions} ont laissé derrière eux un screen que la team d\'en face n\'ouvrira pas sans grimacer.',
+    ],
+  },
+  receipt: [
+    'Archive validée, les preuves respirent la mauvaise soirée adverse.',
+    'C\'est propre, classé, et potentiellement vexant pour la team d\'en face.',
+    'Le dossier est rangé, avec supplément humiliation bien triée.',
+    'Preuves stockées, ego adverse probablement toujours en SAV.',
+  ],
+};
 
 function hashSeed(input) {
   const str = String(input || '');
@@ -1405,20 +1426,37 @@ function getKoliMatchType(draftOrStage) {
   return 'unknown';
 }
 
-function buildKoliTrashLine(participantIds, seed, matchType = 'unknown') {
+function getKoliNarrativeContext(participantIds, matchType = 'unknown', imageCount = 1) {
   const ids = uniqueMentionIds(participantIds);
-  const mentions = formatMentionList(ids) || (matchType === '1v1' ? 'Ce joueur' : 'Cette team');
-  const pool = matchType === '1v1'
-    ? KOLI_TRASH_LINES_1V1
-    : matchType === '3v3'
-      ? KOLI_TRASH_LINES_3V3
-      : (ids.length <= 1 ? KOLI_TRASH_LINES_1V1 : KOLI_TRASH_LINES_3V3);
-  return pickSeeded(pool, seed).replace('{mentions}', mentions);
+  const participantCount = ids.length || (matchType === '1v1' ? 1 : 0);
+  const isSolo = matchType === '1v1' || participantCount <= 1;
+  const teamSize = isSolo ? 1 : Math.max(2, participantCount);
+  const screenCount = Math.max(1, Number(imageCount) || 1);
+  return { ids, participantCount, isSolo, teamSize, screenCount };
+}
+
+function buildKoliTrashLine(participantIds, seed, matchType = 'unknown', imageCount = 1) {
+  const ctx = getKoliNarrativeContext(participantIds, matchType, imageCount);
+  const mentions = formatMentionList(ctx.ids) || (ctx.isSolo ? 'Ce joueur' : 'Cette team');
+
+  let pool;
+  if (ctx.isSolo) {
+    pool = ctx.screenCount >= 3 ? KOLI_TRASH_LIBRARY.solo.loud : KOLI_TRASH_LIBRARY.solo.clean;
+  } else if (ctx.teamSize === 2) {
+    pool = KOLI_TRASH_LIBRARY.team.duo;
+  } else if (ctx.teamSize === 3) {
+    pool = ctx.screenCount >= 3 ? KOLI_TRASH_LIBRARY.team.stack : KOLI_TRASH_LIBRARY.team.trio;
+  } else {
+    pool = KOLI_TRASH_LIBRARY.team.stack;
+  }
+
+  return pickSeeded(pool, `${seed}:${ctx.teamSize}:${ctx.screenCount}`).replace('{mentions}', mentions);
 }
 
 function buildKoliReceiptEmbed({ participantIds, imageCount, seed, matchType = 'unknown' }) {
-  const ids = uniqueMentionIds(participantIds);
-  const isDuel = matchType === '1v1' || (matchType === 'unknown' && ids.length <= 1);
+  const ctx = getKoliNarrativeContext(participantIds, matchType, imageCount);
+  const ids = ctx.ids;
+  const isDuel = ctx.isSolo;
   const title = isDuel ? '✅ Screen koli 1v1 archivé' : '✅ Screens koli 3v3 archivés';
   const countLabel = imageCount > 1 ? `${imageCount} screens` : `${imageCount} screen`;
 
@@ -1427,9 +1465,9 @@ function buildKoliReceiptEmbed({ participantIds, imageCount, seed, matchType = '
     .setTitle(title)
     .setDescription(
       [
-        buildKoliTrashLine(ids, seed, matchType),
+        buildKoliTrashLine(ids, seed, matchType, imageCount),
         '',
-        'Le screen est bien enregistré dans ce thread.',
+        pickSeeded(KOLI_TRASH_LIBRARY.receipt, `${seed}:receipt:${countLabel}`),
       ].join('\n')
     )
     .addFields(
@@ -1456,13 +1494,78 @@ function parseDiscordIds(raw) {
   return [...new Set((String(raw || '').match(/\d{17,20}/g) || []).map(String))];
 }
 
-function buildKoliArchiveText({ authorId, participantIds, matchType, opponentTeam, note, seed }) {
+function normalizeDiscordLookup(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/^@+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getDiscordLookupKeys(member) {
+  return [
+    member?.displayName,
+    member?.nickname,
+    member?.user?.globalName,
+    member?.user?.username,
+    member?.user?.tag,
+    member?.id,
+  ]
+    .map(normalizeDiscordLookup)
+    .filter(Boolean);
+}
+
+function pickMatchingGuildMember(members, rawToken) {
+  const token = normalizeDiscordLookup(rawToken);
+  if (!token) return null;
+
+  const exact = members.filter((member) => getDiscordLookupKeys(member).includes(token));
+  if (exact.length === 1) return exact[0];
+
+  const prefix = members.filter((member) => getDiscordLookupKeys(member).some((key) => key.startsWith(token)));
+  if (prefix.length === 1) return prefix[0];
+
+  return null;
+}
+
+async function resolveDiscordIds(guild, raw) {
+  const resolved = new Set(parseDiscordIds(raw));
+  const tokens = String(raw || '')
+    .split(/[\n,;|]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  for (const token of tokens) {
+    const directId = token.match(/^<@!?(\d{17,20})>$/)?.[1] || token.match(/^(\d{17,20})$/)?.[1];
+    if (directId) {
+      resolved.add(directId);
+      continue;
+    }
+
+    let member = pickMatchingGuildMember([...guild.members.cache.values()], token);
+    if (!member && typeof guild.members.search === 'function') {
+      const found = await guild.members.search({ query: token.replace(/^@+/, '').slice(0, 32), limit: 10 }).catch(() => null);
+      if (found?.size) member = pickMatchingGuildMember([...found.values()], token);
+    }
+    if (member?.id) resolved.add(member.id);
+  }
+
+  return [...resolved];
+}
+
+function buildKoliArchiveText({ authorId, participantIds, matchType, opponentTeam, note, seed, imageCount = 1 }) {
   const ids = uniqueMentionIds(participantIds, authorId);
+  const ctx = getKoliNarrativeContext(ids, matchType, imageCount);
+  const normalizedType = ctx.isSolo ? '1v1' : '3v3';
+  const countLabel = ctx.screenCount > 1 ? `${ctx.screenCount} screens` : '1 screen';
   const lines = [
-    buildKoliTrashLine(ids, seed, matchType),
+    buildKoliTrashLine(ids, seed, normalizedType, ctx.screenCount),
     '',
-    `🥊 Format : **${matchType === '1v1' ? '1v1' : '3v3'}**`,
+    `🥊 Format : **${normalizedType}**`,
     `👥 Combattants : ${formatMentionList(ids) || `<@${authorId}>`}`,
+    `🖼️ Preuves : **${countLabel}**`,
   ];
 
   const cleanOpponent = String(opponentTeam || '').trim();
@@ -2030,6 +2133,8 @@ async function ensureKoliScreenPanel(guild, rc) {
   const panelChannelId = rc.koliPanelChannelId || rc.koliScreenChannelId;
   const panelCh = await guild.client.channels.fetch(panelChannelId).catch(() => null);
   if (!panelCh || !panelCh.isTextBased?.()) return null;
+  const bannerPath = path.join(__dirname, '..', 'assets', 'panel', 'koli-banner.png');
+  const files = [];
 
   const embed = new EmbedBuilder()
     .setColor(0xe67e22)
@@ -2060,6 +2165,13 @@ async function ensureKoliScreenPanel(guild, rc) {
       },
     );
 
+  try {
+    if (require('fs').existsSync(bannerPath)) {
+      files.push({ attachment: bannerPath, name: 'koli-banner.png' });
+      embed.setImage('attachment://koli-banner.png');
+    }
+  } catch {}
+
   const buttons = [
     new ButtonBuilder().setCustomId(`koliopen:${guild.id}:${panelCh.id}`).setLabel('📤 Poster un screen').setStyle(ButtonStyle.Primary),
   ];
@@ -2086,8 +2198,8 @@ async function ensureKoliScreenPanel(guild, rc) {
   }
 
   const msg = existing
-    ? await existing.edit({ embeds: [embed], components: [row], attachments: [], files: [] }).then(() => existing)
-    : await panelCh.send({ embeds: [embed], components: [row] });
+    ? await existing.edit({ embeds: [embed], components: [row], attachments: [], files }).then(() => existing)
+    : await panelCh.send({ embeds: [embed], components: [row], files });
 
   try { await msg.pin(); } catch {}
   updateGuildConfig(guild.id, { koli_panel_channel_id: panelCh.id, koli_panel_message_id: msg.id });
@@ -3472,6 +3584,7 @@ async function main() {
           matchType: koliSession.matchType,
           opponentTeam: koliSession.opponentTeam,
           note: koliSession.note,
+          imageCount: files.length,
           seed: `${koliSession.matchType}:${message.id}:${koliSession.participantIds.join(',')}`,
         });
 
@@ -4678,6 +4791,61 @@ async function main() {
           });
         }
 
+        if (interaction.customId.startsWith('koli:submit:')) {
+          const guildId = interaction.customId.split(':')[2];
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const rc = getConfigForGuild(guildId);
+          if (!rc.koliPanelChannelId || !rc.koliArchiveThreadId) {
+            return interaction.reply({ content: 'Le système koli n’est pas encore configuré.', ephemeral: true }).catch(() => {});
+          }
+
+          const rawMode = (interaction.fields.getTextInputValue('mode') || '').trim().toLowerCase().replace(/\s+/g, '');
+          const matchType = rawMode === '1v1' || rawMode === '1vs1'
+            ? '1v1'
+            : rawMode === '3v3' || rawMode === '3vs3'
+              ? '3v3'
+              : null;
+          if (!matchType) {
+            return interaction.reply({ content: 'Format invalide. Mets simplement `1v1` ou `3v3`.', ephemeral: true }).catch(() => {});
+          }
+
+          const opponentTeam = (interaction.fields.getTextInputValue('opponent_team') || '').trim();
+          const teammatesRaw = (interaction.fields.getTextInputValue('teammates') || '').trim();
+          const note = (interaction.fields.getTextInputValue('note') || '').trim();
+          const teammateIds = (await resolveDiscordIds(interaction.guild, teammatesRaw)).filter((id) => id !== interaction.user.id);
+          const participantIds = uniqueMentionIds(teammateIds, interaction.user.id);
+
+          if (matchType === '1v1' && teammateIds.length) {
+            return interaction.reply({ content: 'En `1v1`, ne renseigne pas d’alliés.', ephemeral: true }).catch(() => {});
+          }
+          if (matchType === '3v3' && participantIds.length > 3) {
+            return interaction.reply({ content: 'En `3v3`, mets au maximum toi + 2 alliés.', ephemeral: true }).catch(() => {});
+          }
+
+          koliSubmissionSessions.set(`${guildId}:${interaction.user.id}`, {
+            guildId,
+            userId: interaction.user.id,
+            channelId: interaction.channelId,
+            matchType,
+            participantIds,
+            opponentTeam,
+            note,
+            createdAt: Date.now(),
+          });
+
+          const panelChannel = await interaction.client.channels.fetch(interaction.channelId).catch(() => null);
+          if (panelChannel?.isTextBased?.()) {
+            await grantPanelWriteOnce(panelChannel, interaction.user.id).catch(() => {});
+          }
+
+          return interaction.reply({
+            content: '✅ Infos reçues. Tu peux maintenant envoyer **1 à 3 images dans un seul message** dans ce salon. L’autorisation se refermera ensuite automatiquement.',
+            ephemeral: true,
+          }).catch(() => {});
+        }
         if (interaction.customId.startsWith('evparts:')) { 
           const id = Number(interaction.customId.split(':')[1]);
           const rc = getConfigForGuild(interaction.guildId);
