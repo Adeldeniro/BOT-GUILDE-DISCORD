@@ -4879,50 +4879,6 @@ async function main() {
             ephemeral: true,
           }).catch(() => {});
         }
-        if (interaction.customId.startsWith('koliopenmode:')) {
-          const [, guildId, selectedMode] = interaction.customId.split(':');
-          if (!interaction.guild || interaction.guild.id !== guildId) {
-            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
-          }
-
-          if (!['1v1', '3v3'].includes(selectedMode)) {
-            return interaction.reply({ content: 'Format invalide.', ephemeral: true }).catch(() => {});
-          }
-
-          const modal = new ModalBuilder()
-            .setCustomId(`koli:submit:${guildId}:${selectedMode}`)
-            .setTitle(`Poster un screen koli - ${selectedMode}`);
-
-          modal.addComponents(
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('teammates')
-                .setLabel(selectedMode === '1v1' ? 'Alliés (laisser vide en 1v1)' : 'Alliés (mentions, IDs ou pseudos Discord)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setRequired(false)
-                .setMaxLength(400)
-                .setPlaceholder(selectedMode === '1v1' ? 'Aucun allié attendu ici' : '@pote, 123456789..., pseudo Discord')
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('opponent_team')
-                .setLabel('Nom de la team en face (optionnel)')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(false)
-                .setMaxLength(100)
-            ),
-            new ActionRowBuilder().addComponents(
-              new TextInputBuilder()
-                .setCustomId('note')
-                .setLabel('Détails utiles (optionnel)')
-                .setStyle(TextInputStyle.Paragraph)
-                .setRequired(false)
-                .setMaxLength(400)
-            )
-          );
-
-          return interaction.showModal(modal).catch(() => {});
-        }
         if (interaction.customId.startsWith('evparts:')) { 
           const id = Number(interaction.customId.split(':')[1]);
           const rc = getConfigForGuild(interaction.guildId);
@@ -8268,6 +8224,51 @@ ${info}`.slice(0, 1900),
             components: [row],
             ephemeral: true,
           }).catch(() => {});
+        }
+
+        if (interaction.customId.startsWith('koliopenmode:')) {
+          const [, guildId, selectedMode] = interaction.customId.split(':');
+          if (!interaction.guild || interaction.guild.id !== guildId) {
+            return interaction.reply({ content: 'Action invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          if (!['1v1', '3v3'].includes(selectedMode)) {
+            return interaction.reply({ content: 'Format invalide.', ephemeral: true }).catch(() => {});
+          }
+
+          const modal = new ModalBuilder()
+            .setCustomId(`koli:submit:${guildId}:${selectedMode}`)
+            .setTitle(`Poster un screen koli - ${selectedMode}`);
+
+          modal.addComponents(
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('teammates')
+                .setLabel(selectedMode === '1v1' ? 'Alliés (laisser vide en 1v1)' : 'Alliés (mentions, IDs ou pseudos Discord)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(400)
+                .setPlaceholder(selectedMode === '1v1' ? 'Aucun allié attendu ici' : '@pote, 123456789..., pseudo Discord')
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('opponent_team')
+                .setLabel('Nom de la team en face (optionnel)')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(false)
+                .setMaxLength(100)
+            ),
+            new ActionRowBuilder().addComponents(
+              new TextInputBuilder()
+                .setCustomId('note')
+                .setLabel('Détails utiles (optionnel)')
+                .setStyle(TextInputStyle.Paragraph)
+                .setRequired(false)
+                .setMaxLength(400)
+            )
+          );
+
+          return interaction.showModal(modal).catch(() => {});
         }
 
         // Rules acceptance button
