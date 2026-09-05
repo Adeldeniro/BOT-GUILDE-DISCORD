@@ -17,7 +17,7 @@ const {
   MessageFlags,
 } = require('discord.js');
 
-const DATA_DIR = path.join(__dirname, '..', 'data', 'dragodinde');
+const DATA_DIR = process.env.DRAGODINDE_DATA_DIR || path.join(__dirname, '..', 'data', 'dragodinde');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const DEBTS_FILE = path.join(DATA_DIR, 'debts.json');
 const PAYOUTS_FILE = path.join(DATA_DIR, 'payouts.json');
@@ -32,12 +32,13 @@ const REAL_BET = 50_000;
 const PVP_ORG_FEE = 5_000;
 const PVP_DEBT_LIMIT = 100_000;
 const MAX_PLAYERS = 4;
-let HORSES = [
+const DEFAULT_HORSES = [
   { name: 'Tonnerre', emoji: '🐎' },
   { name: 'Éclair', emoji: '⚡' },
   { name: 'Foudre', emoji: '🌩️' },
   { name: 'Tempête', emoji: '🌊' },
 ];
+const horsesByGuild = new Map();
 
 const setupDrafts = new Map();
 const userSessions = new Map();
@@ -150,7 +151,6 @@ function getAllowedRolesFromConfig(cfg) {
   return [
     ...(Array.isArray(cfg.allowedRoleIds) ? cfg.allowedRoleIds : []),
     cfg.notificationRoleId || null,
-    '1480657602382790903',
   ].filter(Boolean);
 }
 
@@ -190,14 +190,16 @@ function emojiForText(raw) {
 
 function refreshHorseEmojisFromConfig(guildId) {
   const cfg = getGuildConfig(guildId);
-  const emojis = Array.isArray(cfg.horseEmojis) && cfg.horseEmojis.length === 4 ? cfg.horseEmojis : null;
-  if (!emojis) return;
-  HORSES = [
-    { ...HORSES[0], emoji: emojis[0] || HORSES[0].emoji },
-    { ...HORSES[1], emoji: emojis[1] || HORSES[1].emoji },
-    { ...HORSES[2], emoji: emojis[2] || HORSES[2].emoji },
-    { ...HORSES[3], emoji: emojis[3] || HORSES[3].emoji },
-  ];
+  const emojis = Array.isArray(cfg.horseEmojis) && cfg.horseEmojis.length === 4 ? cfg.horseEmojis : [];
+  horsesByGuild.set(guildId, DEFAULT_HORSES.map((horse, index) => ({
+    ...horse,
+    emoji: emojis[index] || horse.emoji,
+  })));
+}
+
+function getHorses(guildId) {
+  if (!horsesByGuild.has(guildId)) refreshHorseEmojisFromConfig(guildId);
+  return horsesByGuild.get(guildId);
 }
 
 function getLogsChannelId(guildId) {
@@ -212,66 +214,81 @@ function getAdminRoleId(guildId) {
   return getGuildConfig(guildId).adminRoleId || null;
 }
 
-function getUserFinance(userId) {
-  const db = loadFinance();
-  if (!db[userId]) {
-    db[userId] = { totalDebt: 0, betsCount: 0, paymentsCount: 0, payoutsPending: 0, payoutsValidated: 0, totalWinnings: 0 };
+function getGuildFinance(guildId) {
+  const root = loadFinance();
+  if (!root.guilds) {
+    const legacyUsers = { ...root };
+    for (const key of Object.keys(root)) delete root[key];
+    root.version = 2;
+    root.guilds = {};
+    const primaryGuildId = process.env.GUILD_ID || null;
+    if (primaryGuildId && Object.keys(legacyUsers).length) root.guilds[primaryGuildId] = legacyUsers;
     saveFinance();
   }
-  return db[userId];
+  if (!root.guilds[guildId]) root.guilds[guildId] = {};
+  return root.guilds[guildId];
 }
 
-function getUserDebt(userId) {
-  return Number(getUserFinance(String(userId)).totalDebt || 0);
+function getUserFinance(guildId, userId) {
+  const users = getGuildFinance(guildId);
+  if (!users[userId]) {
+    users[userId] = { totalDebt: 0, betsCount: 0, paymentsCount: 0, payoutsPending: 0, payoutsValidated: 0, totalWinnings: 0 };
+    saveFinance();
+  }
+  return users[userId];
 }
 
-function getUserDebtByMode(userId, mode) {
+function getUserDebt(guildId, userId) {
+  return Number(getUserFinance(guildId, String(userId)).totalDebt || 0);
+}
+
+function getUserDebtByMode(guildId, userId, mode) {
   return Object.values(loadDebtRecords())
-    .filter((record) => record.userId === String(userId) && record.status === 'unpaid' && record.mode === mode)
+    .filter((record) => record.guildId === guildId && record.userId === String(userId) && record.status === 'unpaid' && record.mode === mode)
     .reduce((sum, record) => sum + Number(record.amount || 0), 0);
 }
 
-function addUserDebt(userId, amount) {
-  const db = loadFinance();
-  const current = getUserFinance(String(userId));
+function addUserDebt(guildId, userId, amount) {
+  const users = getGuildFinance(guildId);
+  const current = getUserFinance(guildId, String(userId));
   current.totalDebt = Number(current.totalDebt || 0) + Number(amount || 0);
   current.betsCount = Number(current.betsCount || 0) + 1;
-  db[String(userId)] = current;
+  users[String(userId)] = current;
   saveFinance();
 }
 
-function applyUserPayment(userId, amount) {
-  const db = loadFinance();
-  const current = getUserFinance(String(userId));
+function applyUserPayment(guildId, userId, amount) {
+  const users = getGuildFinance(guildId);
+  const current = getUserFinance(guildId, String(userId));
   current.totalDebt = Math.max(0, Number(current.totalDebt || 0) - Number(amount || 0));
   current.paymentsCount = Number(current.paymentsCount || 0) + 1;
-  db[String(userId)] = current;
+  users[String(userId)] = current;
   saveFinance();
 }
 
-function removeUserDebt(userId, amount) {
-  const db = loadFinance();
-  const current = getUserFinance(String(userId));
+function removeUserDebt(guildId, userId, amount) {
+  const users = getGuildFinance(guildId);
+  const current = getUserFinance(guildId, String(userId));
   current.totalDebt = Math.max(0, Number(current.totalDebt || 0) - Number(amount || 0));
-  db[String(userId)] = current;
+  users[String(userId)] = current;
   saveFinance();
 }
 
-function registerPendingPayout(userId, amount) {
-  const db = loadFinance();
-  const current = getUserFinance(String(userId));
+function registerPendingPayout(guildId, userId) {
+  const users = getGuildFinance(guildId);
+  const current = getUserFinance(guildId, String(userId));
   current.payoutsPending = Number(current.payoutsPending || 0) + 1;
-  db[String(userId)] = current;
+  users[String(userId)] = current;
   saveFinance();
 }
 
-function validateUserPayout(userId, amount) {
-  const db = loadFinance();
-  const current = getUserFinance(String(userId));
+function validateUserPayout(guildId, userId, amount) {
+  const users = getGuildFinance(guildId);
+  const current = getUserFinance(guildId, String(userId));
   current.payoutsPending = Math.max(0, Number(current.payoutsPending || 0) - 1);
   current.payoutsValidated = Number(current.payoutsValidated || 0) + 1;
   current.totalWinnings = Number(current.totalWinnings || 0) + Number(amount || 0);
-  db[String(userId)] = current;
+  users[String(userId)] = current;
   saveFinance();
 }
 
@@ -290,14 +307,15 @@ function canUserPlay(member) {
     }
   }
 
-  const totalDebt = getUserDebt(member.id);
-  const pvpDebt = getUserDebtByMode(member.id, 'players');
+  const totalDebt = getUserDebt(member.guild.id, member.id);
+  const pvpDebt = getUserDebtByMode(member.guild.id, member.id, 'players');
   if (pvpDebt >= PVP_DEBT_LIMIT) return [false, `Tu es bloqué, ta dette joueur contre joueur atteint ${PVP_DEBT_LIMIT.toLocaleString('fr-FR')} kamas.`];
   if (totalDebt > DEBT_LIMIT) return [false, `Tu es bloqué, ta dette dépasse ${DEBT_LIMIT.toLocaleString('fr-FR')} kamas.`];
   return [true, null];
 }
 
 async function createDebtRecord(client, guildId, userId, horseIndex, amount = ENTRY_FEE, meta = {}) {
+  const horses = getHorses(guildId);
   const logsChannelId = getLogsChannelId(guildId);
   if (!logsChannelId) return null;
   const channel = await client.channels.fetch(logsChannelId).catch(() => null);
@@ -305,7 +323,7 @@ async function createDebtRecord(client, guildId, userId, horseIndex, amount = EN
 
   const recordId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   const safeAmount = Number(amount || ENTRY_FEE);
-  const futureTotal = getUserDebt(userId) + safeAmount;
+  const futureTotal = getUserDebt(guildId, userId) + safeAmount;
   const formulaText = meta.formulaLabel ? `**Formule :** ${meta.formulaLabel}\n` : '';
 
   const embed = new EmbedBuilder()
@@ -314,7 +332,7 @@ async function createDebtRecord(client, guildId, userId, horseIndex, amount = EN
       `**Joueur :** <@${userId}>\n` +
       `**Montant :** ${safeAmount.toLocaleString('fr-FR')} kamas\n` +
       formulaText +
-      `**Cheval :** ${emojiForText(HORSES[horseIndex].emoji)} ${HORSES[horseIndex].name}\n` +
+      `**Cheval :** ${emojiForText(horses[horseIndex].emoji)} ${horses[horseIndex].name}\n` +
       `**Dette totale après inscription :** ${futureTotal.toLocaleString('fr-FR')} kamas\n` +
       `**Statut :** En attente de paiement`
     )
@@ -350,7 +368,7 @@ async function createDebtRecord(client, guildId, userId, horseIndex, amount = EN
     cancelledByUserId: null,
   };
   saveDebtRecords();
-  addUserDebt(userId, safeAmount);
+  addUserDebt(guildId, userId, safeAmount);
   return recordId;
 }
 
@@ -362,7 +380,7 @@ async function markDebtCancelled(client, recordId, cancelledByUserId = null) {
   record.cancelledAt = new Date().toISOString();
   record.cancelledByUserId = cancelledByUserId ? String(cancelledByUserId) : null;
   saveDebtRecords();
-  removeUserDebt(record.userId, record.amount);
+  removeUserDebt(record.guildId, record.userId, record.amount);
 
   const channel = await client.channels.fetch(record.channelId).catch(() => null);
   const msg = channel && channel.isTextBased() ? await channel.messages.fetch(record.messageId).catch(() => null) : null;
@@ -564,6 +582,7 @@ function iaBetRows(userId) {
 }
 
 function horseChoiceRows(userId, mode, waiting = false, guildId = null) {
+  const horses = getHorses(guildId);
   const taken = new Set();
   if (waiting && guildId && raceStates.has(guildId)) {
     for (const player of raceStates.get(guildId).players || []) {
@@ -572,7 +591,7 @@ function horseChoiceRows(userId, mode, waiting = false, guildId = null) {
   }
 
   return [new ActionRowBuilder().addComponents(
-    ...HORSES.map((horse, i) => new ButtonBuilder()
+    ...horses.map((horse, i) => new ButtonBuilder()
       .setCustomId(`dragodinde:horse:${mode}:${userId}:${i}`)
       .setLabel(horse.name)
       .setEmoji(emojiForButton(horse.emoji))
@@ -603,7 +622,8 @@ function buildPanelEmbed() {
     .setFooter({ text: 'Entre, mise, fanfaronne un peu, et assume si ça tourne mal.' });
 }
 
-function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, winnerId = null, winnerName = null, expectedHumans = MAX_PLAYERS, remainingSeconds = null } = {}) {
+function buildRaceStatusEmbed(guildId, phase, { creatorId = null, humans = [], pot = 0, winnerId = null, winnerName = null, expectedHumans = MAX_PLAYERS, remainingSeconds = null } = {}) {
+  const horses = getHorses(guildId);
   const colorMap = {
     waiting: 0xF1C40F,
     launching: 0x3498DB,
@@ -621,7 +641,7 @@ function buildRaceStatusEmbed(phase, { creatorId = null, humans = [], pot = 0, w
       .setImage(RACE_BANNER_URL)
       .setDescription(`**<@${creatorId}>** cherche des adversaires.\nInscrits : **${humans.length}/${expectedHumans}**\nPlaces restantes : **${Math.max(0, expectedHumans - humans.length)}**`)
       .addFields(
-        { name: 'Joueurs engagés', value: humans.length ? humans.map((p) => `${emojiForText(HORSES[p.horseIndex].emoji)} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n') : 'Aucun', inline: false },
+        { name: 'Joueurs engagés', value: humans.length ? humans.map((p) => `${emojiForText(horses[p.horseIndex].emoji)} <@${p.userId}> avec **${horses[p.horseIndex].name}**`).join('\n') : 'Aucun', inline: false },
         { name: 'Cagnotte actuelle', value: `${pot.toLocaleString('fr-FR')} kamas`, inline: false },
         { name: 'Départ estimé', value: remainingSeconds !== null ? `${remainingSeconds} sec` : 'En attente', inline: true },
       );
@@ -693,8 +713,8 @@ function formatMoney(value) {
   return `${Number(value || 0).toLocaleString('fr-FR')} kamas`;
 }
 
-function topEntriesFromFinance(selector, limit = 5) {
-  return Object.entries(loadFinance())
+function topEntriesFromFinance(guildId, selector, limit = 5) {
+  return Object.entries(getGuildFinance(guildId))
     .map(([userId, data]) => ({ userId, value: Number(selector(data) || 0) }))
     .filter((entry) => entry.value > 0)
     .sort((a, b) => b.value - a.value)
@@ -706,9 +726,9 @@ function formatTopList(entries, formatter = (entry) => formatMoney(entry.value))
   return entries.map((entry, index) => `${index + 1}. <@${entry.userId}> , ${formatter(entry)}`).join('\n');
 }
 
-function pendingDebtLines() {
+function pendingDebtLines(guildId) {
   const debts = Object.values(loadDebtRecords())
-    .filter((record) => record.status === 'unpaid')
+    .filter((record) => record.guildId === guildId && record.status === 'unpaid')
     .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
     .slice(0, 10);
 
@@ -719,9 +739,9 @@ function pendingDebtLines() {
   }).join('\n');
 }
 
-function pendingPayoutLines() {
+function pendingPayoutLines(guildId) {
   const payouts = Object.values(loadPayoutRecords())
-    .filter((record) => record.status === 'pending')
+    .filter((record) => record.guildId === guildId && record.status === 'pending')
     .sort((a, b) => Number(b.totalAmount || 0) - Number(a.totalAmount || 0))
     .slice(0, 10);
 
@@ -733,7 +753,7 @@ function buildDashboardAdminEmbed(guildId) {
   const cfg = getGuildConfig(guildId);
   const debts = loadDebtRecords();
   const payouts = loadPayoutRecords();
-  const financeDb = loadFinance();
+  const financeDb = getGuildFinance(guildId);
   const state = raceStates.get(guildId);
 
   const unpaidDebtCount = Object.values(debts).filter((record) => record.status === 'unpaid' && record.guildId === guildId).length;
@@ -745,9 +765,9 @@ function buildDashboardAdminEmbed(guildId) {
   const totalPayments = Object.values(financeDb).reduce((sum, item) => sum + Number(item.paymentsCount || 0), 0);
   const totalWinnings = Object.values(financeDb).reduce((sum, item) => sum + Number(item.totalWinnings || 0), 0);
 
-  const topDebtors = topEntriesFromFinance((data) => data.totalDebt, 5);
-  const topWinners = topEntriesFromFinance((data) => data.totalWinnings, 5);
-  const topActive = topEntriesFromFinance((data) => data.betsCount, 5);
+  const topDebtors = topEntriesFromFinance(guildId, (data) => data.totalDebt, 5);
+  const topWinners = topEntriesFromFinance(guildId, (data) => data.totalWinnings, 5);
+  const topActive = topEntriesFromFinance(guildId, (data) => data.betsCount, 5);
 
   const liveState = cfg.entriesClosed
     ? 'Fermé manuellement, le tiroir-caisse prend l’air'
@@ -775,8 +795,8 @@ function buildDashboardAdminEmbed(guildId) {
       { name: 'Total redistribué', value: formatMoney(totalWinnings), inline: true },
       { name: 'Participations loggées', value: String(totalBets), inline: true },
       { name: 'Paiements validés', value: String(totalPayments), inline: true },
-      { name: 'Dettes en attente (personnes concernées)', value: pendingDebtLines(), inline: false },
-      { name: 'Gains en attente (personnes concernées)', value: pendingPayoutLines(), inline: false },
+      { name: 'Dettes en attente (personnes concernées)', value: pendingDebtLines(guildId), inline: false },
+      { name: 'Gains en attente (personnes concernées)', value: pendingPayoutLines(guildId), inline: false },
       { name: 'Top débiteurs', value: formatTopList(topDebtors), inline: false },
       { name: 'Top gagnants', value: formatTopList(topWinners), inline: false },
       { name: 'Joueurs les plus actifs', value: formatTopList(topActive, (entry) => `${entry.value} participation(s)`), inline: false },
@@ -989,7 +1009,7 @@ async function updateWaitingRaceMessage(channel, guildId) {
 
   const remainingSeconds = Math.max(0, Math.ceil((state.deadlineAt - Date.now()) / 1000));
   await msg.edit({
-    embeds: [buildRaceStatusEmbed('waiting', {
+    embeds: [buildRaceStatusEmbed(guildId, 'waiting', {
       creatorId: state.creatorId,
       humans: state.players,
       pot: REAL_BET * state.players.length,
@@ -1041,7 +1061,7 @@ async function startPlayersWait(channel, guildId) {
   state.deadlineAt = Date.now() + WAIT_TIME_MS;
 
   const waitingMessage = await channel.send({
-    embeds: [buildRaceStatusEmbed('waiting', {
+    embeds: [buildRaceStatusEmbed(guildId, 'waiting', {
       creatorId: state.creatorId,
       humans: state.players,
       pot: REAL_BET * state.players.length,
@@ -1073,26 +1093,28 @@ function buildTrackBar(emojiRaw, progress, length = 14) {
   return cells.join('');
 }
 
-function raceEventLine(ordered, positions) {
+function raceEventLine(guildId, ordered, positions) {
+  const horses = getHorses(guildId);
   const leader = ordered[0];
   const chaser = ordered[1];
   if (!leader) return 'Le silence règne, ce qui est mauvais signe pour tout le monde.';
 
-  const leaderHorse = HORSES[leader.horseIndex];
+  const leaderHorse = horses[leader.horseIndex];
   const leaderPct = Math.round(Math.max(0, Math.min(1, (positions[leader.horseIndex] || 0) / 20)) * 100);
   if (!chaser) return `${emojiForText(leaderHorse.emoji)} **${leaderHorse.name}** trotte seule vers la caisse, quelle indécence.`;
 
-  const chaserHorse = HORSES[chaser.horseIndex];
+  const chaserHorse = horses[chaser.horseIndex];
   const gap = (positions[leader.horseIndex] || 0) - (positions[chaser.horseIndex] || 0);
   if (gap <= 1) return `⚠️ **${leaderHorse.name}** et **${chaserHorse.name}** sont roue dans roue, ça sent la panique et les paris de dernière minute.`;
   if (leaderPct >= 80) return `🔥 **${leaderHorse.name}** approche du pactole pendant que **${chaserHorse.name}** découvre le goût du seum.`;
   return `🎙️ **${leaderHorse.name}** tient la corde, mais **${chaserHorse.name}** refuse encore de mourir proprement.`;
 }
 
-function generateTrack(contestants, positions) {
+function generateTrack(guildId, contestants, positions) {
+  const horses = getHorses(guildId);
   const fence = '🪵🪵🪵🪵🪵🪵🪵🪵🪵🪵';
   return contestants.map((entry, rank) => {
-    const horse = HORSES[entry.horseIndex];
+    const horse = horses[entry.horseIndex];
     const progress = Math.max(0, Math.min(1, (positions[entry.horseIndex] || 0) / 20));
     const who = entry.userId ? `<@${entry.userId}>` : 'IA';
     const pace = Math.round(progress * 100);
@@ -1121,13 +1143,14 @@ async function runCountdown(channel, seconds, title = '⏳ Pré-départ', textPr
 }
 
 async function createRaceHistoryRecord(client, guildId, state, winner, pot) {
+  const horses = getHorses(guildId);
   const historyChannelId = getHistoryChannelId(guildId) || getLogsChannelId(guildId);
   if (!historyChannelId) return null;
   const channel = await client.channels.fetch(historyChannelId).catch(() => null);
   if (!channel || !channel.isTextBased()) return null;
 
   const participantsText = (state.players || []).length
-    ? state.players.map((p) => `${emojiForText(HORSES[p.horseIndex].emoji)} <@${p.userId}> , **${HORSES[p.horseIndex].name}**`).join('\n')
+    ? state.players.map((p) => `${emojiForText(horses[p.horseIndex].emoji)} <@${p.userId}> , **${horses[p.horseIndex].name}**`).join('\n')
     : 'Aucun';
 
   const embed = new EmbedBuilder()
@@ -1135,7 +1158,7 @@ async function createRaceHistoryRecord(client, guildId, state, winner, pot) {
     .setColor(0x5865F2)
     .addFields(
       { name: 'Type', value: state.iaPrize ? 'Course contre l’IA' : 'Course entre joueurs', inline: true },
-      { name: 'Gagnant', value: winner?.userId ? `<@${winner.userId}> , **${HORSES[winner.horseIndex].name}**` : `IA , **${HORSES[winner.horseIndex].name}**`, inline: true },
+      { name: 'Gagnant', value: winner?.userId ? `<@${winner.userId}> , **${horses[winner.horseIndex].name}**` : `IA , **${horses[winner.horseIndex].name}**`, inline: true },
       { name: 'Montant en jeu', value: formatMoney(pot), inline: true },
       { name: 'Participants', value: participantsText, inline: false },
     )
@@ -1145,6 +1168,7 @@ async function createRaceHistoryRecord(client, guildId, state, winner, pot) {
 }
 
 async function createPayoutRecord(client, guildId, winner, totalAmount, participantsSnapshot) {
+  const horses = getHorses(guildId);
   const logsChannelId = getLogsChannelId(guildId);
   if (!logsChannelId || !winner?.userId) return null;
   const channel = await client.channels.fetch(logsChannelId).catch(() => null);
@@ -1152,7 +1176,7 @@ async function createPayoutRecord(client, guildId, winner, totalAmount, particip
 
   const recordId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   const participantsText = participantsSnapshot.map((p) => `<@${p.userId}>`).join(', ') || 'Aucun';
-  const horse = HORSES[winner.horseIndex];
+  const horse = horses[winner.horseIndex];
 
   const embed = new EmbedBuilder()
     .setTitle('🏆 Gain à remettre')
@@ -1189,11 +1213,12 @@ async function createPayoutRecord(client, guildId, winner, totalAmount, particip
     paidByAdminId: null,
   };
   savePayoutRecords();
-  registerPendingPayout(winner.userId, totalAmount);
+  registerPendingPayout(guildId, winner.userId);
   return recordId;
 }
 
 async function runSimpleRace(channel, guildId) {
+  const horses = getHorses(guildId);
   const state = raceStates.get(guildId);
   if (!state) return;
 
@@ -1204,7 +1229,7 @@ async function runSimpleRace(channel, guildId) {
   const contestants = [...state.players];
   while (contestants.length < state.expectedHumans) {
     const used = new Set(contestants.map((p) => p.horseIndex));
-    const available = HORSES.map((_, i) => i).filter((i) => !used.has(i));
+    const available = horses.map((_, i) => i).filter((i) => !used.has(i));
     const horseIndex = available[Math.floor(Math.random() * available.length)] ?? 0;
     contestants.push({ userId: null, horseIndex, ai: true, joinedAt: Date.now() });
   }
@@ -1213,7 +1238,7 @@ async function runSimpleRace(channel, guildId) {
   const launchFiles = fs.existsSync(START_COUNTDOWN_IMAGE_PATH)
     ? [{ attachment: START_COUNTDOWN_IMAGE_PATH, name: 'dragodinde-start-countdown.png' }]
     : [];
-  const launchingMsg = await channel.send({ embeds: [buildRaceStatusEmbed('launching', { creatorId: state.creatorId, humans: state.players, pot })], files: launchFiles }).catch(() => null);
+  const launchingMsg = await channel.send({ embeds: [buildRaceStatusEmbed(guildId, 'launching', { creatorId: state.creatorId, humans: state.players, pot })], files: launchFiles }).catch(() => null);
   const mainCountdownMsg = await runCountdown(channel, Math.ceil(MAIN_COUNTDOWN_MS / 1000), '📣 Mise en piste', 'Ouverture du fil de course dans');
   if (mainCountdownMsg) await mainCountdownMsg.delete().catch(() => {});
 
@@ -1228,7 +1253,7 @@ async function runSimpleRace(channel, guildId) {
     await raceRoom.send({
       embeds: [new EmbedBuilder()
         .setTitle('🏇 Course Dragodinde')
-        .setDescription(`Participants :\n${state.players.map((p) => `${emojiForText(HORSES[p.horseIndex].emoji)} <@${p.userId}> avec **${HORSES[p.horseIndex].name}**`).join('\n')}\n\nAdversaires IA : ${contestants.filter((c) => !c.userId).length}`)
+        .setDescription(`Participants :\n${state.players.map((p) => `${emojiForText(horses[p.horseIndex].emoji)} <@${p.userId}> avec **${horses[p.horseIndex].name}**`).join('\n')}\n\nAdversaires IA : ${contestants.filter((c) => !c.userId).length}`)
         .setColor(0x3498DB)
         .setImage(RACE_BANNER_URL)
         .setTimestamp()],
@@ -1241,7 +1266,7 @@ async function runSimpleRace(channel, guildId) {
   const FINISH_LINE = 20;
   const positions = Object.fromEntries(contestants.map((c) => [c.horseIndex, 0]));
   const raceMsg = await raceRoom.send({
-    content: `🎬 **Les paris sont posés, les ego aussi**\n${generateTrack(sortContestantsByProgress(contestants, positions), positions)}\n\n🎙️ Le départ est donné, et déjà quelqu’un va regretter d’avoir ouvert son portefeuille.`,
+    content: `🎬 **Les paris sont posés, les ego aussi**\n${generateTrack(guildId, sortContestantsByProgress(contestants, positions), positions)}\n\n🎙️ Le départ est donné, et déjà quelqu’un va regretter d’avoir ouvert son portefeuille.`,
   }).catch(() => null);
 
   const hasAiRace = !!state.iaPrize;
@@ -1281,27 +1306,27 @@ async function runSimpleRace(channel, guildId) {
     const ordered = sortContestantsByProgress(contestants, positions);
     const leaderChanged = orderedBefore[0]?.horseIndex !== ordered[0]?.horseIndex;
     const title = leaderChanged ? '💥 **Renversement de situation** 💥' : tick >= 6 ? '🔥 **Dernière ligne droite** 🔥' : '🏇 **La piste s’embrase** 🏇';
-    const eventText = raceEventLine(ordered, positions);
+    const eventText = raceEventLine(guildId, ordered, positions);
     if (raceMsg) {
       await raceMsg.edit({
-        content: `${title}\n${generateTrack(ordered, positions)}\n\n${eventText}`,
+        content: `${title}\n${generateTrack(guildId, ordered, positions)}\n\n${eventText}`,
       }).catch(() => {});
     }
     if (!winner) await new Promise((r) => setTimeout(r, RACE_TICK_MS + 700));
   }
 
   await raceRoom.send({
-    embeds: [buildRaceStatusEmbed('finished', {
+    embeds: [buildRaceStatusEmbed(guildId, 'finished', {
       humans: state.players,
       pot,
       winnerId: winner.userId,
-      winnerName: HORSES[winner.horseIndex].name,
+      winnerName: horses[winner.horseIndex].name,
     })],
   }).catch(() => {});
 
   const winnerAnnouncement = winner.userId
-    ? `🏆 <@${winner.userId}> remporte la course avec **${emojiForText(HORSES[winner.horseIndex].emoji)} ${HORSES[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**. Une insolente démonstration pendant que les autres comptent leurs regrets.`
-    : `🤖 L’IA remporte la course avec **${emojiForText(HORSES[winner.horseIndex].emoji)} ${HORSES[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Votre mise est partie nourrir la machine, merci pour votre générosité involontaire.`;
+    ? `🏆 <@${winner.userId}> remporte la course avec **${emojiForText(horses[winner.horseIndex].emoji)} ${horses[winner.horseIndex].name}** et empoche **${pot.toLocaleString('fr-FR')} kamas**. Une insolente démonstration pendant que les autres comptent leurs regrets.`
+    : `🤖 L’IA remporte la course avec **${emojiForText(horses[winner.horseIndex].emoji)} ${horses[winner.horseIndex].name}** et rafle **${pot.toLocaleString('fr-FR')} kamas**. Votre mise est partie nourrir la machine, merci pour votre générosité involontaire.`;
   const winnerMsg = await channel.send({ content: winnerAnnouncement }).catch(() => null);
 
   await createRaceHistoryRecord(channel.client, guildId, state, winner, pot).catch(() => {});
@@ -1612,8 +1637,9 @@ async function handleButtonInteraction(interaction) {
     }
 
     const userId = interaction.user.id;
-    const debts = Object.values(loadDebtRecords()).filter((record) => record.userId === userId && record.status === 'unpaid');
-    const payouts = Object.values(loadPayoutRecords()).filter((record) => record.userId === userId && record.status === 'pending');
+    const guildId = interaction.guild.id;
+    const debts = Object.values(loadDebtRecords()).filter((record) => record.guildId === guildId && record.userId === userId && record.status === 'unpaid');
+    const payouts = Object.values(loadPayoutRecords()).filter((record) => record.guildId === guildId && record.userId === userId && record.status === 'pending');
     const debtTotal = debts.reduce((sum, record) => sum + Number(record.amount || 0), 0);
     const payoutTotal = payouts.reduce((sum, record) => sum + Number(record.totalAmount || 0), 0);
 
@@ -1634,7 +1660,11 @@ async function handleButtonInteraction(interaction) {
 
   if (interaction.customId === 'dragodinde:notify:toggle') {
     const cfg = getGuildConfig(interaction.guild.id);
-    const roleId = cfg.notificationRoleId || cfg.allowedRoleIds?.[0] || '1480657602382790903';
+    const roleId = cfg.notificationRoleId || cfg.allowedRoleIds?.[0] || null;
+    if (!roleId) {
+      await interaction.reply({ content: 'Aucun rôle de notification n’est configuré sur ce serveur.', flags: MessageFlags.Ephemeral });
+      return true;
+    }
     const role = interaction.guild.roles.cache.get(roleId) || await interaction.guild.roles.fetch(roleId).catch(() => null);
     const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
 
@@ -1685,7 +1715,7 @@ async function handleButtonInteraction(interaction) {
         return true;
       }
 
-      userSessions.set(interaction.user.id, {
+      userSessions.set(`${interaction.guild.id}:${interaction.user.id}`, {
         guildId,
         mode: 'players-join-existing',
         expectedHumans: state.expectedHumans,
@@ -1698,7 +1728,7 @@ async function handleButtonInteraction(interaction) {
       return true;
     }
 
-    userSessions.set(interaction.user.id, { guildId });
+    userSessions.set(`${interaction.guild.id}:${interaction.user.id}`, { guildId });
     await interaction.reply({
       content: 'Choisis ton mode de jeu.',
       components: modeChoiceRows(interaction.user.id),
@@ -1713,9 +1743,9 @@ async function handleButtonInteraction(interaction) {
       await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
       return true;
     }
-    const session = userSessions.get(userId) || {};
+    const session = userSessions.get(`${interaction.guild.id}:${userId}`) || {};
     session.mode = mode;
-    userSessions.set(userId, session);
+    userSessions.set(`${interaction.guild.id}:${userId}`, session);
 
     if (mode === 'players') {
       await interaction.update({
@@ -1738,12 +1768,12 @@ async function handleButtonInteraction(interaction) {
       await interaction.reply({ content: 'Ce bouton est réservé au joueur concerné.', flags: MessageFlags.Ephemeral });
       return true;
     }
-    const session = userSessions.get(userId) || {};
+    const session = userSessions.get(`${interaction.guild.id}:${userId}`) || {};
     session.expectedHumans = Math.min(MAX_PLAYERS, Math.max(2, Number(countRaw) + 1));
-    userSessions.set(userId, session);
+    userSessions.set(`${interaction.guild.id}:${userId}`, session);
     await interaction.update({
       content: `Tu veux une course contre **${countRaw}** adversaire(s). Choisis maintenant ta Dragodinde.`,
-      components: horseChoiceRows(userId, 'players'),
+      components: horseChoiceRows(userId, 'players', false, interaction.guild.id),
     });
     return true;
   }
@@ -1755,16 +1785,16 @@ async function handleButtonInteraction(interaction) {
       return true;
     }
     const iaCount = Math.max(1, Math.min(3, Number(countRaw)));
-    const session = userSessions.get(userId) || {};
+    const session = userSessions.get(`${interaction.guild.id}:${userId}`) || {};
     session.iaCount = iaCount;
     session.formulaLabel = iaCount === 1 ? 'Double ta mise' : iaCount === 2 ? 'Triple ta mise' : 'Jackpot 2M';
     session.iaPrize = iaCount === 1 ? 100_000 : iaCount === 2 ? 300_000 : 2_000_000;
     session.iaEntryFee = iaCount === 1 ? 55_000 : iaCount === 2 ? 105_000 : 220_000;
     session.jackpotBias = iaCount === 3;
-    userSessions.set(userId, session);
+    userSessions.set(`${interaction.guild.id}:${userId}`, session);
     await interaction.update({
       content: `Pari IA sélectionné : **${session.formulaLabel}**. Choisis maintenant ta Dragodinde.`,
-      components: horseChoiceRows(userId, 'ia'),
+      components: horseChoiceRows(userId, 'ia', false, interaction.guild.id),
     });
     return true;
   }
@@ -1777,7 +1807,7 @@ async function handleButtonInteraction(interaction) {
     }
     const horseIndex = Number(horseIndexRaw);
     const guildId = interaction.guild.id;
-    const horse = HORSES[horseIndex];
+    const horse = getHorses(guildId)[horseIndex];
 
     const [allowedToPlay, blockedReason] = canUserPlay(interaction.member);
     if (!allowedToPlay) {
@@ -1786,11 +1816,11 @@ async function handleButtonInteraction(interaction) {
     }
 
     if (mode === 'ia') {
-      const session = userSessions.get(userId) || {};
+      const session = userSessions.get(`${interaction.guild.id}:${userId}`) || {};
       const entryFee = Number(session.iaEntryFee || ENTRY_FEE);
       const formulaLabel = session.formulaLabel || 'Double ta mise';
       session.pendingHorseIndex = horseIndex;
-      userSessions.set(userId, session);
+      userSessions.set(`${interaction.guild.id}:${userId}`, session);
 
       await interaction.update({
         content: `Tu as choisi **${emojiForText(horse.emoji)} ${horse.name}** pour **${formulaLabel}**.\nConfirme ta participation pour **${entryFee.toLocaleString('fr-FR')} kamas** avant de lancer la course.`,
@@ -1799,7 +1829,7 @@ async function handleButtonInteraction(interaction) {
       return true;
     }
 
-    const session = userSessions.get(userId) || {};
+    const session = userSessions.get(`${interaction.guild.id}:${userId}`) || {};
     const existing = raceStates.get(guildId);
 
     if (existing && !existing.started) {
@@ -1883,9 +1913,9 @@ async function handleButtonInteraction(interaction) {
     }
 
     const guildId = interaction.guild.id;
-    const session = userSessions.get(userId) || {};
+    const session = userSessions.get(`${interaction.guild.id}:${userId}`) || {};
     const horseIndex = Number(horseIndexRaw ?? session.pendingHorseIndex ?? 0);
-    const horse = HORSES[horseIndex];
+    const horse = getHorses(guildId)[horseIndex];
     const entryFee = Number(session.iaEntryFee || ENTRY_FEE);
     const formulaLabel = session.formulaLabel || 'Double ta mise';
     const debtRecordId = await createDebtRecord(interaction.client, guildId, interaction.user.id, horseIndex, entryFee, { mode: 'ia', formulaLabel });
@@ -1963,8 +1993,8 @@ async function handleButtonInteraction(interaction) {
     const [, , recordId] = interaction.customId.split(':');
     const db = loadDebtRecords();
     const record = db[recordId];
-    if (!record) {
-      await interaction.reply({ content: 'Enregistrement introuvable.', flags: MessageFlags.Ephemeral });
+    if (!record || record.guildId !== interaction.guild.id) {
+      await interaction.reply({ content: 'Enregistrement introuvable sur ce serveur.', flags: MessageFlags.Ephemeral });
       return true;
     }
 
@@ -1988,7 +2018,7 @@ async function handleButtonInteraction(interaction) {
     record.paidAt = new Date().toISOString();
     record.paidByAdminId = interaction.user.id;
     saveDebtRecords();
-    applyUserPayment(record.userId, record.amount);
+    applyUserPayment(record.guildId, record.userId, record.amount);
 
     const existingEmbed = interaction.message.embeds?.[0];
     if (existingEmbed) {
@@ -2008,8 +2038,8 @@ async function handleButtonInteraction(interaction) {
     const [, , recordId] = interaction.customId.split(':');
     const db = loadDebtRecords();
     const record = db[recordId];
-    if (!record) {
-      await interaction.reply({ content: 'Dette introuvable.', flags: MessageFlags.Ephemeral });
+    if (!record || record.guildId !== interaction.guild.id) {
+      await interaction.reply({ content: 'Dette introuvable sur ce serveur.', flags: MessageFlags.Ephemeral });
       return true;
     }
 
@@ -2033,7 +2063,7 @@ async function handleButtonInteraction(interaction) {
     record.paidAt = new Date().toISOString();
     record.paidByAdminId = interaction.user.id;
     saveDebtRecords();
-    applyUserPayment(record.userId, record.amount);
+    applyUserPayment(record.guildId, record.userId, record.amount);
 
     const existingEmbed = interaction.message.embeds?.[0];
     if (existingEmbed) {
@@ -2053,8 +2083,8 @@ async function handleButtonInteraction(interaction) {
     const [, , recordId] = interaction.customId.split(':');
     const db = loadPayoutRecords();
     const record = db[recordId];
-    if (!record) {
-      await interaction.reply({ content: 'Enregistrement de gain introuvable.', flags: MessageFlags.Ephemeral });
+    if (!record || record.guildId !== interaction.guild.id) {
+      await interaction.reply({ content: 'Enregistrement de gain introuvable sur ce serveur.', flags: MessageFlags.Ephemeral });
       return true;
     }
 
@@ -2074,7 +2104,7 @@ async function handleButtonInteraction(interaction) {
     record.paidAt = new Date().toISOString();
     record.paidByAdminId = interaction.user.id;
     savePayoutRecords();
-    validateUserPayout(record.userId, record.totalAmount);
+    validateUserPayout(record.guildId, record.userId, record.totalAmount);
 
     const existingEmbed = interaction.message.embeds?.[0];
     if (existingEmbed) {
@@ -2147,4 +2177,5 @@ module.exports = {
   handleButtonInteraction,
   handleConfigSelect,
   handleModalSubmit,
+  _test: { getGuildFinance, getUserFinance, getUserDebt, addUserDebt },
 };

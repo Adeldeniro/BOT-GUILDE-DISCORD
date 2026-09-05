@@ -9,6 +9,19 @@ Buttons panel per channel. Clicking a button pings the guild role **plus** a def
 4. `npm i`
 5. `npm start`
 
+## Multi-serveur
+
+- `GUILD_ID` reste la guilde primaire rétrocompatible.
+- `GUILD_IDS` accepte une liste d'autres guildes séparées par des virgules.
+- Les anciens IDs de salons/rôles fournis par l'environnement ne sont jamais hérités par une guilde secondaire.
+- Configure chaque nouvelle guilde avec ses commandes `/setup_*`; `/metiers-install` demande ses salons et rôles locaux.
+- Guide complet et retour arrière : [docs/MULTI_GUILD_MIGRATION.md](docs/MULTI_GUILD_MIGRATION.md).
+
+## Tests hors réseau
+
+- `npm test`
+- `node --check src/bot.js`
+
 ## Commands
 - `/panneau_creer canal:#ping-def canal_alerte:#alerte-def titre:"Ping DEF" epingle:true`
 - `/panneau_actualiser canal:#ping-def`

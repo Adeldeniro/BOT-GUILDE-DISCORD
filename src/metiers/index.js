@@ -13,18 +13,8 @@ const {
   EmbedBuilder,
 } = require('discord.js');
 
-// Channels (as requested)
-const CHANNEL_DASHBOARD_INSTALL = '1480657603779362961';
-const CHANNEL_FICHES_PUBLIC = '1480657603779362966';
-const CHANNEL_PING_REQUESTS = '1480657603196616847';
-
-// Roles allowed to ping artisans
-// Prefer role IDs (stable) over names (can change)
-const ALLOWED_PING_ROLE_IDS = ['1480657602382790902']; // GTO
-const ALLOWED_PING_ROLE_NAMES = ['invité', 'invite'];
-
 // Paths
-const DATA_DIR = path.join(__dirname, '..', '..', 'data');
+const DATA_DIR = process.env.METIERS_DATA_DIR || path.join(__dirname, '..', '..', 'data');
 const ASSETS_DIR = path.join(__dirname, '..', '..', 'assets');
 
 const JOBS_CATALOG_PATH = path.join(DATA_DIR, 'metiers_catalog.json');
@@ -75,8 +65,54 @@ function getJobsCatalog() {
     .filter((j) => j.key && j.label);
 }
 
-function readEmojisMap() {
-  return readJsonSafe(JOBS_EMOJIS_PATH, { version: 1, emojis: {} });
+function getGuildStore(root, guildId, fallback) {
+  if (!guildId) return fallback;
+  if (!root.guilds) root.guilds = {};
+  if (!root.guilds[guildId]) root.guilds[guildId] = structuredClone(fallback);
+  return root.guilds[guildId];
+}
+
+function readUsersDb(guildId) {
+  const root = readJsonSafe(JOBS_USERS_PATH, { version: 2, guilds: {} });
+  // Preserve old production data only for the legacy primary guild.
+  if (!root.guilds && root.users) {
+    const users = root.users;
+    root.version = 2;
+    root.guilds = {};
+    delete root.users;
+    if (process.env.GUILD_ID) root.guilds[process.env.GUILD_ID] = { version: 1, users };
+    writeJsonAtomic(JOBS_USERS_PATH, root);
+  }
+  return getGuildStore(root, guildId, { version: 1, users: {} });
+}
+
+function writeUsersDb(guildId, guildDb) {
+  const root = readJsonSafe(JOBS_USERS_PATH, { version: 2, guilds: {} });
+  if (!root.guilds) root.guilds = {};
+  root.version = 2;
+  root.guilds[guildId] = guildDb;
+  writeJsonAtomic(JOBS_USERS_PATH, root);
+}
+
+function readEmojisMap(guildId) {
+  const root = readJsonSafe(JOBS_EMOJIS_PATH, { version: 2, guilds: {} });
+  if (!root.guilds && root.emojis) {
+    const emojis = root.emojis;
+    root.version = 2;
+    root.guilds = {};
+    delete root.emojis;
+    if (process.env.GUILD_ID) root.guilds[process.env.GUILD_ID] = { version: 1, emojis };
+    writeJsonAtomic(JOBS_EMOJIS_PATH, root);
+  }
+  return getGuildStore(root, guildId, { version: 1, emojis: {} });
+}
+
+function writeEmojisMap(guildId, guildDb) {
+  const root = readJsonSafe(JOBS_EMOJIS_PATH, { version: 2, guilds: {} });
+  if (!root.guilds) root.guilds = {};
+  root.version = 2;
+  root.guilds[guildId] = guildDb;
+  writeJsonAtomic(JOBS_EMOJIS_PATH, root);
 }
 
 function clampInt(n, min, max) {
@@ -96,17 +132,12 @@ function newSessionId() {
   return crypto.randomBytes(4).toString('hex');
 }
 
-function hasAnyAllowedRole(member) {
+function hasAnyAllowedRole(member, allowedRoleIds = []) {
   const roles = member?.roles?.cache;
   if (!roles) return false;
-
-  // Check IDs first
-  const ids = roles.map((r) => String(r.id));
-  if (ids.some((id) => ALLOWED_PING_ROLE_IDS.includes(id))) return true;
-
-  // Fallback to names
-  const names = roles.map((r) => norm(r.name));
-  return names.some((n) => ALLOWED_PING_ROLE_NAMES.includes(n));
+  if (member.permissions?.has?.('Administrator')) return true;
+  const ids = new Set(roles.map((r) => String(r.id)));
+  return allowedRoleIds.some((id) => ids.has(String(id)));
 }
 
 function prettyDate(iso) {
@@ -136,8 +167,8 @@ function emojiForJobKey(jobKey, emojiMap) {
   return '';
 }
 
-async function buildUserJobsEmbed(user, profileJobs, { updatedAt } = {}) {
-  const emojiDb = readEmojisMap();
+async function buildUserJobsEmbed(user, profileJobs, { updatedAt, guildId } = {}) {
+  const emojiDb = readEmojisMap(guildId);
   const emojiMap = emojiDb.emojis || {};
 
   const jobs = Array.isArray(profileJobs) ? profileJobs : [];
@@ -221,16 +252,14 @@ function buildPublicFicheButtons(artisanId) {
 }
 
 module.exports = {
-  // constants
-  CHANNEL_DASHBOARD_INSTALL,
-  CHANNEL_FICHES_PUBLIC,
-  CHANNEL_PING_REQUESTS,
-
   // utils
   getJobsCatalog,
   readJsonSafe,
   writeJsonAtomic,
   readEmojisMap,
+  writeEmojisMap,
+  readUsersDb,
+  writeUsersDb,
   clampInt,
   normalizeJobName,
   newSessionId,

@@ -7,25 +7,34 @@ function pick(v, fallback) {
 
 function getConfigForGuild(guildId) {
   const gc = getGuildConfig(guildId) || {};
+  const isLegacyGuild = Boolean(env.guildId && guildId === env.guildId);
+  const legacy = (value) => (isLegacyGuild ? value : null);
 
   return {
     guildId,
 
     // Admin
     adminRoleId: pick(gc.admin_role_id, null),
-    adminRoleIdsLegacy: env.adminRoleIds,
+    adminRoleIdsLegacy: isLegacyGuild ? env.adminRoleIds : [],
 
-    // Ping panel
-    panelChannelId: pick(gc.panel_channel_id, env.defaultChannelId),
-    alertChannelId: pick(gc.alert_channel_id, env.alertChannelId),
-    defRoleId: pick(gc.def_role_id, env.defRoleId),
+    // Ping panel. Legacy env IDs only apply to GUILD_ID, never to GUILD_IDS peers.
+    panelChannelId: pick(gc.panel_channel_id, legacy(env.defaultChannelId)),
+    alertChannelId: pick(gc.alert_channel_id, legacy(env.alertChannelId)),
+    defRoleId: pick(gc.def_role_id, legacy(env.defRoleId)),
     panelTitle: pick(gc.panel_title, env.panelTitle),
     cooldownSeconds: Number(pick(gc.cooldown_seconds, env.cooldownSeconds) || 10),
 
     // Scoreboard
-    scoreboardChannelId: pick(gc.scoreboard_channel_id, env.scoreboardChannelId),
-    guildeuxRoleId: pick(gc.guildeux_role_id, env.guildeuxRoleId),
+    scoreboardChannelId: pick(gc.scoreboard_channel_id, legacy(env.scoreboardChannelId)),
+    guildeuxRoleId: pick(gc.guildeux_role_id, legacy(env.guildeuxRoleId)),
     scoreboardTopN: Number(pick(gc.scoreboard_top_n, env.scoreboardTopN) || 25),
+
+    // Métiers (strictly per guild)
+    metiersDashboardChannelId: pick(gc.metiers_dashboard_channel_id, null),
+    metiersPublicChannelId: pick(gc.metiers_public_channel_id, null),
+    metiersPingChannelId: pick(gc.metiers_ping_channel_id, null),
+    metiersAllowedRoleIds: String(pick(gc.metiers_allowed_role_ids, '') || '')
+      .split(',').map(s => s.trim()).filter(Boolean),
 
     // Dashboard
     dashboardChannelId: pick(gc.dashboard_channel_id, null),

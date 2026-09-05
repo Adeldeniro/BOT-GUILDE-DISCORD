@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const logger = require('./logger');
 
-const dbPath = path.join(__dirname, '..', 'data.sqlite');
+const dbPath = process.env.DB_PATH || path.join(__dirname, '..', 'data.sqlite');
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
@@ -114,7 +114,11 @@ CREATE TABLE IF NOT EXISTS guild_config (
   elite_staff_channel_id TEXT,
   elite_staff_role_ids TEXT,
   elite_suffix TEXT,
-  elite_enabled INTEGER
+  elite_enabled INTEGER,
+  metiers_dashboard_channel_id TEXT,
+  metiers_public_channel_id TEXT,
+  metiers_ping_channel_id TEXT,
+  metiers_allowed_role_ids TEXT
 );
 
 CREATE TABLE IF NOT EXISTS dofusbook_builds (
@@ -421,6 +425,16 @@ if (!cfgCols.includes('elite_suffix')) {
 }
 if (!cfgCols.includes('elite_enabled')) {
   try { db.exec('ALTER TABLE guild_config ADD COLUMN elite_enabled INTEGER'); } catch {}
+}
+for (const column of [
+  'metiers_dashboard_channel_id',
+  'metiers_public_channel_id',
+  'metiers_ping_channel_id',
+  'metiers_allowed_role_ids',
+]) {
+  if (!cfgCols.includes(column)) {
+    try { db.exec(`ALTER TABLE guild_config ADD COLUMN ${column} TEXT`); } catch {}
+  }
 }
 
 // Migration for event_submissions

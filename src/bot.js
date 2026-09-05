@@ -1,4 +1,4 @@
-﻿const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, REST, Routes, SlashCommandBuilder, ContextMenuCommandBuilder, ApplicationCommandType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, Partials, StringSelectMenuBuilder, ChannelType } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
@@ -40,7 +40,7 @@ logger.info('[boot] process starting', logger.runtimeSnapshot({
   logToFile: config.logToFile,
   logDir: config.logDir,
   heartbeatIntervalSeconds: config.heartbeatIntervalSeconds,
-  guildIdConfigured: !!config.guildId,
+  guildIdsConfigured: config.guildIds.length,
 }));
 
 function ensureJsonFile(filePath, fallback) {
@@ -3153,7 +3153,12 @@ async function registerCommands(client) {
 
     new SlashCommandBuilder()
       .setName('metiers-install')
-      .setDescription('Installer le dashboard métiers (admin only)')
+      .setDescription('Installer et configurer les métiers (admin only)')
+      .addChannelOption(o => o.setName('fiches').setDescription('Salon des fiches publiques').addChannelTypes(0,5).setRequired(true))
+      .addChannelOption(o => o.setName('demandes').setDescription('Salon des demandes de craft').addChannelTypes(0,5).setRequired(true))
+      .addRoleOption(o => o.setName('role_autorise1').setDescription('Rôle autorisé à demander un craft').setRequired(true))
+      .addRoleOption(o => o.setName('role_autorise2').setDescription('Rôle autorisé supplémentaire').setRequired(false))
+      .addRoleOption(o => o.setName('role_autorise3').setDescription('Rôle autorisé supplémentaire').setRequired(false))
       .setDMPermission(false),
 
     new SlashCommandBuilder()
@@ -3221,7 +3226,9 @@ async function registerCommands(client) {
 
     new SlashCommandBuilder()
       .setName('setup_recherche_team')
-      .setDescription('Configurer le panneau de recherche de team et ses notifications'),
+      .setDescription('Configurer le panneau de recherche de team et ses notifications')
+      .addRoleOption(o => o.setName('role_pvp').setDescription('Rôle de notification PvP').setRequired(true))
+      .addRoleOption(o => o.setName('role_pvm').setDescription('Rôle de notification PvM').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('setup_events')
@@ -3247,16 +3254,22 @@ async function registerCommands(client) {
   // If you need a reset, do it manually once.
 
 
-  // Always register guild commands when possible (fast propagation)
-  if (!config.guildId) throw new Error('GUILD_ID is required for fast slash command propagation');
+  // Guild-scoped commands keep propagation fast. GUILD_ID alone remains supported.
+  if (!config.guildIds.length) throw new Error('GUILD_IDS or legacy GUILD_ID is required for slash command propagation');
 
-  console.log('[bot] registering guild commands...', { guildId: config.guildId, count: commands.length });
-  try {
-    const out = await rest.put(Routes.applicationGuildCommands(client.user.id, config.guildId), { body: commands });
-    console.log('[bot] guild commands registered:', Array.isArray(out) ? out.length : 'ok');
-  } catch (e) {
-    console.error('[bot] command registration failed:', e?.message || e, e?.rawError || '');
-    throw e;
+  const failures = [];
+  for (const guildId of config.guildIds) {
+    console.log('[bot] registering guild commands...', { guildId, count: commands.length });
+    try {
+      const out = await rest.put(Routes.applicationGuildCommands(client.user.id, guildId), { body: commands });
+      console.log('[bot] guild commands registered:', { guildId, count: Array.isArray(out) ? out.length : 'ok' });
+    } catch (e) {
+      failures.push(guildId);
+      console.error('[bot] command registration failed:', { guildId, error: e?.message || e, raw: e?.rawError || '' });
+    }
+  }
+  if (failures.length === config.guildIds.length) {
+    throw new Error(`Command registration failed for every configured guild: ${failures.join(', ')}`);
   }
 }
 
@@ -3284,98 +3297,65 @@ async function main() {
       await registerCommands(client);
       await dragodinde.onReady(client).catch((error) => console.error('[dragodinde] ready failed', error));
 
-      const guild = config.guildId ? await client.guilds.fetch(config.guildId) : null;
-      logger.info('[discord] guild fetch after ready', {
-        configuredGuildId: config.guildId,
-        guildFound: !!guild,
-        guildName: guild?.name || null,
-        guildId: guild?.id || null,
-      });
-
-      if (guild && config.defaultChannelId) {
-        const channel = await client.channels.fetch(config.defaultChannelId);
-
-        // Seed first button if not present (legacy)
-        panel.upsertGuildButton(guild.id, config.defaultChannelId, {
-          name: 'GTO',
-          roleId: '1480657602382790902',
-          label: 'GTO',
-          sortOrder: 0,
+      for (const guildId of config.guildIds) {
+        const guild = await client.guilds.fetch(guildId).catch(() => null);
+        logger.info('[discord] guild fetch after ready', {
+          configuredGuildId: guildId,
+          guildFound: !!guild,
+          guildName: guild?.name || null,
         });
+        if (!guild) continue;
 
-        const rc = getConfigForGuild(guild.id);
-        await ensurePanelMessage(channel, rc);
-      }
-
-      // Scoreboard message in dedicated channel (only if configured)
-      let scoreboardChannel = null;
-      if (guild) {
+        // ensureRow is intentionally empty: a new guild never inherits primary IDs.
         const rc0 = getConfigForGuild(guild.id);
+        if (rc0.panelChannelId) {
+          const channel = await client.channels.fetch(rc0.panelChannelId).catch(() => null);
+          if (channel?.isTextBased()) await ensurePanelMessage(channel, rc0).catch(() => {});
+        }
+
+        let scoreboardChannel = null;
         if (rc0.scoreboardChannelId && rc0.guildeuxRoleId) {
           scoreboardChannel = await client.channels.fetch(rc0.scoreboardChannelId).catch(() => null);
-          if (scoreboardChannel && scoreboardChannel.isTextBased()) {
+          if (scoreboardChannel?.isTextBased()) {
             await scoreboard.ensureScoreboardMessage(guild, scoreboardChannel, { topN: rc0.scoreboardTopN });
           } else {
-            console.warn('[bot] scoreboard channel not accessible:', rc0.scoreboardChannelId);
+            console.warn('[bot] scoreboard channel not accessible:', { guildId, channelId: rc0.scoreboardChannelId });
           }
-
-          // Weekly announcement scheduler (checks every 30s)
-          setInterval(async () => {
-            try {
-              if (scoreboardChannel && scoreboardChannel.isTextBased()) {
-                await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10, hour: 22 });
-
-                // Almanax daily post @ 00:00 Europe/Paris
-                try {
-                  const rcA = getConfigForGuild(guild.id);
-                  await maybeDailyAlmanax(guild, rcA);
-                } catch (e2) {
-                  console.warn('[bot] almanax daily failed:', e2?.message || e2);
-                }
-              }
-            } catch (e) {
-              console.warn('[bot] weekly announcement error:', e?.message || e);
-            }
-          }, 30_000);
-        } else {
-          console.warn('[bot] scoreboard disabled (missing config in DB)');
         }
+
+        // One independent maintenance tick per guild, including Almanax even
+        // when that guild has no scoreboard configured.
+        setInterval(async () => {
+          try {
+            const current = getConfigForGuild(guild.id);
+            if (scoreboardChannel?.isTextBased()) {
+              await scoreboard.maybeWeeklyAnnouncement(guild, scoreboardChannel, { topN: 10, hour: 22 });
+            }
+            await maybeDailyAlmanax(guild, current);
+          } catch (error) {
+            console.warn('[bot] guild maintenance error:', { guildId: guild.id, error: error?.message || error });
+          }
+        }, 30_000);
+
+        if (rc0.defRoleId) {
+          const perm = canPingRole(guild, client.user, rc0.defRoleId);
+          if (!perm.ok) console.warn('[bot] DEF role ping may fail:', { guildId, reason: perm.reason });
+        }
+        if (rc0.helpChannelId) await ensureHelpMessage(guild, rc0).catch(() => {});
+        if (rc0.koliScreenChannelId && rc0.koliPanelChannelId) await ensureKoliScreenPanel(guild, rc0).catch(() => {});
+        if (rc0.eliteEnabled && rc0.elitePanelChannelId) {
+          const eliteChannel = await client.channels.fetch(rc0.elitePanelChannelId).catch(() => null);
+          if (eliteChannel?.isTextBased()) await ensureElitePanel(guild, eliteChannel, rc0).catch(() => {});
+        }
+        await refreshInvites(guild);
       }
 
       logger.info('[bot] ready', logger.runtimeSnapshot({
         botUserId: client.user?.id || null,
         botTag: client.user?.tag || null,
         guildCount: client.guilds.cache.size,
+        configuredGuildCount: config.guildIds.length,
       }));
-
-      // Validate def role mentionability (if configured)
-      const me = client.user;
-      const rc0 = guild ? getConfigForGuild(guild.id) : null;
-      if (guild && rc0?.defRoleId) {
-        const perm = canPingRole(guild, me, rc0.defRoleId);
-        if (!perm.ok) console.warn('[bot] DEF role ping may fail:', perm.reason);
-      }
-
-      // Help/commands box (staff guide)
-      if (guild && rc0?.helpChannelId) {
-        await ensureHelpMessage(guild, rc0);
-      }
-
-      if (guild && rc0?.koliScreenChannelId && rc0?.koliPanelChannelId) {
-        await ensureKoliScreenPanel(guild, rc0).catch(() => {});
-      }
-
-      if (guild && rc0?.eliteEnabled && rc0?.elitePanelChannelId) {
-        const eliteChannel = await client.channels.fetch(rc0.elitePanelChannelId).catch(() => null);
-        if (eliteChannel && eliteChannel.isTextBased()) {
-          await ensureElitePanel(guild, eliteChannel, rc0).catch(() => {});
-        }
-      }
-
-      // Preload invite cache for surveillance
-      if (guild) {
-        await refreshInvites(guild);
-      }
     } catch (e) {
       console.error('[bot] ready error', e);
     }
@@ -4728,7 +4708,7 @@ async function main() {
           const lvl = metiers.clampInt(lvlRaw, 1, 100);
           if (!lvl) return interaction.reply({ content: 'Niveau invalide (1 à 100).', ephemeral: true });
 
-          const db2 = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const db2 = metiers.readUsersDb(interaction.guild.id);
           if (!db2.users) db2.users = {};
           const prev = db2.users[interaction.user.id] || {};
           const jobs = Array.isArray(prev.jobs) ? prev.jobs : [];
@@ -4743,12 +4723,12 @@ async function main() {
           else jobs.push(next);
 
           db2.users[interaction.user.id] = { jobs, messageId: prev.messageId || null, updatedAt: new Date().toISOString() };
-          metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db2);
+          metiers.writeUsersDb(interaction.guild.id, db2);
 
           // Update public fiche in dedicated channel
-          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_FICHES_PUBLIC).catch(() => null);
+          const ch = await interaction.client.channels.fetch(getConfigForGuild(interaction.guild.id).metiersPublicChannelId).catch(() => null);
           if (ch && ch.isTextBased()) {
-            const embed = await metiers.buildUserJobsEmbed(interaction.user, jobs, { updatedAt: db2.users[interaction.user.id].updatedAt });
+            const embed = await metiers.buildUserJobsEmbed(interaction.user, jobs, { updatedAt: db2.users[interaction.user.id].updatedAt, guildId: interaction.guild.id });
             let msg = null;
             if (prev.messageId) {
               msg = await ch.messages.fetch(prev.messageId).catch(() => null);
@@ -4759,7 +4739,7 @@ async function main() {
             }
             if (msg) {
               db2.users[interaction.user.id].messageId = msg.id;
-              metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db2);
+              metiers.writeUsersDb(interaction.guild.id, db2);
             }
           }
 
@@ -6127,8 +6107,8 @@ async function main() {
             await interaction.reply({ content: '⏳ Je mets en place la recherche de team...', ephemeral: true }).catch(() => {});
 
             try {
-              const pvpRoleId = '1480657602382790904';
-              const pvmRoleId = '1514838067779862598';
+              const pvpRoleId = interaction.options.getRole('role_pvp', true).id;
+              const pvmRoleId = interaction.options.getRole('role_pvm', true).id;
               let pvpThread = await salon.threads.create({ name: '⚔️ Discussions PvP', autoArchiveDuration: 10080, reason: 'Discussions recherche team PvP' }).catch(() => null);
               let pvmThread = await salon.threads.create({ name: '🐉 Discussions PvM', autoArchiveDuration: 10080, reason: 'Discussions recherche team PvM' }).catch(() => null);
 
@@ -6639,9 +6619,17 @@ async function main() {
             return interaction.reply({ content: 'Commande réservée aux **admins** du serveur.', ephemeral: true });
           }
 
-          if (interaction.channelId !== metiers.CHANNEL_DASHBOARD_INSTALL) {
-            return interaction.reply({ content: `Installe le dashboard uniquement dans <#${metiers.CHANNEL_DASHBOARD_INSTALL}>.`, ephemeral: true });
-          }
+          const publicChannel = interaction.options.getChannel('fiches', true);
+          const pingChannel = interaction.options.getChannel('demandes', true);
+          const allowedRoleIds = ['role_autorise1', 'role_autorise2', 'role_autorise3']
+            .map(name => interaction.options.getRole(name)?.id)
+            .filter(Boolean);
+          updateGuildConfig(interaction.guild.id, {
+            metiers_dashboard_channel_id: interaction.channelId,
+            metiers_public_channel_id: publicChannel.id,
+            metiers_ping_channel_id: pingChannel.id,
+            metiers_allowed_role_ids: allowedRoleIds.join(','),
+          });
 
           const embed = metiers.buildDashboardEmbed();
           const components = metiers.buildDashboardButtons();
@@ -6665,7 +6653,7 @@ async function main() {
           await interaction.reply({ content: '🔄 Sync des emojis métiers…', ephemeral: true });
 
           const catalog = metiers.getJobsCatalog();
-          const db = metiers.readJsonSafe(metiers.JOBS_EMOJIS_PATH, { version: 1, emojis: {} });
+          const db = metiers.readEmojisMap(interaction.guild.id);
           if (!db.emojis) db.emojis = {};
 
           // Build existing emoji map by name
@@ -6711,7 +6699,7 @@ async function main() {
             await new Promise((r) => setTimeout(r, 900));
           }
 
-          metiers.writeJsonAtomic(metiers.JOBS_EMOJIS_PATH, db);
+          metiers.writeEmojisMap(interaction.guild.id, db);
           await interaction.editReply({
             content: `✅ Emojis sync terminé. Créés: **${created}** • Réutilisés: **${reused}** • Fichiers manquants: **${missingFile}** • Échecs: **${failed}**`,
           }).catch(() => {});
@@ -6723,7 +6711,8 @@ async function main() {
             return interaction.reply({ content: 'Admins uniquement.', ephemeral: true });
           }
 
-          const pingId = metiers.CHANNEL_PING_REQUESTS;
+          const pingId = getConfigForGuild(interaction.guild.id).metiersPingChannelId;
+          if (!pingId) return interaction.reply({ content: '❌ Métiers non configuré sur ce serveur. Lance `/metiers-install`.', ephemeral: true });
           const ch = await interaction.client.channels.fetch(pingId).catch((e) => {
             console.error('[debug] fetch channel failed', e);
             return null;
@@ -7028,17 +7017,17 @@ ${info}`.slice(0, 1900),
 
         if (interaction.customId === 'mj:del_choose') {
           const key = interaction.values?.[0];
-          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const db = metiers.readUsersDb(interaction.guild.id);
           if (!db.users) db.users = {};
           const prev = db.users[interaction.user.id] || {};
           const jobs = Array.isArray(prev.jobs) ? prev.jobs : [];
           const nextJobs = jobs.filter((j) => j.key !== key);
           db.users[interaction.user.id] = { jobs: nextJobs, messageId: prev.messageId || null, updatedAt: new Date().toISOString() };
-          metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db);
+          metiers.writeUsersDb(interaction.guild.id, db);
 
           // Update public fiche
           try {
-            const ch = await interaction.client.channels.fetch(metiers.CHANNEL_FICHES_PUBLIC).catch(() => null);
+            const ch = await interaction.client.channels.fetch(getConfigForGuild(interaction.guild.id).metiersPublicChannelId).catch(() => null);
             if (ch && ch.isTextBased()) {
               if (prev.messageId) {
                 const m = await ch.messages.fetch(prev.messageId).catch(() => null);
@@ -7059,7 +7048,7 @@ ${info}`.slice(0, 1900),
           const hit = list.find((j) => j.key === key);
           const label = hit?.label || key;
 
-          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const db = metiers.readUsersDb(interaction.guild.id);
           const users = db.users || {};
 
           const matches = [];
@@ -7078,6 +7067,7 @@ ${info}`.slice(0, 1900),
 
           const searchId = metiers.newSessionId();
           metiers.jobSearchSessions.set(searchId, {
+            guildId: interaction.guild.id,
             requesterId: interaction.user.id,
             jobKey: key,
             jobLabel: label,
@@ -7094,7 +7084,7 @@ ${info}`.slice(0, 1900),
             const prof = users[m.userId] || {};
             const jobs = Array.isArray(prof.jobs) ? prof.jobs : [];
             // eslint-disable-next-line no-await-in-loop
-            embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt }));
+            embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt, guildId: interaction.guild.id }));
             components.push(new ActionRowBuilder().addComponents(
               new ButtonBuilder().setCustomId(`mj:req:${searchId}:${m.userId}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
             ));
@@ -7444,7 +7434,7 @@ ${info}`.slice(0, 1900),
 
         // Métiers buttons
         if (interaction.customId === 'mj:open') {
-          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const db = metiers.readUsersDb(interaction.guild.id);
           const profile = (db.users || {})[interaction.user.id] || {};
           const jobs = Array.isArray(profile.jobs) ? profile.jobs : [];
           const rows = metiers.buildManagePanelButtons(jobs.length > 0);
@@ -7471,7 +7461,7 @@ ${info}`.slice(0, 1900),
         }
 
         if (interaction.customId === 'mj:del') {
-          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const db = metiers.readUsersDb(interaction.guild.id);
           const profile = (db.users || {})[interaction.user.id] || {};
           const cur = Array.isArray(profile.jobs) ? profile.jobs : [];
           if (!cur.length) return interaction.reply({ content: "Tu n'as aucun métier enregistré.", ephemeral: true }).catch(() => {});
@@ -7506,15 +7496,15 @@ ${info}`.slice(0, 1900),
         }
 
         if (interaction.customId === 'mj:reset_yes') {
-          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const db = metiers.readUsersDb(interaction.guild.id);
           if (!db.users) db.users = {};
           const prev = db.users[interaction.user.id] || {};
           const messageId = prev.messageId || null;
           db.users[interaction.user.id] = { jobs: [], messageId, updatedAt: new Date().toISOString() };
-          metiers.writeJsonAtomic(metiers.JOBS_USERS_PATH, db);
+          metiers.writeUsersDb(interaction.guild.id, db);
 
           try {
-            const ch = await interaction.client.channels.fetch(metiers.CHANNEL_FICHES_PUBLIC).catch(() => null);
+            const ch = await interaction.client.channels.fetch(getConfigForGuild(interaction.guild.id).metiersPublicChannelId).catch(() => null);
             if (ch && ch.isTextBased() && messageId) {
               const m = await ch.messages.fetch(messageId).catch(() => null);
               if (m) {
@@ -7545,10 +7535,10 @@ ${info}`.slice(0, 1900),
           const offset = Number(parts[3] || 0);
 
           const sess = metiers.jobSearchSessions.get(searchId);
-          if (!sess) return interaction.reply({ content: 'Session expirée, relance une recherche.', ephemeral: true }).catch(() => {});
+          if (!sess || sess.guildId !== interaction.guild.id) return interaction.reply({ content: 'Session expirée sur ce serveur, relance une recherche.', ephemeral: true }).catch(() => {});
           if (sess.requesterId !== interaction.user.id) return interaction.reply({ content: 'Ce bouton ne t’appartient pas.', ephemeral: true }).catch(() => {});
 
-          const db = metiers.readJsonSafe(metiers.JOBS_USERS_PATH, { version: 1, users: {} });
+          const db = metiers.readUsersDb(interaction.guild.id);
           const users = db.users || {};
           const slice = sess.userIds.slice(offset, offset + 3);
 
@@ -7561,7 +7551,7 @@ ${info}`.slice(0, 1900),
             const prof = users[uid] || {};
             const jobs = Array.isArray(prof.jobs) ? prof.jobs : [];
             // eslint-disable-next-line no-await-in-loop
-            embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt }));
+            embeds.push(await metiers.buildUserJobsEmbed(u, jobs, { updatedAt: prof.updatedAt, guildId: interaction.guild.id }));
             components.push(new ActionRowBuilder().addComponents(
               new ButtonBuilder().setCustomId(`mj:req:${searchId}:${uid}`).setLabel('📣 Demander un craft').setStyle(ButtonStyle.Primary)
             ));
@@ -7587,15 +7577,15 @@ ${info}`.slice(0, 1900),
           const targetId = parts[3];
 
           const sess = metiers.jobSearchSessions.get(searchId);
-          if (!sess) return interaction.reply({ content: 'Session expirée, relance une recherche.', ephemeral: true }).catch(() => {});
+          if (!sess || sess.guildId !== interaction.guild.id) return interaction.reply({ content: 'Session expirée sur ce serveur, relance une recherche.', ephemeral: true }).catch(() => {});
           if (sess.requesterId !== interaction.user.id) return interaction.reply({ content: 'Ce bouton ne t’appartient pas.', ephemeral: true }).catch(() => {});
 
           const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-          if (!member || !metiers.hasAnyAllowedRole(member)) {
+          if (!member || !metiers.hasAnyAllowedRole(member, getConfigForGuild(interaction.guild.id).metiersAllowedRoleIds)) {
             return interaction.reply({ content: 'Réservé aux rôles **Guildeux** ou **Invité**.', ephemeral: true }).catch(() => {});
           }
 
-          const keyCooldown = `${interaction.user.id}:${targetId}`;
+          const keyCooldown = `${interaction.guild.id}:${interaction.user.id}:${targetId}`;
           const now = Date.now();
           const last = metiers.craftPingLast.get(keyCooldown) || 0;
           const wait = metiers.PING_COOLDOWN_MS - (now - last);
@@ -7604,7 +7594,7 @@ ${info}`.slice(0, 1900),
             return interaction.reply({ content: `⏳ Attends encore ${sec}s avant de recontacter <@${targetId}>.`, ephemeral: true }).catch(() => {});
           }
 
-          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_PING_REQUESTS).catch((e) => {
+          const ch = await interaction.client.channels.fetch(getConfigForGuild(interaction.guild.id).metiersPingChannelId).catch((e) => {
             console.error('[metiers] fetch ping channel failed:', e);
             return null;
           });
@@ -7658,11 +7648,11 @@ ${info}`.slice(0, 1900),
           const targetId = parts[2];
 
           const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
-          if (!member || !metiers.hasAnyAllowedRole(member)) {
+          if (!member || !metiers.hasAnyAllowedRole(member, getConfigForGuild(interaction.guild.id).metiersAllowedRoleIds)) {
             return interaction.reply({ content: 'Réservé aux rôles **Guildeux** ou **Invité**.', ephemeral: true }).catch(() => {});
           }
 
-          const keyCooldown = `${interaction.user.id}:${targetId}`;
+          const keyCooldown = `${interaction.guild.id}:${interaction.user.id}:${targetId}`;
           const now = Date.now();
           const last = metiers.craftPingLast.get(keyCooldown) || 0;
           const wait = metiers.PING_COOLDOWN_MS - (now - last);
@@ -7670,7 +7660,7 @@ ${info}`.slice(0, 1900),
             const sec = Math.ceil(wait / 1000);
             return interaction.reply({ content: `⏳ Attends encore ${sec}s avant de recontacter <@${targetId}>.`, ephemeral: true }).catch(() => {});
           }
-          const ch = await interaction.client.channels.fetch(metiers.CHANNEL_PING_REQUESTS).catch((e) => {
+          const ch = await interaction.client.channels.fetch(getConfigForGuild(interaction.guild.id).metiersPingChannelId).catch((e) => {
             console.error('[metiers] fetch ping channel failed:', e);
             return null;
           });
