@@ -28,7 +28,7 @@ Les tests utilisent une base SQLite et des répertoires temporaires. Ils ne se c
 3. Déployer cette branche dans un nouvel emplacement avec une copie de la sauvegarde et un token de bot de test.
 4. Définir `GUILD_ID` sur le serveur historique et `GUILD_IDS` sur le ou les serveurs pilotes.
 5. Sur chaque nouvelle guilde, exécuter les commandes de configuration. Pour les métiers, lancer `/metiers-install` dans le salon du dashboard et sélectionner les salons/rôles de cette guilde.
-6. Vérifier `/config_status`, les panneaux, le scoreboard, Dragodinde et métiers sur chaque serveur avant toute bascule.
+6. Vérifier `/setup_status`, les panneaux, le scoreboard, Dragodinde et métiers sur chaque serveur avant toute bascule.
 7. Seulement après validation, planifier séparément la bascule de production.
 
 ## Migration des fichiers JSON
